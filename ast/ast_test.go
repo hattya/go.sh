@@ -142,3 +142,24 @@ func TestQuote(t *testing.T) {
 		t.Errorf("Quote.End() = %v, expected %v", g, e)
 	}
 }
+
+func TestComment(t *testing.T) {
+	var n ast.Node = new(ast.Comment)
+	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Comment.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Comment.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.Comment{
+		Hash: ast.NewPos(1, 1),
+		Text: " comment",
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Comment.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 9); e != g {
+		t.Errorf("Comment.End() = %v, expected %v", g, e)
+	}
+}

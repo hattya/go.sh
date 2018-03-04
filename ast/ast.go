@@ -85,3 +85,12 @@ func (w *Quote) End() Pos {
 
 func (w *Lit) wordPartNode()   {}
 func (w *Quote) wordPartNode() {}
+
+// Comment represents a comment.
+type Comment struct {
+	Hash Pos    // position of "#"
+	Text string // comment text (excluding "\n")
+}
+
+func (c *Comment) Pos() Pos { return c.Hash }
+func (c *Comment) End() Pos { return c.Hash.shift(len(c.Text)) }

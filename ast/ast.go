@@ -34,6 +34,12 @@ type Node interface {
 	End() Pos // position of the character immediately after the node
 }
 
+// Command represents a command.
+type Command interface {
+	Node
+	commandNode()
+}
+
 // Word represents a WORD token.
 type Word []WordPart
 

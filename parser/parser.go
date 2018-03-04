@@ -39,9 +39,11 @@ import (
 )
 
 type yySymType struct {
-	yys  int
-	list []ast.Word
-	word ast.Word
+	yys   int
+	list  *ast.List
+	token token
+	word  ast.Word
+	words []ast.Word
 }
 
 const WORD = 57346
@@ -50,6 +52,8 @@ var yyToknames = [...]string{
 	"$end",
 	"error",
 	"$unk",
+	"'&'",
+	"';'",
 	"WORD",
 }
 var yyStatenames = [...]string{}
@@ -63,7 +67,7 @@ func init() {
 }
 
 // ParseCommand parses src and returns a command.
-func ParseCommand(name string, src interface{}) ([]ast.Word, []*ast.Comment, error) {
+func ParseCommand(name string, src interface{}) (ast.Command, []*ast.Comment, error) {
 	r, err := open(src)
 	if err != nil {
 		return nil, nil, err
@@ -98,43 +102,48 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 4
+const yyLast = 8
 
 var yyAct = [...]int{
 
-	4, 3, 1, 2,
+	8, 6, 7, 1, 4, 3, 5, 2,
 }
 var yyPact = [...]int{
 
-	-3, -1000, -4, -1000, -1000,
+	-2, -1000, -3, -6, -1000, -1000, -1000, -1000, -1000,
 }
 var yyPgo = [...]int{
 
-	0, 3, 2,
+	0, 7, 6, 5, 3,
 }
 var yyR1 = [...]int{
 
-	0, 2, 2, 1, 1,
+	0, 4, 4, 4, 1, 3, 3, 2, 2,
 }
 var yyR2 = [...]int{
 
-	0, 1, 0, 1, 2,
+	0, 2, 1, 0, 1, 1, 2, 1, 1,
 }
 var yyChk = [...]int{
 
-	-1000, -2, -1, 4, 4,
+	-1000, -4, -1, -3, 6, -2, 4, 5, 6,
 }
 var yyDef = [...]int{
 
-	2, -2, 1, 3, 4,
+	3, -2, 2, 4, 5, 1, 7, 8, 6,
 }
 var yyTok1 = [...]int{
 
-	1,
+	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 4, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 5,
 }
 var yyTok2 = [...]int{
 
-	2, 3, 4,
+	2, 3, 6,
 }
 var yyTok3 = [...]int{
 	0,
@@ -476,19 +485,31 @@ yydefault:
 	switch yynt {
 
 	case 1:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyDollar[1].list.SepPos = yyDollar[2].token.pos
+			yyDollar[1].list.Sep = yyDollar[2].token.val
+			yylex.(*lexer).cmd = yyDollar[1].list
+		}
+	case 2:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			yylex.(*lexer).cmd = yyDollar[1].list
 		}
-	case 3:
+	case 4:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			yyVAL.list = append(yyVAL.list, yyDollar[1].word)
+			yyVAL.list = &ast.List{Pipeline: yyDollar[1].words}
 		}
-	case 4:
+	case 5:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.words = append(yyVAL.words, yyDollar[1].word)
+		}
+	case 6:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.list = append(yyVAL.list, yyDollar[2].word)
+			yyVAL.words = append(yyVAL.words, yyDollar[2].word)
 		}
 	}
 	goto yystack /* stack new state and value */

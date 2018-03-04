@@ -1,6 +1,5 @@
-%{
 //
-// go.sh/parser :: parser.go
+// go.sh/parser :: lexer_test.go
 //
 //   Copyright (c) 2018 Akinori Hattori <hattya@gmail.com>
 //
@@ -28,97 +27,29 @@
 package parser
 
 import (
-	"bufio"
-	"bytes"
-	"errors"
-	"io"
-	"strings"
+	"testing"
 
 	"github.com/hattya/go.sh/ast"
 )
-%}
 
-%union {
-	list  *ast.List
-	token token
-	word  ast.Word
-	words []ast.Word
-}
-
-%token<token> '&' ';'
-%token<word>  WORD
-
-%type<list>  and_or
-%type<token> sep_op
-%type<words> pipeline
-
-%left '&' ';'
-
-%%
-
-cmdline:
-		and_or sep_op
-		{
-			$1.SepPos = $2.pos
-			$1.Sep = $2.val
-			yylex.(*lexer).cmd = $1
-		}
-	|	and_or
-		{
-			yylex.(*lexer).cmd = $1
-		}
-	|	/* empty */
-
-and_or:
-		pipeline
-		{
-			$$ = &ast.List{Pipeline: $1}
-		}
-
-pipeline:
-		         WORD
-		{
-			$$ = append($$, $1)
-		}
-	|	pipeline WORD
-		{
-			$$ = append($$, $2)
-		}
-
-sep_op:
-		'&'
-	|	';'
-
-%%
-
-func init() {
-	yyErrorVerbose = true
-}
-
-// ParseCommand parses src and returns a command.
-func ParseCommand(name string, src interface{}) (ast.Command, []*ast.Comment, error) {
-	r, err := open(src)
-	if err != nil {
-		return nil, nil,err
+func TestToken(t *testing.T) {
+	var n ast.Node = token{}
+	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("token.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("token.End() = %v, expected %v", g, e)
 	}
 
-	l := newLexer(name, r)
-	yyParse(l)
-	return l.cmd, l.comments, l.err
-}
-
-func open(src interface{}) (r io.RuneScanner, err error) {
-	switch src := src.(type) {
-	case []byte:
-		r = bytes.NewReader(src)
-	case string:
-		r = strings.NewReader(src)
-	case io.RuneScanner:
-		r = src
-	case io.Reader:
-		r = bufio.NewReader(src)
-	default:
-		err = errors.New("invalid source")
+	n = token{
+		typ: '&',
+		pos: ast.NewPos(1, 1),
+		val: "&",
 	}
-	return
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("token.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 2); e != g {
+		t.Errorf("token.End() = %v, expected %v", g, e)
+	}
 }

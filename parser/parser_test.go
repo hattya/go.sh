@@ -40,7 +40,7 @@ import (
 
 var parseCommandTests = []struct {
 	src      string
-	cmd      []ast.Word
+	cmd      ast.Command
 	comments []*ast.Comment
 }{
 	// <blank>
@@ -55,60 +55,76 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "echo 1\t\t22 \t 333",
-		cmd: []ast.Word{
-			word(lit(1, 1, "echo")),
-			word(lit(1, 6, "1")),
-			word(lit(1, 9, "22")),
-			word(lit(1, 14, "333")),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "echo")),
+				word(lit(1, 6, "1")),
+				word(lit(1, 9, "22")),
+				word(lit(1, 14, "333")),
+			},
+		),
 	},
 	{
 		src: "echo\t1  22\t \t333\n",
-		cmd: []ast.Word{
-			word(lit(1, 1, "echo")),
-			word(lit(1, 6, "1")),
-			word(lit(1, 9, "22")),
-			word(lit(1, 14, "333")),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "echo")),
+				word(lit(1, 6, "1")),
+				word(lit(1, 9, "22")),
+				word(lit(1, 14, "333")),
+			},
+		),
 	},
 	// quoting
 	{
 		src: "\\pwd\n",
-		cmd: []ast.Word{
-			word(quote(1, 1, "\\", word(lit(1, 2, "p"))), lit(1, 3, "wd")),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(quote(1, 1, "\\", word(lit(1, 2, "p"))), lit(1, 3, "wd")),
+			},
+		),
 	},
 	{
 		src: "p\\wd\n",
-		cmd: []ast.Word{
-			word(lit(1, 1, "p"), quote(1, 2, "\\", word(lit(1, 3, "w"))), lit(1, 4, "d")),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "p"), quote(1, 2, "\\", word(lit(1, 3, "w"))), lit(1, 4, "d")),
+			},
+		),
 	},
 	{
 		src: "pw\\d\n",
-		cmd: []ast.Word{
-			word(lit(1, 1, "pw"), quote(1, 3, "\\", word(lit(1, 4, "d")))),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "pw"), quote(1, 3, "\\", word(lit(1, 4, "d")))),
+			},
+		),
 	},
 	{
 		src: "pwd\\\n",
-		cmd: []ast.Word{
-			word(lit(1, 1, "pwd")),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "pwd")),
+			},
+		),
 	},
 	{
 		src: "pwd\\",
-		cmd: []ast.Word{
-			word(lit(1, 1, "pwd"), quote(1, 4, "\\", nil)),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "pwd"), quote(1, 4, "\\", nil)),
+			},
+		),
 	},
 	// <newline>
 	{
 		src: "echo 1\necho 2\n",
-		cmd: []ast.Word{
-			word(lit(1, 1, "echo")),
-			word(lit(1, 6, "1")),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "echo")),
+				word(lit(1, 6, "1")),
+			},
+		),
 	},
 	// comment
 	{
@@ -119,23 +135,66 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "# comment\n\ngo version",
-		cmd: []ast.Word{
-			word(lit(3, 1, "go")),
-			word(lit(3, 4, "version")),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(lit(3, 1, "go")),
+				word(lit(3, 4, "version")),
+			},
+		),
 		comments: []*ast.Comment{
 			comment(1, 1, " comment"),
 		},
 	},
 	{
 		src: "go version# comment\n",
-		cmd: []ast.Word{
-			word(lit(1, 1, "go")),
-			word(lit(1, 4, "version")),
-		},
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "go")),
+				word(lit(1, 4, "version")),
+			},
+		),
 		comments: []*ast.Comment{
 			comment(1, 11, " comment"),
 		},
+	},
+	// list
+	{
+		src: "sleep 1;",
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "sleep")),
+				word(lit(1, 7, "1")),
+			},
+			sep(1, 8, ";"),
+		),
+	},
+	{
+		src: "cd; pwd",
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "cd")),
+			},
+			sep(1, 3, ";"),
+		),
+	},
+	{
+		src: "sleep 1 &",
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "sleep")),
+				word(lit(1, 7, "1")),
+			},
+			sep(1, 9, "&"),
+		),
+	},
+	{
+		src: "make & fg",
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "make")),
+			},
+			sep(1, 6, "&"),
+		),
 	},
 }
 
@@ -151,6 +210,27 @@ func TestParseCommand(t *testing.T) {
 			t.Errorf("unexpected comments for %q", tt.src)
 		}
 	}
+}
+
+func sep(line, col int, sep string) *ast.Lit {
+	return &ast.Lit{
+		ValuePos: ast.NewPos(line, col),
+		Value:    sep,
+	}
+}
+
+func list(args ...interface{}) *ast.List {
+	cmd := new(ast.List)
+	for _, a := range args {
+		switch a := a.(type) {
+		case []ast.Word:
+			cmd.Pipeline = a
+		case *ast.Lit:
+			cmd.SepPos = a.ValuePos
+			cmd.Sep = a.Value
+		}
+	}
+	return cmd
 }
 
 func word(w ...ast.WordPart) ast.Word {
@@ -176,6 +256,32 @@ func comment(line, col int, text string) *ast.Comment {
 	return &ast.Comment{
 		Hash: ast.NewPos(line, col),
 		Text: text,
+	}
+}
+
+var parseErrorTests = []struct {
+	src, err string
+}{
+	// list
+	{
+		src: ";",
+		err: ":1:1: syntax error: unexpected ';'",
+	},
+	{
+		src: "&",
+		err: ":1:1: syntax error: unexpected '&'",
+	},
+}
+
+func TestParseError(t *testing.T) {
+	for i, tt := range parseErrorTests {
+		name := fmt.Sprintf("%v.sh", i)
+		switch _, _, err := parser.ParseCommand(name, tt.src); {
+		case err == nil:
+			t.Error("expected error")
+		case err.Error()[len(name):] != tt.err:
+			t.Error("unexpected error:", err)
+		}
 	}
 }
 

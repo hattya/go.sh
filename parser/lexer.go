@@ -39,12 +39,17 @@ import (
 	"github.com/hattya/go.sh/ast"
 )
 
+var ops = map[int]string{
+	int('&'): "&",
+	int(';'): ";",
+}
+
 type action func() action
 
 type lexer struct {
 	name     string
 	r        io.RuneScanner
-	cmd      []ast.Word
+	cmd      ast.Command
 	comments []*ast.Comment
 	eof      bool
 	err      error
@@ -75,6 +80,9 @@ func newLexer(name string, r io.RuneScanner) *lexer {
 func (l *lexer) Lex(lval *yySymType) int {
 	tok := <-l.token
 	switch tok := tok.(type) {
+	case token:
+		lval.token = tok
+		return tok.typ
 	case ast.Word:
 		lval.word = tok
 		return WORD
@@ -95,6 +103,17 @@ func (l *lexer) lexWord() action {
 		l.emit(WORD)
 		return l.lexWord
 	}
+	return l.lexToken(tok)
+}
+
+func (l *lexer) lexToken(tok int) action {
+	switch tok {
+	case '\n':
+	default:
+		if tok > 0 {
+			l.emit(tok)
+		}
+	}
 	return nil
 }
 
@@ -112,6 +131,13 @@ func (l *lexer) scanToken() int {
 		}
 
 		switch r {
+		case '&', ';':
+			// operator
+			if l.lit(); len(l.word) != 0 {
+				l.unread()
+				return WORD
+			}
+			return l.scanOp(r)
 		case '\\':
 			// quoting
 			l.lit()
@@ -145,6 +171,17 @@ func (l *lexer) scanToken() int {
 			l.b.WriteRune(r)
 		}
 	}
+}
+
+func (l *lexer) scanOp(r rune) int {
+	op := -1
+	switch r {
+	case '&':
+		op = int('&')
+	case ';':
+		op = int(';')
+	}
+	return op
 }
 
 func (l *lexer) scanQuote(r rune) bool {
@@ -228,8 +265,17 @@ func (l *lexer) lit() {
 
 func (l *lexer) emit(tok int) {
 	l.last.Store(l.pos)
-	l.token <- l.word
-	l.word = nil
+	switch tok {
+	case WORD:
+		l.token <- l.word
+		l.word = nil
+	default:
+		l.token <- token{
+			typ: tok,
+			pos: l.pos,
+			val: ops[tok],
+		}
+	}
 	l.mark(0)
 }
 
@@ -284,3 +330,12 @@ type Error struct {
 func (e Error) Error() string {
 	return fmt.Sprintf("%v:%v:%v: %s", e.Name, e.Pos.Line(), e.Pos.Col(), e.Msg)
 }
+
+type token struct {
+	typ int
+	pos ast.Pos
+	val string
+}
+
+func (t token) Pos() ast.Pos { return t.pos }
+func (t token) End() ast.Pos { return ast.NewPos(t.pos.Line(), t.pos.Col()+len(t.val)) }

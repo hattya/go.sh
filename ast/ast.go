@@ -40,6 +40,36 @@ type Command interface {
 	commandNode()
 }
 
+// List represents an AND-OR list.
+type List struct {
+	Pipeline []Word   // pipeline
+	List     [][]Word // pipelines separated by "&&" or "||" operator; or nil
+	SepPos   Pos      // position of "&" or ";" operator (zero if there is no operator)
+	Sep      string
+}
+
+func (c *List) Pos() Pos {
+	if len(c.Pipeline) == 0 {
+		return Pos{}
+	}
+	return c.Pipeline[0].Pos()
+}
+
+func (c *List) End() Pos {
+	for i := len(c.List) - 1; i >= 0; i-- {
+		list := c.List[i]
+		if len(list) != 0 {
+			return list[len(list)-1].End()
+		}
+	}
+	if len(c.Pipeline) == 0 {
+		return Pos{}
+	}
+	return c.Pipeline[len(c.Pipeline)-1].End()
+}
+
+func (c *List) commandNode() {}
+
 // Word represents a WORD token.
 type Word []WordPart
 

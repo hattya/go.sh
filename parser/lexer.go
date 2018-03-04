@@ -42,12 +42,13 @@ import (
 type action func() action
 
 type lexer struct {
-	name  string
-	r     io.RuneScanner
-	cmd   []ast.Word
-	eof   bool
-	err   error
-	token chan ast.Node
+	name     string
+	r        io.RuneScanner
+	cmd      []ast.Word
+	comments []*ast.Comment
+	eof      bool
+	err      error
+	token    chan ast.Node
 
 	word    ast.Word
 	b       bytes.Buffer
@@ -131,6 +132,15 @@ func (l *lexer) scanToken() int {
 				return WORD
 			}
 			return int(r)
+		case '#':
+			// comment
+			l.unread()
+			if l.lit(); len(l.word) != 0 {
+				return WORD
+			}
+			if !l.linebreak() {
+				return -1
+			}
 		default:
 			l.b.WriteRune(r)
 		}
@@ -166,6 +176,44 @@ func (l *lexer) scanQuote(r rune) bool {
 	}
 	l.mark(0)
 	return true
+}
+
+func (l *lexer) linebreak() bool {
+	for hash := false; ; {
+		r, err := l.read()
+		if err != nil {
+			l.comment()
+			return false
+		}
+
+		switch r {
+		case '\n':
+			// <newline>
+			hash = false
+			l.comment()
+			l.mark(0)
+		case '#':
+			// comment
+			hash = true
+			l.mark(-1)
+		default:
+			if !hash {
+				l.unread()
+				return true
+			}
+			l.b.WriteRune(r)
+		}
+	}
+}
+
+func (l *lexer) comment() {
+	if l.b.Len() != 0 {
+		l.comments = append(l.comments, &ast.Comment{
+			Hash: l.pos,
+			Text: l.b.String(),
+		})
+		l.b.Reset()
+	}
 }
 
 func (l *lexer) lit() {

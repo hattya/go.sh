@@ -29,12 +29,13 @@ Usage
    )
 
    func main() {
-   	cmd, err := parser.ParseCommand("<stdin>", "echo Hello, World!")
+   	cmd, comments, err := parser.ParseCommand("<stdin>", "echo Hello, World!")
    	if err != nil {
    		fmt.Println(err)
    		return
    	}
    	spew.Dump(cmd)
+   	spew.Dump(comments)
    }
 
 

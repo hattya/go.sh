@@ -63,15 +63,15 @@ func init() {
 }
 
 // ParseCommand parses src and returns a command.
-func ParseCommand(name string, src interface{}) ([]ast.Word, error) {
+func ParseCommand(name string, src interface{}) ([]ast.Word, []*ast.Comment, error) {
 	r, err := open(src)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	l := newLexer(name, r)
 	yyParse(l)
-	return l.cmd, l.err
+	return l.cmd, l.comments, l.err
 }
 
 func open(src interface{}) (r io.RuneScanner, err error) {

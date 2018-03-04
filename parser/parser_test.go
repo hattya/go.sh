@@ -39,8 +39,9 @@ import (
 )
 
 var parseCommandTests = []struct {
-	src string
-	cmd []ast.Word
+	src      string
+	cmd      []ast.Word
+	comments []*ast.Comment
 }{
 	// <blank>
 	{
@@ -109,16 +110,45 @@ var parseCommandTests = []struct {
 			word(lit(1, 6, "1")),
 		},
 	},
+	// comment
+	{
+		src: "# comment",
+		comments: []*ast.Comment{
+			comment(1, 1, " comment"),
+		},
+	},
+	{
+		src: "# comment\n\ngo version",
+		cmd: []ast.Word{
+			word(lit(3, 1, "go")),
+			word(lit(3, 4, "version")),
+		},
+		comments: []*ast.Comment{
+			comment(1, 1, " comment"),
+		},
+	},
+	{
+		src: "go version# comment\n",
+		cmd: []ast.Word{
+			word(lit(1, 1, "go")),
+			word(lit(1, 4, "version")),
+		},
+		comments: []*ast.Comment{
+			comment(1, 11, " comment"),
+		},
+	},
 }
 
 func TestParseCommand(t *testing.T) {
 	for i, tt := range parseCommandTests {
-		cmd, err := parser.ParseCommand(fmt.Sprintf("%v.sh", i), tt.src)
+		cmd, comments, err := parser.ParseCommand(fmt.Sprintf("%v.sh", i), tt.src)
 		switch {
 		case err != nil:
 			t.Error(err)
 		case !reflect.DeepEqual(cmd, tt.cmd):
 			t.Errorf("unexpected command for %q", tt.src)
+		case !reflect.DeepEqual(comments, tt.comments):
+			t.Errorf("unexpected comments for %q", tt.src)
 		}
 	}
 }
@@ -142,6 +172,13 @@ func quote(line, col int, tok string, v ast.Word) *ast.Quote {
 	}
 }
 
+func comment(line, col int, text string) *ast.Comment {
+	return &ast.Comment{
+		Hash: ast.NewPos(line, col),
+		Text: text,
+	}
+}
+
 func TestOpen(t *testing.T) {
 	for _, src := range []interface{}{
 		[]byte{},
@@ -152,12 +189,12 @@ func TestOpen(t *testing.T) {
 			eof:  io.EOF,
 		},
 	} {
-		if _, err := parser.ParseCommand("", src); err != nil {
+		if _, _, err := parser.ParseCommand("", src); err != nil {
 			t.Error(err)
 		}
 	}
 
-	if _, err := parser.ParseCommand("", nil); err == nil {
+	if _, _, err := parser.ParseCommand("", nil); err == nil {
 		t.Error("expected error")
 	}
 }
@@ -171,7 +208,7 @@ func TestReadError(t *testing.T) {
 			data: data,
 			eof:  errors.New("read error"),
 		}
-		if _, err := parser.ParseCommand("", src); err == nil {
+		if _, _, err := parser.ParseCommand("", src); err == nil {
 			t.Error("expected error")
 		}
 	}

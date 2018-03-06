@@ -70,6 +70,21 @@ func (c *List) End() Pos {
 
 func (c *List) commandNode() {}
 
+// AndOr represents a pipeline of the AND-OR list.
+type AndOr struct {
+	OpPos    Pos    // position of Op
+	Op       string // "&&" or "||" operator
+	Pipeline []Word // pipeline
+}
+
+func (ao *AndOr) Pos() Pos { return ao.OpPos }
+func (ao *AndOr) End() Pos {
+	if len(ao.Pipeline) == 0 {
+		return Pos{}
+	}
+	return ao.Pipeline[len(ao.Pipeline)-1].End()
+}
+
 // Word represents a WORD token.
 type Word []WordPart
 

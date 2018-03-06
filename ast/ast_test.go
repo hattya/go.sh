@@ -86,6 +86,54 @@ func TestList(t *testing.T) {
 	}
 }
 
+func TestAndOr(t *testing.T) {
+	var n ast.Node = new(ast.AndOr)
+	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("AndOr.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("AndOr.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.AndOr{
+		OpPos: ast.NewPos(1, 1),
+		Op:    "&&",
+		Pipeline: []ast.Word{
+			{
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 4),
+					Value:    "lit",
+				},
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("AndOr.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 7); e != g {
+		t.Errorf("AndOr.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.AndOr{
+		OpPos: ast.NewPos(1, 1),
+		Op:    "||",
+		Pipeline: []ast.Word{
+			{
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 4),
+					Value:    "lit",
+				},
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("AndOr.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 7); e != g {
+		t.Errorf("AndOr.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestWord(t *testing.T) {
 	var n ast.Node = ast.Word{}
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

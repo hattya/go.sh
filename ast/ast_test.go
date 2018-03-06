@@ -67,12 +67,16 @@ func TestList(t *testing.T) {
 				},
 			},
 		},
-		List: [][]ast.Word{
+		List: []*ast.AndOr{
 			{
-				{
-					&ast.Lit{
-						ValuePos: ast.NewPos(1, 5),
-						Value:    "lit",
+				OpPos: ast.NewPos(1, 5),
+				Op:    "&&",
+				Pipeline: []ast.Word{
+					{
+						&ast.Lit{
+							ValuePos: ast.NewPos(1, 8),
+							Value:    "lit",
+						},
 					},
 				},
 			},
@@ -81,7 +85,7 @@ func TestList(t *testing.T) {
 	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
 		t.Errorf("List.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 8); e != g {
+	if g, e := c.End(), ast.NewPos(1, 11); e != g {
 		t.Errorf("List.End() = %v, expected %v", g, e)
 	}
 }

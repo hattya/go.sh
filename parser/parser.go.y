@@ -45,7 +45,7 @@ import (
 	words []ast.Word
 }
 
-%token<token> '&' ';'
+%token<token> AND OR '&' ';'
 %token<word>  WORD
 
 %type<list>  and_or
@@ -53,6 +53,7 @@ import (
 %type<words> pipeline
 
 %left '&' ';'
+%left AND OR
 
 %%
 
@@ -70,9 +71,25 @@ cmdline:
 	|	/* empty */
 
 and_or:
-		pipeline
+		           pipeline
 		{
 			$$ = &ast.List{Pipeline: $1}
+		}
+	|	and_or AND pipeline
+		{
+			$$.List = append($$.List, &ast.AndOr{
+				OpPos:    $2.pos,
+				Op:       $2.val,
+				Pipeline: $3,
+			})
+		}
+	|	and_or OR  pipeline
+		{
+			$$.List = append($$.List, &ast.AndOr{
+				OpPos:    $2.pos,
+				Op:       $2.val,
+				Pipeline: $3,
+			})
 		}
 
 pipeline:
@@ -93,6 +110,18 @@ sep_op:
 
 func init() {
 	yyErrorVerbose = true
+
+	for i, s := range yyToknames {
+		switch s {
+		case "$end":
+			s = "EOF"
+		case "AND":
+			s = "'&&'"
+		case "OR":
+			s = "'||'"
+		}
+		yyToknames[i] = s
+	}
 }
 
 // ParseCommand parses src and returns a command.

@@ -43,7 +43,7 @@ type Command interface {
 // List represents an AND-OR list.
 type List struct {
 	Pipeline []Word   // pipeline
-	List     [][]Word // pipelines separated by "&&" or "||" operator; or nil
+	List     []*AndOr // pipelines separated by "&&" or "||" operator; or nil
 	SepPos   Pos      // position of "&" or ";" operator (zero if there is no operator)
 	Sep      string
 }
@@ -56,11 +56,8 @@ func (c *List) Pos() Pos {
 }
 
 func (c *List) End() Pos {
-	for i := len(c.List) - 1; i >= 0; i-- {
-		list := c.List[i]
-		if len(list) != 0 {
-			return list[len(list)-1].End()
-		}
+	if len(c.List) != 0 {
+		return c.List[len(c.List)-1].End()
 	}
 	if len(c.Pipeline) == 0 {
 		return Pos{}

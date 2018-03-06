@@ -196,6 +196,58 @@ var parseCommandTests = []struct {
 			sep(1, 6, "&"),
 		),
 	},
+	{
+		src: "false && echo foo || echo bar",
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "false")),
+			},
+			and_or(1, 7, "&&", []ast.Word{
+				word(lit(1, 10, "echo")),
+				word(lit(1, 15, "foo")),
+			}),
+			and_or(1, 19, "||", []ast.Word{
+				word(lit(1, 22, "echo")),
+				word(lit(1, 27, "bar")),
+			}),
+		),
+	},
+	{
+		src: "true || echo foo && echo bar",
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "true")),
+			},
+			and_or(1, 6, "||", []ast.Word{
+				word(lit(1, 9, "echo")),
+				word(lit(1, 14, "foo")),
+			}),
+			and_or(1, 18, "&&", []ast.Word{
+				word(lit(1, 21, "echo")),
+				word(lit(1, 26, "bar")),
+			}),
+		),
+	},
+	{
+		src: "true ||\n\n# || comment\n\necho foo &&\n\n# && comment\n\necho bar",
+		cmd: list(
+			[]ast.Word{
+				word(lit(1, 1, "true")),
+			},
+			and_or(1, 6, "||", []ast.Word{
+				word(lit(5, 1, "echo")),
+				word(lit(5, 6, "foo")),
+			}),
+			and_or(5, 10, "&&", []ast.Word{
+				word(lit(9, 1, "echo")),
+				word(lit(9, 6, "bar")),
+			}),
+		),
+		comments: []*ast.Comment{
+			comment(3, 1, " || comment"),
+			comment(7, 1, " && comment"),
+		},
+	},
 }
 
 func TestParseCommand(t *testing.T) {
@@ -225,12 +277,22 @@ func list(args ...interface{}) *ast.List {
 		switch a := a.(type) {
 		case []ast.Word:
 			cmd.Pipeline = a
+		case *ast.AndOr:
+			cmd.List = append(cmd.List, a)
 		case *ast.Lit:
 			cmd.SepPos = a.ValuePos
 			cmd.Sep = a.Value
 		}
 	}
 	return cmd
+}
+
+func and_or(line, col int, op string, pipeline []ast.Word) *ast.AndOr {
+	return &ast.AndOr{
+		OpPos:    ast.NewPos(line, col),
+		Op:       op,
+		Pipeline: pipeline,
+	}
 }
 
 func word(w ...ast.WordPart) ast.Word {
@@ -270,6 +332,14 @@ var parseErrorTests = []struct {
 	{
 		src: "&",
 		err: ":1:1: syntax error: unexpected '&'",
+	},
+	{
+		src: "true &&",
+		err: ":1:6: syntax error: unexpected EOF, expecting WORD",
+	},
+	{
+		src: "false ||",
+		err: ":1:7: syntax error: unexpected EOF, expecting WORD",
 	},
 }
 

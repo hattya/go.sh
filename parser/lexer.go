@@ -40,6 +40,8 @@ import (
 )
 
 var ops = map[int]string{
+	AND:      "&&",
+	OR:       "||",
 	int('&'): "&",
 	int(';'): ";",
 }
@@ -108,6 +110,11 @@ func (l *lexer) lexWord() action {
 
 func (l *lexer) lexToken(tok int) action {
 	switch tok {
+	case AND, OR:
+		l.emit(tok)
+		if l.linebreak() {
+			return l.lexWord
+		}
 	case '\n':
 	default:
 		if tok > 0 {
@@ -131,7 +138,7 @@ func (l *lexer) scanToken() int {
 		}
 
 		switch r {
-		case '&', ';':
+		case '&', ';', '|':
 			// operator
 			if l.lit(); len(l.word) != 0 {
 				l.unread()
@@ -178,8 +185,23 @@ func (l *lexer) scanOp(r rune) int {
 	switch r {
 	case '&':
 		op = int('&')
+		if r, _ = l.read(); l.err == nil {
+			if r == '&' {
+				op = AND
+			} else {
+				l.unread()
+			}
+		}
 	case ';':
 		op = int(';')
+	case '|':
+		if r, _ = l.read(); l.err == nil {
+			if r == '|' {
+				op = OR
+			} else {
+				l.unread()
+			}
+		}
 	}
 	return op
 }

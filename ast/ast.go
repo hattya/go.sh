@@ -55,6 +55,10 @@ type (
 		Cmd  []Word  // command
 		List []*Pipe // commands separated by "|" operator; or nil
 	}
+
+	// Cmd represents a command.
+	Cmd struct {
+	}
 )
 
 func (c *List) Pos() Pos {
@@ -72,6 +76,7 @@ func (c *Pipeline) Pos() Pos {
 	}
 	return c.Cmd[0].Pos()
 }
+func (c *Cmd) Pos() Pos { return Pos{} }
 
 func (c *List) End() Pos {
 	if len(c.List) != 0 {
@@ -91,9 +96,11 @@ func (c *Pipeline) End() Pos {
 	}
 	return c.Cmd[len(c.Cmd)-1].End()
 }
+func (c *Cmd) End() Pos { return Pos{} }
 
 func (c *List) commandNode()     {}
 func (c *Pipeline) commandNode() {}
+func (c *Cmd) commandNode()      {}
 
 // AndOr represents a pipeline of the AND-OR list.
 type AndOr struct {

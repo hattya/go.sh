@@ -236,6 +236,16 @@ func TestPipe(t *testing.T) {
 	}
 }
 
+func TestCmd(t *testing.T) {
+	var c ast.Command = new(ast.Cmd)
+	if g, e := c.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := c.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Cmd.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestWord(t *testing.T) {
 	var n ast.Node = ast.Word{}
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

@@ -573,14 +573,11 @@ yydefault:
 	case 10:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.pipeline.List = append(yyVAL.pipeline.List, append([]ast.Word{
-				{
-					&ast.Lit{
-						ValuePos: yyDollar[2].token.pos,
-						Value:    yyDollar[2].token.val,
-					},
-				},
-			}, yyDollar[3].words...))
+			yyVAL.pipeline.List = append(yyVAL.pipeline.List, &ast.Pipe{
+				OpPos: yyDollar[2].token.pos,
+				Op:    yyDollar[2].token.val,
+				Cmd:   yyDollar[3].words,
+			})
 		}
 	case 11:
 		yyDollar = yyS[yypt-1 : yypt+1]

@@ -116,14 +116,11 @@ pipe_seq:
 		}
 	|	pipe_seq '|' cmd
 		{
-			$$.List = append($$.List, append([]ast.Word{
-				{
-					&ast.Lit{
-						ValuePos: $2.pos,
-						Value: $2.val,
-					},
-				},
-			}, $3...))
+			$$.List = append($$.List, &ast.Pipe{
+				OpPos: $2.pos,
+				Op:    $2.val,
+				Cmd:   $3,
+			})
 		}
 
 cmd:

@@ -184,16 +184,16 @@ func TestPipeline(t *testing.T) {
 				},
 			},
 		},
-		List: [][]ast.Word{
+		List: []*ast.Pipe{
 			{
-				{
-					&ast.Lit{
-						ValuePos: ast.NewPos(1, 5),
-						Value:    "|",
-					},
-					&ast.Lit{
-						ValuePos: ast.NewPos(1, 7),
-						Value:    "lit",
+				OpPos: ast.NewPos(1, 5),
+				Op:    "|",
+				Cmd: []ast.Word{
+					{
+						&ast.Lit{
+							ValuePos: ast.NewPos(1, 7),
+							Value:    "lit",
+						},
 					},
 				},
 			},

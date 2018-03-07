@@ -165,11 +165,10 @@ var parseCommandTests = []struct {
 				word(lit(1, 1, "echo")),
 				word(lit(1, 6, "foo")),
 			},
-			[]ast.Word{
-				word(lit(1, 10, "|")),
+			pipe(1, 10, "|", []ast.Word{
 				word(lit(1, 12, "grep")),
 				word(lit(1, 17, "o")),
-			},
+			}),
 		),
 	},
 	{
@@ -180,11 +179,10 @@ var parseCommandTests = []struct {
 				word(lit(1, 3, "echo")),
 				word(lit(1, 8, "foo")),
 			},
-			[]ast.Word{
-				word(lit(1, 12, "|")),
+			pipe(1, 12, "|", []ast.Word{
 				word(lit(1, 14, "grep")),
 				word(lit(1, 19, "x")),
-			},
+			}),
 		),
 	},
 	{
@@ -195,11 +193,10 @@ var parseCommandTests = []struct {
 				word(lit(1, 3, "echo")),
 				word(lit(1, 8, "foo")),
 			},
-			[]ast.Word{
-				word(lit(1, 12, "|")),
+			pipe(1, 12, "|", []ast.Word{
 				word(lit(5, 1, "grep")),
 				word(lit(5, 6, "x")),
-			},
+			}),
 		),
 		comments: []*ast.Comment{
 			comment(3, 1, " | comment"),
@@ -364,14 +361,20 @@ func pipeline(args ...interface{}) *ast.Pipeline {
 		case ast.Pos:
 			cmd.Bang = a
 		case []ast.Word:
-			if cmd.Cmd == nil {
-				cmd.Cmd = a
-			} else {
-				cmd.List = append(cmd.List, a)
-			}
+			cmd.Cmd = a
+		case *ast.Pipe:
+			cmd.List = append(cmd.List, a)
 		}
 	}
 	return cmd
+}
+
+func pipe(line, col int, op string, cmd []ast.Word) *ast.Pipe {
+	return &ast.Pipe{
+		OpPos: ast.NewPos(line, col),
+		Op:    op,
+		Cmd:   cmd,
+	}
 }
 
 func word(w ...ast.WordPart) ast.Word {

@@ -51,9 +51,9 @@ type (
 
 	// Pipeline represents a pipeline.
 	Pipeline struct {
-		Bang Pos      // position of reserved word "!"
-		Cmd  []Word   // command
-		List [][]Word // commands separated by "|" operator; or nil
+		Bang Pos     // position of reserved word "!"
+		Cmd  []Word  // command
+		List []*Pipe // commands separated by "|" operator; or nil
 	}
 )
 
@@ -83,11 +83,8 @@ func (c *List) End() Pos {
 	return c.Pipeline.End()
 }
 func (c *Pipeline) End() Pos {
-	for i := len(c.List) - 1; i >= 0; i-- {
-		list := c.List[i]
-		if len(list) != 0 {
-			return list[len(list)-1].End()
-		}
+	if len(c.List) != 0 {
+		return c.List[len(c.List)-1].End()
 	}
 	if len(c.Cmd) == 0 {
 		return Pos{}

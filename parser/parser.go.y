@@ -39,21 +39,25 @@ import (
 %}
 
 %union {
-	list  *ast.List
-	token token
-	word  ast.Word
-	words []ast.Word
+	list     *ast.List
+	pipeline *ast.Pipeline
+	token    token
+	word     ast.Word
+	words    []ast.Word
 }
 
-%token<token> AND OR '&' ';'
+%token<token> AND OR '|' '&' ';'
 %token<word>  WORD
+%token<token> Bang
 
-%type<list>  and_or
-%type<token> sep_op
-%type<words> pipeline
+%type<list>     and_or
+%type<pipeline> pipeline pipe_seq
+%type<token>    sep_op
+%type<words>    cmd
 
-%left '&' ';'
-%left AND OR
+%left  '&' ';'
+%left  AND OR
+%right '|'
 
 %%
 
@@ -66,7 +70,12 @@ cmdline:
 		}
 	|	and_or
 		{
-			yylex.(*lexer).cmd = $1
+			l := yylex.(*lexer)
+			if len($1.List) != 0 {
+				l.cmd = $1
+			} else {
+				l.cmd = $1.Pipeline
+			}
 		}
 	|	/* empty */
 
@@ -93,11 +102,36 @@ and_or:
 		}
 
 pipeline:
-		         WORD
+		     pipe_seq
+	|	Bang pipe_seq
+		{
+			$$ = $2
+			$$.Bang = $1.pos
+		}
+
+pipe_seq:
+		             cmd
+		{
+			$$ = &ast.Pipeline{Cmd: $1}
+		}
+	|	pipe_seq '|' cmd
+		{
+			$$.List = append($$.List, append([]ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: $2.pos,
+						Value: $2.val,
+					},
+				},
+			}, $3...))
+		}
+
+cmd:
+		    WORD
 		{
 			$$ = append($$, $1)
 		}
-	|	pipeline WORD
+	|	cmd WORD
 		{
 			$$ = append($$, $2)
 		}
@@ -119,6 +153,8 @@ func init() {
 			s = "'&&'"
 		case "OR":
 			s = "'||'"
+		case "Bang":
+			s = "'!'"
 		}
 		yyToknames[i] = s
 	}

@@ -42,11 +42,13 @@ func TestList(t *testing.T) {
 	}
 
 	c = &ast.List{
-		Pipeline: []ast.Word{
-			{
-				&ast.Lit{
-					ValuePos: ast.NewPos(1, 1),
-					Value:    "lit",
+		Pipeline: &ast.Pipeline{
+			Cmd: []ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 1),
+						Value:    "lit",
+					},
 				},
 			},
 		},
@@ -59,11 +61,13 @@ func TestList(t *testing.T) {
 	}
 
 	c = &ast.List{
-		Pipeline: []ast.Word{
-			{
-				&ast.Lit{
-					ValuePos: ast.NewPos(1, 1),
-					Value:    "lit",
+		Pipeline: &ast.Pipeline{
+			Cmd: []ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 1),
+						Value:    "lit",
+					},
 				},
 			},
 		},
@@ -71,11 +75,13 @@ func TestList(t *testing.T) {
 			{
 				OpPos: ast.NewPos(1, 5),
 				Op:    "&&",
-				Pipeline: []ast.Word{
-					{
-						&ast.Lit{
-							ValuePos: ast.NewPos(1, 8),
-							Value:    "lit",
+				Pipeline: &ast.Pipeline{
+					Cmd: []ast.Word{
+						{
+							&ast.Lit{
+								ValuePos: ast.NewPos(1, 8),
+								Value:    "lit",
+							},
 						},
 					},
 				},
@@ -102,11 +108,13 @@ func TestAndOr(t *testing.T) {
 	n = &ast.AndOr{
 		OpPos: ast.NewPos(1, 1),
 		Op:    "&&",
-		Pipeline: []ast.Word{
-			{
-				&ast.Lit{
-					ValuePos: ast.NewPos(1, 4),
-					Value:    "lit",
+		Pipeline: &ast.Pipeline{
+			Cmd: []ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 4),
+						Value:    "lit",
+					},
 				},
 			},
 		},
@@ -121,11 +129,13 @@ func TestAndOr(t *testing.T) {
 	n = &ast.AndOr{
 		OpPos: ast.NewPos(1, 1),
 		Op:    "||",
-		Pipeline: []ast.Word{
-			{
-				&ast.Lit{
-					ValuePos: ast.NewPos(1, 4),
-					Value:    "lit",
+		Pipeline: &ast.Pipeline{
+			Cmd: []ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 4),
+						Value:    "lit",
+					},
 				},
 			},
 		},

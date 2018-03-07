@@ -39,12 +39,18 @@ import (
 	"github.com/hattya/go.sh/ast"
 )
 
-var ops = map[int]string{
-	AND:      "&&",
-	OR:       "||",
-	int('&'): "&",
-	int(';'): ";",
-}
+var (
+	ops = map[int]string{
+		AND:      "&&",
+		OR:       "||",
+		int('|'): "|",
+		int('&'): "&",
+		int(';'): ";",
+	}
+	words = map[string]int{
+		"!": Bang,
+	}
+)
 
 type action func() action
 
@@ -93,10 +99,41 @@ func (l *lexer) Lex(lval *yySymType) int {
 }
 
 func (l *lexer) run() {
-	for action := l.lexWord; action != nil; {
+	for action := l.lexPipeline; action != nil; {
 		action = action()
 	}
 	close(l.token)
+}
+
+func (l *lexer) lexPipeline() action {
+	tok := l.translate(l.scanToken())
+	if tok == Bang {
+		l.emit(Bang)
+		tok = l.scanToken()
+	}
+	return l.lexCmd(tok)
+}
+
+func (l *lexer) lexCmd(tok int) action {
+	tok = l.translate(tok)
+	switch tok {
+	case WORD:
+		l.emit(WORD)
+		return l.lexWord
+	}
+	return l.lexToken(tok)
+}
+
+// translate translates a WORD token to a reserved word token if it is.
+func (l *lexer) translate(tok int) int {
+	if tok == WORD && len(l.word) == 1 {
+		if w, ok := l.word[0].(*ast.Lit); ok {
+			if tok, ok := words[w.Value]; ok {
+				return tok
+			}
+		}
+	}
+	return tok
 }
 
 func (l *lexer) lexWord() action {
@@ -113,7 +150,12 @@ func (l *lexer) lexToken(tok int) action {
 	case AND, OR:
 		l.emit(tok)
 		if l.linebreak() {
-			return l.lexWord
+			return l.lexPipeline
+		}
+	case '|':
+		l.emit('|')
+		if l.linebreak() {
+			return l.lexCmd(l.scanToken())
 		}
 	case '\n':
 	default:
@@ -195,6 +237,7 @@ func (l *lexer) scanOp(r rune) int {
 	case ';':
 		op = int(';')
 	case '|':
+		op = int('|')
 		if r, _ = l.read(); l.err == nil {
 			if r == '|' {
 				op = OR
@@ -292,10 +335,20 @@ func (l *lexer) emit(tok int) {
 		l.token <- l.word
 		l.word = nil
 	default:
-		l.token <- token{
-			typ: tok,
-			pos: l.pos,
-			val: ops[tok],
+		if len(l.word) != 0 {
+			w := l.word[0].(*ast.Lit)
+			l.token <- token{
+				typ: tok,
+				pos: w.ValuePos,
+				val: w.Value,
+			}
+			l.word = nil
+		} else {
+			l.token <- token{
+				typ: tok,
+				pos: l.pos,
+				val: ops[tok],
+			}
 		}
 	}
 	l.mark(0)

@@ -39,16 +39,18 @@ import (
 )
 
 type yySymType struct {
-	yys   int
-	list  *ast.List
-	token token
-	word  ast.Word
-	words []ast.Word
+	yys      int
+	list     *ast.List
+	pipeline *ast.Pipeline
+	token    token
+	word     ast.Word
+	words    []ast.Word
 }
 
 const AND = 57346
 const OR = 57347
 const WORD = 57348
+const Bang = 57349
 
 var yyToknames = [...]string{
 	"$end",
@@ -56,9 +58,11 @@ var yyToknames = [...]string{
 	"$unk",
 	"AND",
 	"OR",
+	"'|'",
 	"'&'",
 	"';'",
 	"WORD",
+	"Bang",
 }
 var yyStatenames = [...]string{}
 
@@ -77,6 +81,8 @@ func init() {
 			s = "'&&'"
 		case "OR":
 			s = "'||'"
+		case "Bang":
+			s = "'!'"
 		}
 		yyToknames[i] = s
 	}
@@ -118,54 +124,61 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 13
+const yyLast = 20
 
 var yyAct = [...]int{
 
-	6, 7, 8, 9, 3, 10, 4, 1, 5, 2,
-	0, 11, 12,
+	6, 3, 7, 5, 9, 10, 15, 11, 12, 13,
+	7, 16, 17, 4, 18, 1, 8, 2, 0, 14,
 }
 var yyPact = [...]int{
 
-	-2, -1000, -4, -3, -1000, -1000, -2, -2, -1000, -1000,
-	-1000, -3, -3,
+	-7, -1000, 0, -1000, 3, 1, -3, -1000, -1000, -7,
+	-7, -1000, -1000, 1, 3, -1000, -1000, -1000, -3,
 }
 var yyPgo = [...]int{
 
-	0, 9, 8, 4, 7,
+	0, 17, 1, 13, 16, 0, 15,
 }
 var yyR1 = [...]int{
 
-	0, 4, 4, 4, 1, 1, 1, 3, 3, 2,
-	2,
+	0, 6, 6, 6, 1, 1, 1, 2, 2, 3,
+	3, 5, 5, 4, 4,
 }
 var yyR2 = [...]int{
 
 	0, 2, 1, 0, 1, 3, 3, 1, 2, 1,
-	1,
+	3, 1, 2, 1, 1,
 }
 var yyChk = [...]int{
 
-	-1000, -4, -1, -3, 8, -2, 4, 5, 6, 7,
-	8, -3, -3,
+	-1000, -6, -1, -2, -3, 10, -5, 9, -4, 4,
+	5, 7, 8, 6, -3, 9, -2, -2, -5,
 }
 var yyDef = [...]int{
 
-	3, -2, 2, 4, 7, 1, 0, 0, 9, 10,
-	8, 5, 6,
+	3, -2, 2, 4, 7, 0, 9, 11, 1, 0,
+	0, 13, 14, 0, 8, 12, 5, 6, 10,
 }
 var yyTok1 = [...]int{
 
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 6, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 7, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 7,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 8,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 6,
 }
 var yyTok2 = [...]int{
 
-	2, 3, 4, 5, 8,
+	2, 3, 4, 5, 9, 10,
 }
 var yyTok3 = [...]int{
 	0,
@@ -516,12 +529,17 @@ yydefault:
 	case 2:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			yylex.(*lexer).cmd = yyDollar[1].list
+			l := yylex.(*lexer)
+			if len(yyDollar[1].list.List) != 0 {
+				l.cmd = yyDollar[1].list
+			} else {
+				l.cmd = yyDollar[1].list.Pipeline
+			}
 		}
 	case 4:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			yyVAL.list = &ast.List{Pipeline: yyDollar[1].words}
+			yyVAL.list = &ast.List{Pipeline: yyDollar[1].pipeline}
 		}
 	case 5:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -529,7 +547,7 @@ yydefault:
 			yyVAL.list.List = append(yyVAL.list.List, &ast.AndOr{
 				OpPos:    yyDollar[2].token.pos,
 				Op:       yyDollar[2].token.val,
-				Pipeline: yyDollar[3].words,
+				Pipeline: yyDollar[3].pipeline,
 			})
 		}
 	case 6:
@@ -538,15 +556,38 @@ yydefault:
 			yyVAL.list.List = append(yyVAL.list.List, &ast.AndOr{
 				OpPos:    yyDollar[2].token.pos,
 				Op:       yyDollar[2].token.val,
-				Pipeline: yyDollar[3].words,
+				Pipeline: yyDollar[3].pipeline,
 			})
 		}
-	case 7:
+	case 8:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.pipeline = yyDollar[2].pipeline
+			yyVAL.pipeline.Bang = yyDollar[1].token.pos
+		}
+	case 9:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.pipeline = &ast.Pipeline{Cmd: yyDollar[1].words}
+		}
+	case 10:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.pipeline.List = append(yyVAL.pipeline.List, append([]ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: yyDollar[2].token.pos,
+						Value:    yyDollar[2].token.val,
+					},
+				},
+			}, yyDollar[3].words...))
+		}
+	case 11:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			yyVAL.words = append(yyVAL.words, yyDollar[1].word)
 		}
-	case 8:
+	case 12:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
 			yyVAL.words = append(yyVAL.words, yyDollar[2].word)

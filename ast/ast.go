@@ -43,9 +43,9 @@ type Command interface {
 type (
 	// List represents an AND-OR list.
 	List struct {
-		Pipeline []Word   // pipeline
-		List     []*AndOr // pipelines separated by "&&" or "||" operator; or nil
-		SepPos   Pos      // position of "&" or ";" operator (zero if there is no operator)
+		Pipeline *Pipeline // pipeline
+		List     []*AndOr  // pipelines separated by "&&" or "||" operator; or nil
+		SepPos   Pos       // position of "&" or ";" operator (zero if there is no operator)
 		Sep      string
 	}
 
@@ -58,10 +58,10 @@ type (
 )
 
 func (c *List) Pos() Pos {
-	if len(c.Pipeline) == 0 {
+	if c.Pipeline == nil {
 		return Pos{}
 	}
-	return c.Pipeline[0].Pos()
+	return c.Pipeline.Pos()
 }
 func (c *Pipeline) Pos() Pos {
 	if !c.Bang.IsZero() {
@@ -77,10 +77,10 @@ func (c *List) End() Pos {
 	if len(c.List) != 0 {
 		return c.List[len(c.List)-1].End()
 	}
-	if len(c.Pipeline) == 0 {
+	if c.Pipeline == nil {
 		return Pos{}
 	}
-	return c.Pipeline[len(c.Pipeline)-1].End()
+	return c.Pipeline.End()
 }
 func (c *Pipeline) End() Pos {
 	for i := len(c.List) - 1; i >= 0; i-- {
@@ -100,17 +100,17 @@ func (c *Pipeline) commandNode() {}
 
 // AndOr represents a pipeline of the AND-OR list.
 type AndOr struct {
-	OpPos    Pos    // position of Op
-	Op       string // "&&" or "||" operator
-	Pipeline []Word // pipeline
+	OpPos    Pos       // position of Op
+	Op       string    // "&&" or "||" operator
+	Pipeline *Pipeline // pipeline
 }
 
 func (ao *AndOr) Pos() Pos { return ao.OpPos }
 func (ao *AndOr) End() Pos {
-	if len(ao.Pipeline) == 0 {
+	if ao.Pipeline == nil {
 		return Pos{}
 	}
-	return ao.Pipeline[len(ao.Pipeline)-1].End()
+	return ao.Pipeline.End()
 }
 
 // Word represents a WORD token.

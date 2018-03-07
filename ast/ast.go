@@ -56,7 +56,7 @@ type (
 		List []*Pipe // commands separated by "|" operator; or nil
 	}
 
-	// Cmd represents a command.
+	// Cmd represents a simple command.
 	Cmd struct {
 		Expr CmdExpr
 	}
@@ -148,6 +148,27 @@ type CmdExpr interface {
 	Node
 	cmdExprNode()
 }
+
+// SimpleCmd represents a simple command.
+type SimpleCmd struct {
+	Args []Word // command line arguments
+}
+
+func (x *SimpleCmd) Pos() Pos {
+	if len(x.Args) == 0 {
+		return Pos{}
+	}
+	return x.Args[0].Pos()
+}
+
+func (x *SimpleCmd) End() Pos {
+	if len(x.Args) == 0 {
+		return Pos{}
+	}
+	return x.Args[len(x.Args)-1].End()
+}
+
+func (x *SimpleCmd) cmdExprNode() {}
 
 // Word represents a WORD token.
 type Word []WordPart

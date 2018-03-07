@@ -58,6 +58,7 @@ type (
 
 	// Cmd represents a command.
 	Cmd struct {
+		Expr CmdExpr
 	}
 )
 
@@ -76,7 +77,12 @@ func (c *Pipeline) Pos() Pos {
 	}
 	return c.Cmd[0].Pos()
 }
-func (c *Cmd) Pos() Pos { return Pos{} }
+func (c *Cmd) Pos() Pos {
+	if c.Expr == nil {
+		return Pos{}
+	}
+	return c.Expr.Pos()
+}
 
 func (c *List) End() Pos {
 	if len(c.List) != 0 {
@@ -96,7 +102,12 @@ func (c *Pipeline) End() Pos {
 	}
 	return c.Cmd[len(c.Cmd)-1].End()
 }
-func (c *Cmd) End() Pos { return Pos{} }
+func (c *Cmd) End() Pos {
+	if c.Expr == nil {
+		return Pos{}
+	}
+	return c.Expr.End()
+}
 
 func (c *List) commandNode()     {}
 func (c *Pipeline) commandNode() {}
@@ -130,6 +141,12 @@ func (p *Pipe) End() Pos {
 		return Pos{}
 	}
 	return p.Cmd[len(p.Cmd)-1].End()
+}
+
+// CmdExpr represents a detail of the command.
+type CmdExpr interface {
+	Node
+	cmdExprNode()
 }
 
 // Word represents a WORD token.

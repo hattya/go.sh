@@ -42,9 +42,10 @@ type yySymType struct {
 	yys      int
 	list     *ast.List
 	pipeline *ast.Pipeline
+	cmd      *ast.Cmd
+	expr     ast.CmdExpr
 	token    token
 	word     ast.Word
-	words    []ast.Word
 }
 
 const AND = 57346
@@ -128,37 +129,37 @@ const yyLast = 20
 
 var yyAct = [...]int{
 
-	6, 3, 7, 5, 9, 10, 15, 11, 12, 13,
-	7, 16, 17, 4, 18, 1, 8, 2, 0, 14,
+	6, 3, 8, 5, 10, 11, 8, 12, 13, 14,
+	16, 4, 17, 18, 1, 19, 9, 15, 7, 2,
 }
 var yyPact = [...]int{
 
-	-7, -1000, 0, -1000, 3, 1, -3, -1000, -1000, -7,
-	-7, -1000, -1000, 1, 3, -1000, -1000, -1000, -3,
+	-7, -1000, 0, -1000, 3, -3, -1000, 1, -1000, -1000,
+	-7, -7, -1000, -1000, -3, 3, -1000, -1000, -1000, -1000,
 }
 var yyPgo = [...]int{
 
-	0, 17, 1, 13, 16, 0, 15,
+	0, 19, 1, 11, 0, 18, 16, 14,
 }
 var yyR1 = [...]int{
 
-	0, 6, 6, 6, 1, 1, 1, 2, 2, 3,
-	3, 5, 5, 4, 4,
+	0, 7, 7, 7, 1, 1, 1, 2, 2, 3,
+	3, 4, 5, 5, 6, 6,
 }
 var yyR2 = [...]int{
 
 	0, 2, 1, 0, 1, 3, 3, 1, 2, 1,
-	3, 1, 2, 1, 1,
+	3, 1, 1, 2, 1, 1,
 }
 var yyChk = [...]int{
 
-	-1000, -6, -1, -2, -3, 10, -5, 9, -4, 4,
-	5, 7, 8, 6, -3, 9, -2, -2, -5,
+	-1000, -7, -1, -2, -3, 10, -4, -5, 9, -6,
+	4, 5, 7, 8, 6, -3, 9, -2, -2, -4,
 }
 var yyDef = [...]int{
 
-	3, -2, 2, 4, 7, 0, 9, 11, 1, 0,
-	0, 13, 14, 0, 8, 12, 5, 6, 10,
+	3, -2, 2, 4, 7, 0, 9, 11, 12, 1,
+	0, 0, 14, 15, 0, 8, 13, 5, 6, 10,
 }
 var yyTok1 = [...]int{
 
@@ -530,10 +531,13 @@ yydefault:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			l := yylex.(*lexer)
-			if len(yyDollar[1].list.List) != 0 {
+			switch {
+			case len(yyDollar[1].list.List) != 0:
 				l.cmd = yyDollar[1].list
-			} else {
+			case !yyDollar[1].list.Pipeline.Bang.IsZero() || len(yyDollar[1].list.Pipeline.List) != 0:
 				l.cmd = yyDollar[1].list.Pipeline
+			default:
+				l.cmd = yyDollar[1].list.Pipeline.Cmd
 			}
 		}
 	case 4:
@@ -568,7 +572,7 @@ yydefault:
 	case 9:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			yyVAL.pipeline = &ast.Pipeline{Cmd: yyDollar[1].words}
+			yyVAL.pipeline = &ast.Pipeline{Cmd: yyDollar[1].cmd}
 		}
 	case 10:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -576,18 +580,24 @@ yydefault:
 			yyVAL.pipeline.List = append(yyVAL.pipeline.List, &ast.Pipe{
 				OpPos: yyDollar[2].token.pos,
 				Op:    yyDollar[2].token.val,
-				Cmd:   yyDollar[3].words,
+				Cmd:   yyDollar[3].cmd,
 			})
 		}
 	case 11:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			yyVAL.words = append(yyVAL.words, yyDollar[1].word)
+			yyVAL.cmd = &ast.Cmd{Expr: yyDollar[1].expr}
 		}
 	case 12:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.expr = &ast.SimpleCmd{Args: []ast.Word{yyDollar[1].word}}
+		}
+	case 13:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.words = append(yyVAL.words, yyDollar[2].word)
+			x := yyVAL.expr.(*ast.SimpleCmd)
+			x.Args = append(x.Args, yyDollar[2].word)
 		}
 	}
 	goto yystack /* stack new state and value */

@@ -41,9 +41,10 @@ import (
 %union {
 	list     *ast.List
 	pipeline *ast.Pipeline
+	cmd      *ast.Cmd
+	expr     ast.CmdExpr
 	token    token
 	word     ast.Word
-	words    []ast.Word
 }
 
 %token<token> AND OR '|' '&' ';'
@@ -52,8 +53,9 @@ import (
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
+%type<cmd>      cmd
+%type<expr>     simple_cmd
 %type<token>    sep_op
-%type<words>    cmd
 
 %left  '&' ';'
 %left  AND OR
@@ -71,10 +73,13 @@ cmdline:
 	|	and_or
 		{
 			l := yylex.(*lexer)
-			if len($1.List) != 0 {
+			switch {
+			case len($1.List) != 0:
 				l.cmd = $1
-			} else {
+			case !$1.Pipeline.Bang.IsZero() || len($1.Pipeline.List) != 0:
 				l.cmd = $1.Pipeline
+			default:
+				l.cmd = $1.Pipeline.Cmd
 			}
 		}
 	|	/* empty */
@@ -124,13 +129,20 @@ pipe_seq:
 		}
 
 cmd:
-		    WORD
+		simple_cmd
 		{
-			$$ = append($$, $1)
+			$$ = &ast.Cmd{Expr: $1}
 		}
-	|	cmd WORD
+
+simple_cmd:
+		           WORD
 		{
-			$$ = append($$, $2)
+			$$ = &ast.SimpleCmd{Args: []ast.Word{$1}}
+		}
+	|	simple_cmd WORD
+		{
+			x := $$.(*ast.SimpleCmd)
+			x.Args = append(x.Args, $2)
 		}
 
 sep_op:

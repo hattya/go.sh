@@ -55,75 +55,59 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "echo 1\t\t22 \t 333",
-		cmd: pipeline(
-			[]ast.Word{
-				word(lit(1, 1, "echo")),
-				word(lit(1, 6, "1")),
-				word(lit(1, 9, "22")),
-				word(lit(1, 14, "333")),
-			},
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "1")),
+			word(lit(1, 9, "22")),
+			word(lit(1, 14, "333")),
 		),
 	},
 	{
 		src: "echo\t1  22\t \t333\n",
-		cmd: pipeline(
-			[]ast.Word{
-				word(lit(1, 1, "echo")),
-				word(lit(1, 6, "1")),
-				word(lit(1, 9, "22")),
-				word(lit(1, 14, "333")),
-			},
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "1")),
+			word(lit(1, 9, "22")),
+			word(lit(1, 14, "333")),
 		),
 	},
 	// quoting
 	{
 		src: "\\pwd\n",
-		cmd: pipeline(
-			[]ast.Word{
-				word(quote(1, 1, "\\", word(lit(1, 2, "p"))), lit(1, 3, "wd")),
-			},
+		cmd: simple_command(
+			word(quote(1, 1, "\\", word(lit(1, 2, "p"))), lit(1, 3, "wd")),
 		),
 	},
 	{
 		src: "p\\wd\n",
-		cmd: pipeline(
-			[]ast.Word{
-				word(lit(1, 1, "p"), quote(1, 2, "\\", word(lit(1, 3, "w"))), lit(1, 4, "d")),
-			},
+		cmd: simple_command(
+			word(lit(1, 1, "p"), quote(1, 2, "\\", word(lit(1, 3, "w"))), lit(1, 4, "d")),
 		),
 	},
 	{
 		src: "pw\\d\n",
-		cmd: pipeline(
-			[]ast.Word{
-				word(lit(1, 1, "pw"), quote(1, 3, "\\", word(lit(1, 4, "d")))),
-			},
+		cmd: simple_command(
+			word(lit(1, 1, "pw"), quote(1, 3, "\\", word(lit(1, 4, "d")))),
 		),
 	},
 	{
 		src: "pwd\\\n",
-		cmd: pipeline(
-			[]ast.Word{
-				word(lit(1, 1, "pwd")),
-			},
+		cmd: simple_command(
+			word(lit(1, 1, "pwd")),
 		),
 	},
 	{
 		src: "pwd\\",
-		cmd: pipeline(
-			[]ast.Word{
-				word(lit(1, 1, "pwd"), quote(1, 4, "\\", nil)),
-			},
+		cmd: simple_command(
+			word(lit(1, 1, "pwd"), quote(1, 4, "\\", nil)),
 		),
 	},
 	// <newline>
 	{
 		src: "echo 1\necho 2\n",
-		cmd: pipeline(
-			[]ast.Word{
-				word(lit(1, 1, "echo")),
-				word(lit(1, 6, "1")),
-			},
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "1")),
 		),
 	},
 	// comment
@@ -135,11 +119,9 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "# comment\n\ngo version",
-		cmd: pipeline(
-			[]ast.Word{
-				word(lit(3, 1, "go")),
-				word(lit(3, 4, "version")),
-			},
+		cmd: simple_command(
+			word(lit(3, 1, "go")),
+			word(lit(3, 4, "version")),
 		),
 		comments: []*ast.Comment{
 			comment(1, 1, " comment"),
@@ -147,11 +129,9 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "go version# comment\n",
-		cmd: pipeline(
-			[]ast.Word{
-				word(lit(1, 1, "go")),
-				word(lit(1, 4, "version")),
-			},
+		cmd: simple_command(
+			word(lit(1, 1, "go")),
+			word(lit(1, 4, "version")),
 		),
 		comments: []*ast.Comment{
 			comment(1, 11, " comment"),
@@ -161,42 +141,42 @@ var parseCommandTests = []struct {
 	{
 		src: "echo foo | grep o",
 		cmd: pipeline(
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 1, "echo")),
 				word(lit(1, 6, "foo")),
-			},
-			pipe(1, 10, "|", []ast.Word{
+			),
+			pipe(1, 10, "|", simple_command(
 				word(lit(1, 12, "grep")),
 				word(lit(1, 17, "o")),
-			}),
+			)),
 		),
 	},
 	{
 		src: "! echo foo | grep x",
 		cmd: pipeline(
 			pos(1, 1), // !
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 3, "echo")),
 				word(lit(1, 8, "foo")),
-			},
-			pipe(1, 12, "|", []ast.Word{
+			),
+			pipe(1, 12, "|", simple_command(
 				word(lit(1, 14, "grep")),
 				word(lit(1, 19, "x")),
-			}),
+			)),
 		),
 	},
 	{
 		src: "! echo foo |\n\n# | comment\n\ngrep x",
 		cmd: pipeline(
 			pos(1, 1), // !
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 3, "echo")),
 				word(lit(1, 8, "foo")),
-			},
-			pipe(1, 12, "|", []ast.Word{
+			),
+			pipe(1, 12, "|", simple_command(
 				word(lit(5, 1, "grep")),
 				word(lit(5, 6, "x")),
-			}),
+			)),
 		),
 		comments: []*ast.Comment{
 			comment(3, 1, " | comment"),
@@ -206,98 +186,98 @@ var parseCommandTests = []struct {
 	{
 		src: "sleep 1;",
 		cmd: list(
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 1, "sleep")),
 				word(lit(1, 7, "1")),
-			},
+			),
 			sep(1, 8, ";"),
 		),
 	},
 	{
 		src: "cd; pwd",
 		cmd: list(
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 1, "cd")),
-			},
+			),
 			sep(1, 3, ";"),
 		),
 	},
 	{
 		src: "sleep 1 &",
 		cmd: list(
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 1, "sleep")),
 				word(lit(1, 7, "1")),
-			},
+			),
 			sep(1, 9, "&"),
 		),
 	},
 	{
 		src: "make & fg",
 		cmd: list(
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 1, "make")),
-			},
+			),
 			sep(1, 6, "&"),
 		),
 	},
 	{
 		src: "false && echo foo || echo bar",
 		cmd: list(
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 1, "false")),
-			},
+			),
 			and_or(1, 7, "&&", pipeline(
-				[]ast.Word{
+				simple_command(
 					word(lit(1, 10, "echo")),
 					word(lit(1, 15, "foo")),
-				},
+				),
 			)),
 			and_or(1, 19, "||", pipeline(
-				[]ast.Word{
+				simple_command(
 					word(lit(1, 22, "echo")),
 					word(lit(1, 27, "bar")),
-				},
+				),
 			)),
 		),
 	},
 	{
 		src: "true || echo foo && echo bar",
 		cmd: list(
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 1, "true")),
-			},
+			),
 			and_or(1, 6, "||", pipeline(
-				[]ast.Word{
+				simple_command(
 					word(lit(1, 9, "echo")),
 					word(lit(1, 14, "foo")),
-				},
+				),
 			)),
 			and_or(1, 18, "&&", pipeline(
-				[]ast.Word{
+				simple_command(
 					word(lit(1, 21, "echo")),
 					word(lit(1, 26, "bar")),
-				},
+				),
 			)),
 		),
 	},
 	{
 		src: "true ||\n\n# || comment\n\necho foo &&\n\n# && comment\n\necho bar",
 		cmd: list(
-			[]ast.Word{
+			simple_command(
 				word(lit(1, 1, "true")),
-			},
+			),
 			and_or(1, 6, "||", pipeline(
-				[]ast.Word{
+				simple_command(
 					word(lit(5, 1, "echo")),
 					word(lit(5, 6, "foo")),
-				},
+				),
 			)),
 			and_or(5, 10, "&&", pipeline(
-				[]ast.Word{
+				simple_command(
 					word(lit(9, 1, "echo")),
 					word(lit(9, 6, "bar")),
-				},
+				),
 			)),
 		),
 		comments: []*ast.Comment{
@@ -330,17 +310,17 @@ func sep(line, col int, sep string) *ast.Lit {
 	}
 }
 
-func list(args ...interface{}) *ast.List {
+func list(nodes ...ast.Node) *ast.List {
 	cmd := new(ast.List)
-	for _, a := range args {
-		switch a := a.(type) {
-		case []ast.Word:
-			cmd.Pipeline = &ast.Pipeline{Cmd: a}
+	for _, n := range nodes {
+		switch n := n.(type) {
+		case *ast.Cmd:
+			cmd.Pipeline = &ast.Pipeline{Cmd: n}
 		case *ast.AndOr:
-			cmd.List = append(cmd.List, a)
+			cmd.List = append(cmd.List, n)
 		case *ast.Lit:
-			cmd.SepPos = a.ValuePos
-			cmd.Sep = a.Value
+			cmd.SepPos = n.ValuePos
+			cmd.Sep = n.Value
 		}
 	}
 	return cmd
@@ -360,7 +340,7 @@ func pipeline(args ...interface{}) *ast.Pipeline {
 		switch a := a.(type) {
 		case ast.Pos:
 			cmd.Bang = a
-		case []ast.Word:
+		case *ast.Cmd:
 			cmd.Cmd = a
 		case *ast.Pipe:
 			cmd.List = append(cmd.List, a)
@@ -369,12 +349,16 @@ func pipeline(args ...interface{}) *ast.Pipeline {
 	return cmd
 }
 
-func pipe(line, col int, op string, cmd []ast.Word) *ast.Pipe {
+func pipe(line, col int, op string, cmd *ast.Cmd) *ast.Pipe {
 	return &ast.Pipe{
 		OpPos: ast.NewPos(line, col),
 		Op:    op,
 		Cmd:   cmd,
 	}
+}
+
+func simple_command(args ...ast.Word) *ast.Cmd {
+	return &ast.Cmd{Expr: &ast.SimpleCmd{Args: args}}
 }
 
 func word(w ...ast.WordPart) ast.Word {

@@ -118,8 +118,7 @@ func (l *lexer) lexCmd(tok int) action {
 	tok = l.translate(tok)
 	switch tok {
 	case WORD:
-		l.emit(WORD)
-		return l.lexWord
+		return l.lexSimpleCmd
 	}
 	return l.lexToken(tok)
 }
@@ -134,6 +133,11 @@ func (l *lexer) translate(tok int) int {
 		}
 	}
 	return tok
+}
+
+func (l *lexer) lexSimpleCmd() action {
+	l.emit(WORD)
+	return l.lexWord
 }
 
 func (l *lexer) lexWord() action {

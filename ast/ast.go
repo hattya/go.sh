@@ -52,7 +52,7 @@ type (
 	// Pipeline represents a pipeline.
 	Pipeline struct {
 		Bang Pos     // position of reserved word "!"
-		Cmd  []Word  // command
+		Cmd  *Cmd    // command
 		List []*Pipe // commands separated by "|" operator; or nil
 	}
 
@@ -72,10 +72,10 @@ func (c *Pipeline) Pos() Pos {
 	if !c.Bang.IsZero() {
 		return c.Bang
 	}
-	if len(c.Cmd) == 0 {
+	if c.Cmd == nil {
 		return Pos{}
 	}
-	return c.Cmd[0].Pos()
+	return c.Cmd.Pos()
 }
 func (c *Cmd) Pos() Pos {
 	if c.Expr == nil {
@@ -97,10 +97,10 @@ func (c *Pipeline) End() Pos {
 	if len(c.List) != 0 {
 		return c.List[len(c.List)-1].End()
 	}
-	if len(c.Cmd) == 0 {
+	if c.Cmd == nil {
 		return Pos{}
 	}
-	return c.Cmd[len(c.Cmd)-1].End()
+	return c.Cmd.End()
 }
 func (c *Cmd) End() Pos {
 	if c.Expr == nil {
@@ -132,15 +132,15 @@ func (ao *AndOr) End() Pos {
 type Pipe struct {
 	OpPos Pos    // position of Op
 	Op    string // "|" operator
-	Cmd   []Word // command
+	Cmd   *Cmd   // command
 }
 
 func (p *Pipe) Pos() Pos { return p.OpPos }
 func (p *Pipe) End() Pos {
-	if len(p.Cmd) == 0 {
+	if p.Cmd == nil {
 		return Pos{}
 	}
-	return p.Cmd[len(p.Cmd)-1].End()
+	return p.Cmd.End()
 }
 
 // CmdExpr represents a detail of the command.

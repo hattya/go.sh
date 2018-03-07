@@ -138,6 +138,65 @@ func TestAndOr(t *testing.T) {
 	}
 }
 
+func TestPipeline(t *testing.T) {
+	var c ast.Command = new(ast.Pipeline)
+	if g, e := c.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Pipeline.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := c.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Pipeline.End() = %v, expected %v", g, e)
+	}
+
+	c = &ast.Pipeline{
+		Bang: ast.NewPos(1, 1),
+		Cmd: []ast.Word{
+			{
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 2),
+					Value:    "lit",
+				},
+			},
+		},
+	}
+	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Pipeline.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := c.End(), ast.NewPos(1, 5); e != g {
+		t.Errorf("Pipeline.End() = %v, expected %v", g, e)
+	}
+
+	c = &ast.Pipeline{
+		Cmd: []ast.Word{
+			{
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 1),
+					Value:    "lit",
+				},
+			},
+		},
+		List: [][]ast.Word{
+			{
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 5),
+						Value:    "|",
+					},
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 7),
+						Value:    "lit",
+					},
+				},
+			},
+		},
+	}
+	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Pipeline.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := c.End(), ast.NewPos(1, 10); e != g {
+		t.Errorf("Pipeline.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestWord(t *testing.T) {
 	var n ast.Node = ast.Word{}
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

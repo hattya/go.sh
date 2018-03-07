@@ -40,19 +40,37 @@ type Command interface {
 	commandNode()
 }
 
-// List represents an AND-OR list.
-type List struct {
-	Pipeline []Word   // pipeline
-	List     []*AndOr // pipelines separated by "&&" or "||" operator; or nil
-	SepPos   Pos      // position of "&" or ";" operator (zero if there is no operator)
-	Sep      string
-}
+type (
+	// List represents an AND-OR list.
+	List struct {
+		Pipeline []Word   // pipeline
+		List     []*AndOr // pipelines separated by "&&" or "||" operator; or nil
+		SepPos   Pos      // position of "&" or ";" operator (zero if there is no operator)
+		Sep      string
+	}
+
+	// Pipeline represents a pipeline.
+	Pipeline struct {
+		Bang Pos      // position of reserved word "!"
+		Cmd  []Word   // command
+		List [][]Word // commands separated by "|" operator; or nil
+	}
+)
 
 func (c *List) Pos() Pos {
 	if len(c.Pipeline) == 0 {
 		return Pos{}
 	}
 	return c.Pipeline[0].Pos()
+}
+func (c *Pipeline) Pos() Pos {
+	if !c.Bang.IsZero() {
+		return c.Bang
+	}
+	if len(c.Cmd) == 0 {
+		return Pos{}
+	}
+	return c.Cmd[0].Pos()
 }
 
 func (c *List) End() Pos {
@@ -64,8 +82,21 @@ func (c *List) End() Pos {
 	}
 	return c.Pipeline[len(c.Pipeline)-1].End()
 }
+func (c *Pipeline) End() Pos {
+	for i := len(c.List) - 1; i >= 0; i-- {
+		list := c.List[i]
+		if len(list) != 0 {
+			return list[len(list)-1].End()
+		}
+	}
+	if len(c.Cmd) == 0 {
+		return Pos{}
+	}
+	return c.Cmd[len(c.Cmd)-1].End()
+}
 
-func (c *List) commandNode() {}
+func (c *List) commandNode()     {}
+func (c *Pipeline) commandNode() {}
 
 // AndOr represents a pipeline of the AND-OR list.
 type AndOr struct {

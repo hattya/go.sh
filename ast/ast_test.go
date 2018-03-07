@@ -207,6 +207,35 @@ func TestPipeline(t *testing.T) {
 	}
 }
 
+func TestPipe(t *testing.T) {
+	var n ast.Node = new(ast.Pipe)
+	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Pipe.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Pipe.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.Pipe{
+		OpPos: ast.NewPos(1, 1),
+		Op:    "|",
+		Cmd: []ast.Word{
+			{
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 3),
+					Value:    "lit",
+				},
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Pipe.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 6); e != g {
+		t.Errorf("Pipe.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestWord(t *testing.T) {
 	var n ast.Node = ast.Word{}
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

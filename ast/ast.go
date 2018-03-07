@@ -113,6 +113,21 @@ func (ao *AndOr) End() Pos {
 	return ao.Pipeline.End()
 }
 
+// Pipe represents a command of the pipeline.
+type Pipe struct {
+	OpPos Pos    // position of Op
+	Op    string // "|" operator
+	Cmd   []Word // command
+}
+
+func (p *Pipe) Pos() Pos { return p.OpPos }
+func (p *Pipe) End() Pos {
+	if len(p.Cmd) == 0 {
+		return Pos{}
+	}
+	return p.Cmd[len(p.Cmd)-1].End()
+}
+
 // Word represents a WORD token.
 type Word []WordPart
 

@@ -170,6 +170,29 @@ func (x *SimpleCmd) End() Pos {
 
 func (x *SimpleCmd) cmdExprNode() {}
 
+// Assign represents a variable assignment.
+type Assign struct {
+	Symbol *Lit
+	Op     string
+	Value  Word
+}
+
+func (a *Assign) Pos() Pos {
+	if a.Symbol == nil {
+		return Pos{}
+	}
+	return a.Symbol.Pos()
+}
+func (a *Assign) End() Pos {
+	if len(a.Value) == 0 {
+		if a.Symbol == nil {
+			return Pos{}
+		}
+		return a.Symbol.End().shift(len(a.Op))
+	}
+	return a.Value.End()
+}
+
 // Word represents a WORD token.
 type Word []WordPart
 

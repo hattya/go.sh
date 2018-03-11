@@ -325,6 +325,50 @@ func TestSimpleCmd(t *testing.T) {
 	}
 }
 
+func TestAssign(t *testing.T) {
+	var n ast.Node = new(ast.Assign)
+	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Assign.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Assign.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.Assign{
+		Symbol: &ast.Lit{
+			ValuePos: ast.NewPos(1, 1),
+			Value:    "lit",
+		},
+		Op: "=",
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Assign.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 5); e != g {
+		t.Errorf("Assign.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.Assign{
+		Symbol: &ast.Lit{
+			ValuePos: ast.NewPos(1, 1),
+			Value:    "lit",
+		},
+		Op: "=",
+		Value: ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(1, 5),
+				Value:    "lit",
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Assign.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 8); e != g {
+		t.Errorf("Assign.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestWord(t *testing.T) {
 	var n ast.Node = ast.Word{}
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

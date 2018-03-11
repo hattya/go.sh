@@ -45,13 +45,16 @@ type yySymType struct {
 	cmd      *ast.Cmd
 	expr     ast.CmdExpr
 	token    token
+	assigns  []*ast.Assign
 	word     ast.Word
+	words    []ast.Word
 }
 
 const AND = 57346
 const OR = 57347
 const WORD = 57348
-const Bang = 57349
+const ASSIGNMENT_WORD = 57349
+const Bang = 57350
 
 var yyToknames = [...]string{
 	"$end",
@@ -63,6 +66,7 @@ var yyToknames = [...]string{
 	"'&'",
 	"';'",
 	"WORD",
+	"ASSIGNMENT_WORD",
 	"Bang",
 }
 var yyStatenames = [...]string{}
@@ -86,6 +90,26 @@ func init() {
 			s = "'!'"
 		}
 		yyToknames[i] = s
+	}
+}
+
+func assign(w ast.Word) *ast.Assign {
+	k := w[0].(*ast.Lit)
+	i := strings.IndexRune(k.Value, '=')
+	v := w[1:]
+	if i < len(k.Value)-1 {
+		v = append(ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(k.ValuePos.Line(), k.ValuePos.Col()+i+1),
+				Value:    k.Value[i+1:],
+			},
+		}, v...)
+		k.Value = k.Value[:i]
+	}
+	return &ast.Assign{
+		Symbol: k,
+		Op:     "=",
+		Value:  v,
 	}
 }
 
@@ -125,41 +149,47 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 20
+const yyLast = 28
 
 var yyAct = [...]int{
 
-	6, 3, 8, 5, 10, 11, 8, 12, 13, 14,
-	16, 4, 17, 18, 1, 19, 9, 15, 7, 2,
+	20, 6, 3, 9, 10, 5, 9, 10, 18, 19,
+	12, 13, 26, 14, 15, 22, 23, 21, 24, 25,
+	16, 4, 1, 11, 8, 7, 2, 17,
 }
 var yyPact = [...]int{
 
-	-7, -1000, 0, -1000, 3, -3, -1000, 1, -1000, -1000,
-	-7, -7, -1000, -1000, -3, 3, -1000, -1000, -1000, -1000,
+	-6, -1000, 6, -1000, 14, -3, -1000, -1000, -1, 8,
+	-1000, -1000, -6, -6, -1000, -1000, -3, 14, 8, -1000,
+	3, -1000, -1000, -1000, -1000, 3, -1000,
 }
 var yyPgo = [...]int{
 
-	0, 19, 1, 11, 0, 18, 16, 14,
+	0, 26, 2, 21, 1, 25, 24, 0, 23, 22,
 }
 var yyR1 = [...]int{
 
-	0, 7, 7, 7, 1, 1, 1, 2, 2, 3,
-	3, 4, 5, 5, 6, 6,
+	0, 9, 9, 9, 1, 1, 1, 2, 2, 3,
+	3, 4, 5, 5, 5, 5, 5, 6, 6, 7,
+	7, 8, 8,
 }
 var yyR2 = [...]int{
 
 	0, 2, 1, 0, 1, 3, 3, 1, 2, 1,
-	3, 1, 1, 2, 1, 1,
+	3, 1, 3, 2, 1, 2, 1, 1, 2, 1,
+	2, 1, 1,
 }
 var yyChk = [...]int{
 
-	-1000, -7, -1, -2, -3, 10, -4, -5, 9, -6,
-	4, 5, 7, 8, 6, -3, 9, -2, -2, -4,
+	-1000, -9, -1, -2, -3, 11, -4, -5, -6, 9,
+	10, -8, 4, 5, 7, 8, 6, -3, 9, 10,
+	-7, 9, -2, -2, -4, -7, 9,
 }
 var yyDef = [...]int{
 
-	3, -2, 2, 4, 7, 0, 9, 11, 12, 1,
-	0, 0, 14, 15, 0, 8, 13, 5, 6, 10,
+	3, -2, 2, 4, 7, 0, 9, 11, 14, 16,
+	17, 1, 0, 0, 21, 22, 0, 8, 13, 18,
+	15, 19, 5, 6, 10, 12, 20,
 }
 var yyTok1 = [...]int{
 
@@ -179,7 +209,7 @@ var yyTok1 = [...]int{
 }
 var yyTok2 = [...]int{
 
-	2, 3, 4, 5, 9, 10,
+	2, 3, 4, 5, 9, 10, 11,
 }
 var yyTok3 = [...]int{
 	0,
@@ -589,15 +619,55 @@ yydefault:
 			yyVAL.cmd = &ast.Cmd{Expr: yyDollar[1].expr}
 		}
 	case 12:
-		yyDollar = yyS[yypt-1 : yypt+1]
+		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = &ast.SimpleCmd{Args: []ast.Word{yyDollar[1].word}}
+			yyVAL.expr = &ast.SimpleCmd{
+				Assigns: yyDollar[1].assigns,
+				Args:    append([]ast.Word{yyDollar[2].word}, yyDollar[3].words...),
+			}
 		}
 	case 13:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			x := yyVAL.expr.(*ast.SimpleCmd)
-			x.Args = append(x.Args, yyDollar[2].word)
+			yyVAL.expr = &ast.SimpleCmd{
+				Assigns: yyDollar[1].assigns,
+				Args:    []ast.Word{yyDollar[2].word},
+			}
+		}
+	case 14:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.expr = &ast.SimpleCmd{Assigns: yyDollar[1].assigns}
+		}
+	case 15:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.expr = &ast.SimpleCmd{Args: append([]ast.Word{yyDollar[1].word}, yyDollar[2].words...)}
+		}
+	case 16:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.expr = &ast.SimpleCmd{Args: []ast.Word{yyDollar[1].word}}
+		}
+	case 17:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.assigns = append(yyVAL.assigns, assign(yyDollar[1].word))
+		}
+	case 18:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.assigns = append(yyVAL.assigns, assign(yyDollar[2].word))
+		}
+	case 19:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.words = append(yyVAL.words, yyDollar[1].word)
+		}
+	case 20:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.words = append(yyVAL.words, yyDollar[2].word)
 		}
 	}
 	goto yystack /* stack new state and value */

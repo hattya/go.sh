@@ -110,6 +110,44 @@ var parseCommandTests = []struct {
 			word(lit(1, 6, "1")),
 		),
 	},
+	// simple command
+	{
+		src: "FOO=foo",
+		cmd: simple_command(
+			assignment_word(1, 1, "FOO", word(lit(1, 5, "foo"))),
+		),
+	},
+	{
+		src: "FOO=foo BAR=bar env",
+		cmd: simple_command(
+			assignment_word(1, 1, "FOO", word(lit(1, 5, "foo"))),
+			assignment_word(1, 9, "BAR", word(lit(1, 13, "bar"))),
+			word(lit(1, 17, "env")),
+		),
+	},
+	{
+		src: "FOO=foo BAR=bar env -u BAR BAZ=baz",
+		cmd: simple_command(
+			assignment_word(1, 1, "FOO", word(lit(1, 5, "foo"))),
+			assignment_word(1, 9, "BAR", word(lit(1, 13, "bar"))),
+			word(lit(1, 17, "env")),
+			word(lit(1, 21, "-u")),
+			word(lit(1, 24, "BAR")),
+			word(lit(1, 28, "BAZ=baz")),
+		),
+	},
+	{
+		src: "123=123",
+		cmd: simple_command(
+			word(lit(1, 1, "123=123")),
+		),
+	},
+	{
+		src: "=env",
+		cmd: simple_command(
+			word(lit(1, 1, "=env")),
+		),
+	},
 	// comment
 	{
 		src: "# comment",
@@ -357,8 +395,17 @@ func pipe(line, col int, op string, cmd *ast.Cmd) *ast.Pipe {
 	}
 }
 
-func simple_command(args ...ast.Word) *ast.Cmd {
-	return &ast.Cmd{Expr: &ast.SimpleCmd{Args: args}}
+func simple_command(nodes ...ast.Node) *ast.Cmd {
+	x := new(ast.SimpleCmd)
+	for _, n := range nodes {
+		switch n := n.(type) {
+		case *ast.Assign:
+			x.Assigns = append(x.Assigns, n)
+		case ast.Word:
+			x.Args = append(x.Args, n)
+		}
+	}
+	return &ast.Cmd{Expr: x}
 }
 
 func word(w ...ast.WordPart) ast.Word {
@@ -380,6 +427,17 @@ func quote(line, col int, tok string, v ast.Word) *ast.Quote {
 	}
 }
 
+func assignment_word(line, col int, k string, v ast.Word) *ast.Assign {
+	return &ast.Assign{
+		Symbol: &ast.Lit{
+			ValuePos: ast.NewPos(line, col),
+			Value:    k,
+		},
+		Op:    "=",
+		Value: v,
+	}
+}
+
 func comment(line, col int, text string) *ast.Comment {
 	return &ast.Comment{
 		Hash: ast.NewPos(line, col),
@@ -393,11 +451,11 @@ var parseErrorTests = []struct {
 	// pipeline
 	{
 		src: "!",
-		err: ":1:1: syntax error: unexpected EOF, expecting WORD",
+		err: ":1:1: syntax error: unexpected EOF, expecting WORD or ASSIGNMENT_WORD",
 	},
 	{
 		src: "echo foo | !",
-		err: ":1:12: syntax error: unexpected '!', expecting WORD",
+		err: ":1:12: syntax error: unexpected '!', expecting WORD or ASSIGNMENT_WORD",
 	},
 	// list
 	{
@@ -410,11 +468,11 @@ var parseErrorTests = []struct {
 	},
 	{
 		src: "true &&",
-		err: ":1:6: syntax error: unexpected EOF, expecting WORD or '!'",
+		err: ":1:6: syntax error: unexpected EOF, expecting WORD or ASSIGNMENT_WORD or '!'",
 	},
 	{
 		src: "false ||",
-		err: ":1:7: syntax error: unexpected EOF, expecting WORD or '!'",
+		err: ":1:7: syntax error: unexpected EOF, expecting WORD or ASSIGNMENT_WORD or '!'",
 	},
 }
 

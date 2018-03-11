@@ -44,17 +44,21 @@ import (
 	cmd      *ast.Cmd
 	expr     ast.CmdExpr
 	token    token
+	assigns  []*ast.Assign
 	word     ast.Word
+	words    []ast.Word
 }
 
 %token<token> AND OR '|' '&' ';'
-%token<word>  WORD
+%token<word>  WORD ASSIGNMENT_WORD
 %token<token> Bang
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd
 %type<expr>     simple_cmd
+%type<assigns>  cmd_prefix
+%type<words>    cmd_suffix
 %type<token>    sep_op
 
 %left  '&' ';'
@@ -135,14 +139,51 @@ cmd:
 		}
 
 simple_cmd:
-		           WORD
+		cmd_prefix WORD cmd_suffix
+		{
+			$$ = &ast.SimpleCmd{
+				Assigns: $1,
+				Args:    append([]ast.Word{$2}, $3...),
+			}
+		}
+	|	cmd_prefix WORD
+		{
+			$$ = &ast.SimpleCmd{
+				Assigns: $1,
+				Args:    []ast.Word{$2},
+			}
+		}
+	|	cmd_prefix
+		{
+			$$ = &ast.SimpleCmd{Assigns: $1}
+		}
+	|	           WORD cmd_suffix
+		{
+			$$ = &ast.SimpleCmd{Args: append([]ast.Word{$1}, $2...)}
+		}
+	|	           WORD
 		{
 			$$ = &ast.SimpleCmd{Args: []ast.Word{$1}}
 		}
-	|	simple_cmd WORD
+
+cmd_prefix:
+		           ASSIGNMENT_WORD
 		{
-			x := $$.(*ast.SimpleCmd)
-			x.Args = append(x.Args, $2)
+			$$ = append($$, assign($1))
+		}
+	|	cmd_prefix ASSIGNMENT_WORD
+		{
+			$$ = append($$, assign($2))
+		}
+
+cmd_suffix:
+		           WORD
+		{
+			$$ = append($$, $1)
+		}
+	|	cmd_suffix WORD
+		{
+			$$ = append($$, $2)
 		}
 
 sep_op:
@@ -166,6 +207,26 @@ func init() {
 			s = "'!'"
 		}
 		yyToknames[i] = s
+	}
+}
+
+func assign(w ast.Word) *ast.Assign{
+	k := w[0].(*ast.Lit)
+	i := strings.IndexRune(k.Value, '=')
+	v := w[1:]
+	if i < len(k.Value)-1 {
+		v = append(ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(k.ValuePos.Line(), k.ValuePos.Col()+i+1),
+				Value:    k.Value[i+1:],
+			},
+		}, v...)
+		k.Value = k.Value[:i]
+	}
+	return &ast.Assign{
+		Symbol: k,
+		Op:     "=",
+		Value:  v,
 	}
 }
 

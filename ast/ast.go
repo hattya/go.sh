@@ -151,10 +151,14 @@ type CmdExpr interface {
 
 // SimpleCmd represents a simple command.
 type SimpleCmd struct {
-	Args []Word // command line arguments
+	Assigns []*Assign // variable assignments; or nil
+	Args    []Word    // command line arguments
 }
 
 func (x *SimpleCmd) Pos() Pos {
+	if len(x.Assigns) != 0 {
+		return x.Assigns[0].Pos()
+	}
 	if len(x.Args) == 0 {
 		return Pos{}
 	}
@@ -163,7 +167,10 @@ func (x *SimpleCmd) Pos() Pos {
 
 func (x *SimpleCmd) End() Pos {
 	if len(x.Args) == 0 {
-		return Pos{}
+		if len(x.Assigns) == 0 {
+			return Pos{}
+		}
+		return x.Assigns[len(x.Assigns)-1].End()
 	}
 	return x.Args[len(x.Args)-1].End()
 }

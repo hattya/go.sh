@@ -53,3 +53,29 @@ func TestToken(t *testing.T) {
 		t.Errorf("token.End() = %v, expected %v", g, e)
 	}
 }
+
+func TestWord(t *testing.T) {
+	var n ast.Node = word{}
+	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("word.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("word.End() = %v, expected %v", g, e)
+	}
+
+	n = word{
+		typ: WORD,
+		val: ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(1, 1),
+				Value:    "lit",
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("word.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 4); e != g {
+		t.Errorf("word.End() = %v, expected %v", g, e)
+	}
+}

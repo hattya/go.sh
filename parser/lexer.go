@@ -34,7 +34,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 	"sync/atomic"
+	"unicode"
 
 	"github.com/hattya/go.sh/ast"
 )
@@ -91,9 +93,9 @@ func (l *lexer) Lex(lval *yySymType) int {
 	case token:
 		lval.token = tok
 		return tok.typ
-	case ast.Word:
-		lval.word = tok
-		return WORD
+	case word:
+		lval.word = tok.val
+		return tok.typ
 	}
 	return 0
 }
@@ -136,17 +138,59 @@ func (l *lexer) translate(tok int) int {
 }
 
 func (l *lexer) lexSimpleCmd() action {
+	if l.isAssign() {
+		l.emit(ASSIGNMENT_WORD)
+		return l.lexCmdPrefix
+	}
 	l.emit(WORD)
-	return l.lexWord
+	return l.lexCmdSuffix
 }
 
-func (l *lexer) lexWord() action {
+func (l *lexer) lexCmdPrefix() action {
 	tok := l.scanToken()
-	if tok == WORD {
+	switch tok {
+	case WORD:
+		if l.isAssign() {
+			l.emit(ASSIGNMENT_WORD)
+			return l.lexCmdPrefix
+		}
 		l.emit(WORD)
-		return l.lexWord
+		return l.lexCmdSuffix
 	}
 	return l.lexToken(tok)
+}
+
+func (l *lexer) lexCmdSuffix() action {
+	tok := l.scanToken()
+	switch tok {
+	case WORD:
+		l.emit(WORD)
+		return l.lexCmdSuffix
+	}
+	return l.lexToken(tok)
+}
+
+// isAssign reports whether the current word is ASSIGNMENT_WORD.
+func (l *lexer) isAssign() bool {
+	w, ok := l.word[0].(*ast.Lit)
+	if !ok {
+		return false
+	}
+	i := strings.IndexRune(w.Value, '=')
+	if i < 1 {
+		return false
+	}
+	return l.isName(w.Value[:i])
+}
+
+// isName reports whether s satisfies XBD Name.
+func (l *lexer) isName(s string) bool {
+	for i, r := range s {
+		if !(r == '_' || unicode.IsLetter(r) || (i > 0 && unicode.IsDigit(r))) {
+			return false
+		}
+	}
+	return true
 }
 
 func (l *lexer) lexToken(tok int) action {
@@ -335,8 +379,11 @@ func (l *lexer) lit() {
 func (l *lexer) emit(tok int) {
 	l.last.Store(l.pos)
 	switch tok {
-	case WORD:
-		l.token <- l.word
+	case WORD, ASSIGNMENT_WORD:
+		l.token <- word{
+			typ: tok,
+			val: l.word,
+		}
 		l.word = nil
 	default:
 		if len(l.word) != 0 {
@@ -418,3 +465,11 @@ type token struct {
 
 func (t token) Pos() ast.Pos { return t.pos }
 func (t token) End() ast.Pos { return ast.NewPos(t.pos.Line(), t.pos.Col()+len(t.val)) }
+
+type word struct {
+	typ int
+	val ast.Word
+}
+
+func (w word) Pos() ast.Pos { return w.val.Pos() }
+func (w word) End() ast.Pos { return w.val.End() }

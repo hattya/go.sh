@@ -43,18 +43,23 @@ type yySymType struct {
 	list     *ast.List
 	pipeline *ast.Pipeline
 	cmd      *ast.Cmd
-	expr     ast.CmdExpr
 	token    token
-	assigns  []*ast.Assign
+	elt      *element
+	redir    *ast.Redir
 	word     ast.Word
-	words    []ast.Word
 }
 
 const AND = 57346
 const OR = 57347
-const WORD = 57348
-const ASSIGNMENT_WORD = 57349
-const Bang = 57350
+const CLOBBER = 57348
+const APPEND = 57349
+const DUPIN = 57350
+const DUPOUT = 57351
+const RDWR = 57352
+const IO_NUMBER = 57353
+const WORD = 57354
+const ASSIGNMENT_WORD = 57355
+const Bang = 57356
 
 var yyToknames = [...]string{
 	"$end",
@@ -65,6 +70,14 @@ var yyToknames = [...]string{
 	"'|'",
 	"'&'",
 	"';'",
+	"'<'",
+	"'>'",
+	"CLOBBER",
+	"APPEND",
+	"DUPIN",
+	"DUPOUT",
+	"RDWR",
+	"IO_NUMBER",
 	"WORD",
 	"ASSIGNMENT_WORD",
 	"Bang",
@@ -86,11 +99,27 @@ func init() {
 			s = "'&&'"
 		case "OR":
 			s = "'||'"
+		case "CLOBBER":
+			s = "'>|'"
+		case "APPEND":
+			s = "'>>'"
+		case "DUPIN":
+			s = "'<&'"
+		case "DUPOUT":
+			s = "'>&'"
+		case "RDWR":
+			s = "'<>'"
 		case "Bang":
 			s = "'!'"
 		}
 		yyToknames[i] = s
 	}
+}
+
+type element struct {
+	redirs  []*ast.Redir
+	assigns []*ast.Assign
+	args    []ast.Word
 }
 
 func assign(w ast.Word) *ast.Assign {
@@ -149,47 +178,62 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 28
+const yyLast = 85
 
 var yyAct = [...]int{
 
-	20, 6, 3, 9, 10, 5, 9, 10, 18, 19,
-	12, 13, 26, 14, 15, 22, 23, 21, 24, 25,
-	16, 4, 1, 11, 8, 7, 2, 17,
+	10, 32, 3, 36, 6, 27, 1, 22, 12, 30,
+	33, 15, 16, 17, 18, 19, 20, 21, 13, 9,
+	11, 5, 35, 4, 14, 8, 37, 38, 7, 28,
+	33, 40, 39, 41, 15, 16, 17, 18, 19, 20,
+	21, 41, 15, 16, 17, 18, 19, 20, 21, 13,
+	9, 11, 15, 16, 17, 18, 19, 20, 21, 13,
+	29, 31, 15, 16, 17, 18, 19, 20, 21, 13,
+	42, 15, 16, 17, 18, 19, 20, 21, 13, 34,
+	23, 24, 2, 25, 26,
 }
 var yyPact = [...]int{
 
-	-6, -1000, 6, -1000, 14, -3, -1000, -1000, -1, 8,
-	-1000, -1000, -6, -6, -1000, -1000, -3, 14, 8, -1000,
-	3, -1000, -1000, -1000, -1000, 3, -1000,
+	2, -1000, 76, -1000, -1, 33, -1000, -1000, 43, 62,
+	-1000, -1000, -1000, 25, -14, -1000, -1000, -1000, -1000, -1000,
+	-1000, -1000, -1000, 2, 2, -1000, -1000, 33, -1, 62,
+	-1000, -1000, 53, -1000, -1000, -1000, -1000, -1000, -1000, -1000,
+	53, -1000, -1000,
 }
 var yyPgo = [...]int{
 
-	0, 26, 2, 21, 1, 25, 24, 0, 23, 22,
+	0, 82, 2, 23, 4, 28, 25, 1, 0, 8,
+	24, 7, 6,
 }
 var yyR1 = [...]int{
 
-	0, 9, 9, 9, 1, 1, 1, 2, 2, 3,
-	3, 4, 5, 5, 5, 5, 5, 6, 6, 7,
-	7, 8, 8,
+	0, 12, 12, 12, 1, 1, 1, 2, 2, 3,
+	3, 4, 5, 5, 5, 5, 5, 6, 6, 6,
+	6, 7, 7, 7, 7, 8, 8, 9, 10, 10,
+	10, 10, 10, 10, 10, 11, 11,
 }
 var yyR2 = [...]int{
 
 	0, 2, 1, 0, 1, 3, 3, 1, 2, 1,
 	3, 1, 3, 2, 1, 2, 1, 1, 2, 1,
-	2, 1, 1,
+	2, 1, 2, 1, 2, 1, 2, 2, 1, 1,
+	1, 1, 1, 1, 1, 1, 1,
 }
 var yyChk = [...]int{
 
-	-1000, -9, -1, -2, -3, 11, -4, -5, -6, 9,
-	10, -8, 4, 5, 7, 8, 6, -3, 9, 10,
-	-7, 9, -2, -2, -4, -7, 9,
+	-1000, -12, -1, -2, -3, 19, -4, -5, -6, 17,
+	-8, 18, -9, 16, -10, 9, 10, 11, 12, 13,
+	14, 15, -11, 4, 5, 7, 8, 6, -3, 17,
+	-8, 18, -7, -8, 17, -9, 17, -2, -2, -4,
+	-7, -8, 17,
 }
 var yyDef = [...]int{
 
 	3, -2, 2, 4, 7, 0, 9, 11, 14, 16,
-	17, 1, 0, 0, 21, 22, 0, 8, 13, 18,
-	15, 19, 5, 6, 10, 12, 20,
+	17, 19, 25, 0, 0, 28, 29, 30, 31, 32,
+	33, 34, 1, 0, 0, 35, 36, 0, 8, 13,
+	18, 20, 15, 21, 23, 26, 27, 5, 6, 10,
+	12, 22, 24,
 }
 var yyTok1 = [...]int{
 
@@ -199,7 +243,7 @@ var yyTok1 = [...]int{
 	3, 3, 3, 3, 3, 3, 3, 3, 7, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 8,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	9, 3, 10, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -209,7 +253,8 @@ var yyTok1 = [...]int{
 }
 var yyTok2 = [...]int{
 
-	2, 3, 4, 5, 9, 10, 11,
+	2, 3, 4, 5, 11, 12, 13, 14, 15, 16,
+	17, 18, 19,
 }
 var yyTok3 = [...]int{
 	0,
@@ -616,58 +661,101 @@ yydefault:
 	case 11:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			yyVAL.cmd = &ast.Cmd{Expr: yyDollar[1].expr}
+			yyVAL.cmd = &ast.Cmd{
+				Expr: &ast.SimpleCmd{
+					Assigns: yyDollar[1].elt.assigns,
+					Args:    yyDollar[1].elt.args,
+				},
+				Redirs: yyDollar[1].elt.redirs,
+			}
 		}
 	case 12:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = &ast.SimpleCmd{
-				Assigns: yyDollar[1].assigns,
-				Args:    append([]ast.Word{yyDollar[2].word}, yyDollar[3].words...),
+			yyVAL.elt = &element{
+				redirs:  append(yyDollar[1].elt.redirs, yyDollar[3].elt.redirs...),
+				assigns: yyDollar[1].elt.assigns,
 			}
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[2].word)
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[3].elt.args...)
 		}
 	case 13:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.expr = &ast.SimpleCmd{
-				Assigns: yyDollar[1].assigns,
-				Args:    []ast.Word{yyDollar[2].word},
-			}
-		}
-	case 14:
-		yyDollar = yyS[yypt-1 : yypt+1]
-		{
-			yyVAL.expr = &ast.SimpleCmd{Assigns: yyDollar[1].assigns}
+			yyVAL.elt = yyDollar[1].elt
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[2].word)
 		}
 	case 15:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.expr = &ast.SimpleCmd{Args: append([]ast.Word{yyDollar[1].word}, yyDollar[2].words...)}
+			yyVAL.elt = &element{redirs: yyDollar[2].elt.redirs}
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[1].word)
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[2].elt.args...)
 		}
 	case 16:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			yyVAL.expr = &ast.SimpleCmd{Args: []ast.Word{yyDollar[1].word}}
+			yyVAL.elt = new(element)
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[1].word)
 		}
 	case 17:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			yyVAL.assigns = append(yyVAL.assigns, assign(yyDollar[1].word))
+			yyVAL.elt = new(element)
+			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[1].redir)
 		}
 	case 18:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.assigns = append(yyVAL.assigns, assign(yyDollar[2].word))
+			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[2].redir)
 		}
 	case 19:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			yyVAL.words = append(yyVAL.words, yyDollar[1].word)
+			yyVAL.elt = new(element)
+			yyVAL.elt.assigns = append(yyVAL.elt.assigns, assign(yyDollar[1].word))
 		}
 	case 20:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.words = append(yyVAL.words, yyDollar[2].word)
+			yyVAL.elt.assigns = append(yyVAL.elt.assigns, assign(yyDollar[2].word))
+		}
+	case 21:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.elt = new(element)
+			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[1].redir)
+		}
+	case 22:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[2].redir)
+		}
+	case 23:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.elt = new(element)
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[1].word)
+		}
+	case 24:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[2].word)
+		}
+	case 26:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.redir = yyDollar[2].redir
+			yyVAL.redir.N = yyDollar[1].word[0].(*ast.Lit)
+		}
+	case 27:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.redir = &ast.Redir{
+				OpPos: yyDollar[1].token.pos,
+				Op:    yyDollar[1].token.val,
+				Word:  yyDollar[2].word,
+			}
 		}
 	}
 	goto yystack /* stack new state and value */

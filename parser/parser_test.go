@@ -148,6 +148,102 @@ var parseCommandTests = []struct {
 			word(lit(1, 1, "=env")),
 		),
 	},
+	{
+		src: "cat <file",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			redir(nil, 1, 5, "<", word(lit(1, 6, "file"))),
+		),
+	},
+	{
+		src: "echo foo >file",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "foo")),
+			redir(nil, 1, 10, ">", word(lit(1, 11, "file"))),
+		),
+	},
+	{
+		src: "echo baz >|file",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "baz")),
+			redir(nil, 1, 10, ">|", word(lit(1, 12, "file"))),
+		),
+	},
+	{
+		src: "echo bar >>file",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "bar")),
+			redir(nil, 1, 10, ">>", word(lit(1, 12, "file"))),
+		),
+	},
+	{
+		src: "exec 3<&-",
+		cmd: simple_command(
+			word(lit(1, 1, "exec")),
+			redir(lit(1, 6, "3"), 1, 7, "<&", word(lit(1, 9, "-"))),
+		),
+	},
+	{
+		src: "echo foo >&1",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "foo")),
+			redir(nil, 1, 10, ">&", word(lit(1, 12, "1"))),
+		),
+	},
+	{
+		src: "exec 3<>file",
+		cmd: simple_command(
+			word(lit(1, 1, "exec")),
+			redir(lit(1, 6, "3"), 1, 7, "<>", word(lit(1, 9, "file"))),
+		),
+	},
+	{
+		src: "echo foo>&2",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "foo")),
+			redir(nil, 1, 9, ">&", word(lit(1, 11, "2"))),
+		),
+	},
+	{
+		src: "echo \\foo>&2",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, "\\", word(lit(1, 7, "f"))), lit(1, 8, "oo")),
+			redir(nil, 1, 10, ">&", word(lit(1, 12, "2"))),
+		),
+	},
+	{
+		src: ">/dev/null 2>&1 echo foo",
+		cmd: simple_command(
+			redir(nil, 1, 1, ">", word(lit(1, 2, "/dev/null"))),
+			redir(lit(1, 12, "2"), 1, 13, ">&", word(lit(1, 15, "1"))),
+			word(lit(1, 17, "echo")),
+			word(lit(1, 22, "foo")),
+		),
+	},
+	{
+		src: ">/dev/null echo foo 2>&1",
+		cmd: simple_command(
+			redir(nil, 1, 1, ">", word(lit(1, 2, "/dev/null"))),
+			word(lit(1, 12, "echo")),
+			word(lit(1, 17, "foo")),
+			redir(lit(1, 21, "2"), 1, 22, ">&", word(lit(1, 24, "1"))),
+		),
+	},
+	{
+		src: "echo foo >/dev/null 2>&1",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "foo")),
+			redir(nil, 1, 10, ">", word(lit(1, 11, "/dev/null"))),
+			redir(lit(1, 21, "2"), 1, 22, ">&", word(lit(1, 24, "1"))),
+		),
+	},
 	// comment
 	{
 		src: "# comment",
@@ -397,15 +493,27 @@ func pipe(line, col int, op string, cmd *ast.Cmd) *ast.Pipe {
 
 func simple_command(nodes ...ast.Node) *ast.Cmd {
 	x := new(ast.SimpleCmd)
+	cmd := &ast.Cmd{Expr: x}
 	for _, n := range nodes {
 		switch n := n.(type) {
 		case *ast.Assign:
 			x.Assigns = append(x.Assigns, n)
 		case ast.Word:
 			x.Args = append(x.Args, n)
+		case *ast.Redir:
+			cmd.Redirs = append(cmd.Redirs, n)
 		}
 	}
-	return &ast.Cmd{Expr: x}
+	return cmd
+}
+
+func redir(n *ast.Lit, line, col int, op string, word ast.Word) *ast.Redir {
+	return &ast.Redir{
+		N:     n,
+		OpPos: ast.NewPos(line, col),
+		Op:    op,
+		Word:  word,
+	}
 }
 
 func word(w ...ast.WordPart) ast.Word {
@@ -448,14 +556,23 @@ func comment(line, col int, text string) *ast.Comment {
 var parseErrorTests = []struct {
 	src, err string
 }{
+	// simple command
+	{
+		src: "<",
+		err: ":1:1: syntax error: unexpected EOF, expecting WORD",
+	},
+	{
+		src: ">",
+		err: ":1:1: syntax error: unexpected EOF, expecting WORD",
+	},
 	// pipeline
 	{
 		src: "!",
-		err: ":1:1: syntax error: unexpected EOF, expecting WORD or ASSIGNMENT_WORD",
+		err: ":1:1: syntax error: unexpected EOF",
 	},
 	{
 		src: "echo foo | !",
-		err: ":1:12: syntax error: unexpected '!', expecting WORD or ASSIGNMENT_WORD",
+		err: ":1:12: syntax error: unexpected '!'",
 	},
 	// list
 	{
@@ -468,11 +585,11 @@ var parseErrorTests = []struct {
 	},
 	{
 		src: "true &&",
-		err: ":1:6: syntax error: unexpected EOF, expecting WORD or ASSIGNMENT_WORD or '!'",
+		err: ":1:6: syntax error: unexpected EOF",
 	},
 	{
 		src: "false ||",
-		err: ":1:7: syntax error: unexpected EOF, expecting WORD or ASSIGNMENT_WORD or '!'",
+		err: ":1:7: syntax error: unexpected EOF",
 	},
 }
 

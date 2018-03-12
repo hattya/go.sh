@@ -280,6 +280,89 @@ func TestCmd(t *testing.T) {
 	if g, e := c.End(), ast.NewPos(0, 0); e != g {
 		t.Errorf("Cmd.End() = %v, expected %v", g, e)
 	}
+
+	c = &ast.Cmd{
+		Redirs: []*ast.Redir{
+			{
+				OpPos: ast.NewPos(1, 1),
+				Op:    ">",
+				Word: ast.Word{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 2),
+						Value:    "lit",
+					},
+				},
+			},
+		},
+	}
+	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := c.End(), ast.NewPos(1, 5); e != g {
+		t.Errorf("Cmd.End() = %v, expected %v", g, e)
+	}
+
+	c = &ast.Cmd{
+		Expr: &ast.SimpleCmd{
+			Args: []ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 1),
+						Value:    "lit",
+					},
+				},
+			},
+		},
+		Redirs: []*ast.Redir{
+			{
+				OpPos: ast.NewPos(1, 5),
+				Op:    ">",
+				Word: ast.Word{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 6),
+						Value:    "lit",
+					},
+				},
+			},
+		},
+	}
+	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := c.End(), ast.NewPos(1, 9); e != g {
+		t.Errorf("Cmd.End() = %v, expected %v", g, e)
+	}
+
+	c = &ast.Cmd{
+		Expr: &ast.SimpleCmd{
+			Args: []ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 6),
+						Value:    "lit",
+					},
+				},
+			},
+		},
+		Redirs: []*ast.Redir{
+			{
+				OpPos: ast.NewPos(1, 1),
+				Op:    ">",
+				Word: ast.Word{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 2),
+						Value:    "lit",
+					},
+				},
+			},
+		},
+	}
+	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := c.End(), ast.NewPos(1, 9); e != g {
+		t.Errorf("Cmd.End() = %v, expected %v", g, e)
+	}
 }
 
 func TestSimpleCmd(t *testing.T) {

@@ -42,24 +42,24 @@ import (
 	list     *ast.List
 	pipeline *ast.Pipeline
 	cmd      *ast.Cmd
-	expr     ast.CmdExpr
 	token    token
-	assigns  []*ast.Assign
+	elt      *element
+	redir    *ast.Redir
 	word     ast.Word
-	words    []ast.Word
 }
 
 %token<token> AND OR '|' '&' ';'
+%token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
+%token<word>  IO_NUMBER
 %token<word>  WORD ASSIGNMENT_WORD
 %token<token> Bang
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd
-%type<expr>     simple_cmd
-%type<assigns>  cmd_prefix
-%type<words>    cmd_suffix
-%type<token>    sep_op
+%type<elt>      simple_cmd cmd_prefix cmd_suffix
+%type<redir>    io_redir io_file
+%type<token>    redir_op sep_op
 
 %left  '&' ';'
 %left  AND OR
@@ -135,56 +135,109 @@ pipe_seq:
 cmd:
 		simple_cmd
 		{
-			$$ = &ast.Cmd{Expr: $1}
+			$$ = &ast.Cmd{
+				Expr: &ast.SimpleCmd{
+					Assigns: $1.assigns,
+					Args:    $1.args,
+				},
+				Redirs: $1.redirs,
+			}
 		}
 
 simple_cmd:
 		cmd_prefix WORD cmd_suffix
 		{
-			$$ = &ast.SimpleCmd{
-				Assigns: $1,
-				Args:    append([]ast.Word{$2}, $3...),
+			$$ = &element{
+				redirs:  append($1.redirs, $3.redirs...),
+				assigns: $1.assigns,
 			}
+			$$.args = append($$.args, $2)
+			$$.args = append($$.args, $3.args...)
 		}
 	|	cmd_prefix WORD
 		{
-			$$ = &ast.SimpleCmd{
-				Assigns: $1,
-				Args:    []ast.Word{$2},
-			}
+			$$ = $1
+			$$.args = append($$.args, $2)
 		}
 	|	cmd_prefix
-		{
-			$$ = &ast.SimpleCmd{Assigns: $1}
-		}
 	|	           WORD cmd_suffix
 		{
-			$$ = &ast.SimpleCmd{Args: append([]ast.Word{$1}, $2...)}
+			$$ = &element{redirs: $2.redirs}
+			$$.args = append($$.args, $1)
+			$$.args = append($$.args, $2.args...)
 		}
 	|	           WORD
 		{
-			$$ = &ast.SimpleCmd{Args: []ast.Word{$1}}
+			$$ = new(element)
+			$$.args = append($$.args, $1)
 		}
 
 cmd_prefix:
-		           ASSIGNMENT_WORD
+		           io_redir
 		{
-			$$ = append($$, assign($1))
+			$$ = new(element)
+			$$.redirs = append($$.redirs, $1)
+		}
+	|	cmd_prefix io_redir
+		{
+			$$.redirs = append($$.redirs, $2)
+		}
+	|	           ASSIGNMENT_WORD
+		{
+			$$ = new(element)
+			$$.assigns = append($$.assigns, assign($1))
 		}
 	|	cmd_prefix ASSIGNMENT_WORD
 		{
-			$$ = append($$, assign($2))
+			$$.assigns = append($$.assigns, assign($2))
 		}
 
 cmd_suffix:
-		           WORD
+		           io_redir
 		{
-			$$ = append($$, $1)
+			$$ = new(element)
+			$$.redirs = append($$.redirs, $1)
+		}
+	|	cmd_suffix io_redir
+		{
+			$$.redirs = append($$.redirs, $2)
+		}
+	|	           WORD
+		{
+			$$ = new(element)
+			$$.args = append($$.args, $1)
 		}
 	|	cmd_suffix WORD
 		{
-			$$ = append($$, $2)
+			$$.args = append($$.args, $2)
 		}
+
+io_redir:
+		          io_file
+	|	IO_NUMBER io_file
+		{
+			$$ = $2
+			$$.N = $1[0].(*ast.Lit)
+		}
+
+io_file:
+		redir_op WORD
+		{
+			$$ = &ast.Redir{
+				OpPos: $1.pos,
+				Op:    $1.val,
+				Word:  $2,
+			}
+		}
+
+redir_op:
+		'<'
+	|	'>'
+	|	CLOBBER
+	|	APPEND
+	|	DUPIN
+	|	DUPOUT
+	|	RDWR
 
 sep_op:
 		'&'
@@ -203,11 +256,27 @@ func init() {
 			s = "'&&'"
 		case "OR":
 			s = "'||'"
+		case "CLOBBER":
+			s = "'>|'"
+		case "APPEND":
+			s = "'>>'"
+		case "DUPIN":
+			s = "'<&'"
+		case "DUPOUT":
+			s = "'>&'"
+		case "RDWR":
+			s = "'<>'"
 		case "Bang":
 			s = "'!'"
 		}
 		yyToknames[i] = s
 	}
+}
+
+type element struct {
+	redirs  []*ast.Redir
+	assigns []*ast.Assign
+	args    []ast.Word
 }
 
 func assign(w ast.Word) *ast.Assign{

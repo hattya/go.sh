@@ -46,6 +46,13 @@ var (
 		AND:      "&&",
 		OR:       "||",
 		int('|'): "|",
+		int('<'): "<",
+		int('>'): ">",
+		CLOBBER:  ">|",
+		APPEND:   ">>",
+		DUPIN:    "<&",
+		DUPOUT:   ">&",
+		RDWR:     "<>",
 		int('&'): "&",
 		int(';'): ";",
 	}
@@ -119,8 +126,8 @@ func (l *lexer) lexPipeline() action {
 func (l *lexer) lexCmd(tok int) action {
 	tok = l.translate(tok)
 	switch tok {
-	case WORD:
-		return l.lexSimpleCmd
+	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR, IO_NUMBER, WORD:
+		return l.lexSimpleCmd(tok)
 	}
 	return l.lexToken(tok)
 }
@@ -137,37 +144,54 @@ func (l *lexer) translate(tok int) int {
 	return tok
 }
 
-func (l *lexer) lexSimpleCmd() action {
-	if l.isAssign() {
-		l.emit(ASSIGNMENT_WORD)
-		return l.lexCmdPrefix
-	}
-	l.emit(WORD)
-	return l.lexCmdSuffix
-}
-
-func (l *lexer) lexCmdPrefix() action {
-	tok := l.scanToken()
-	switch tok {
-	case WORD:
-		if l.isAssign() {
-			l.emit(ASSIGNMENT_WORD)
-			return l.lexCmdPrefix
-		}
+func (l *lexer) lexSimpleCmd(tok int) action {
+	if tok == WORD && !l.isAssign() {
 		l.emit(WORD)
 		return l.lexCmdSuffix
 	}
+	return l.lexCmdPrefix(tok)
+}
+
+func (l *lexer) lexCmdPrefix(tok int) action {
+	switch tok {
+	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR:
+		// redirection operator
+		l.emit(tok)
+		if tok = l.scanToken(); tok == WORD {
+			goto Prefix
+		}
+	case IO_NUMBER:
+		goto Prefix
+	case WORD:
+		if !l.isAssign() {
+			l.emit(WORD)
+			return l.lexCmdSuffix
+		}
+		tok = ASSIGNMENT_WORD
+		goto Prefix
+	}
 	return l.lexToken(tok)
+Prefix:
+	l.emit(tok)
+	return l.lexCmdPrefix(l.scanToken())
 }
 
 func (l *lexer) lexCmdSuffix() action {
 	tok := l.scanToken()
 	switch tok {
-	case WORD:
-		l.emit(WORD)
-		return l.lexCmdSuffix
+	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR:
+		// redirection operator
+		l.emit(tok)
+		if tok = l.scanToken(); tok == WORD {
+			goto Suffix
+		}
+	case IO_NUMBER, WORD:
+		goto Suffix
 	}
 	return l.lexToken(tok)
+Suffix:
+	l.emit(tok)
+	return l.lexCmdSuffix
 }
 
 // isAssign reports whether the current word is ASSIGNMENT_WORD.
@@ -235,6 +259,23 @@ func (l *lexer) scanToken() int {
 				return WORD
 			}
 			return l.scanOp(r)
+		case '<', '>':
+			// redirection operator
+			if l.lit(); len(l.word) != 0 {
+				l.unread()
+				if len(l.word) == 1 {
+					if w, ok := l.word[0].(*ast.Lit); ok {
+						for _, r := range w.Value {
+							if !('0' <= r && r <= '9') {
+								return WORD
+							}
+						}
+						return IO_NUMBER
+					}
+				}
+				return WORD
+			}
+			return l.scanOp(r)
 		case '\\':
 			// quoting
 			l.lit()
@@ -284,6 +325,32 @@ func (l *lexer) scanOp(r rune) int {
 		}
 	case ';':
 		op = int(';')
+	case '<':
+		op = int('<')
+		if r, _ = l.read(); l.err == nil {
+			switch r {
+			case '&':
+				op = DUPIN
+			case '>':
+				op = RDWR
+			default:
+				l.unread()
+			}
+		}
+	case '>':
+		op = int('>')
+		if r, _ = l.read(); l.err == nil {
+			switch r {
+			case '&':
+				op = DUPOUT
+			case '>':
+				op = APPEND
+			case '|':
+				op = CLOBBER
+			default:
+				l.unread()
+			}
+		}
 	case '|':
 		op = int('|')
 		if r, _ = l.read(); l.err == nil {
@@ -379,7 +446,7 @@ func (l *lexer) lit() {
 func (l *lexer) emit(tok int) {
 	l.last.Store(l.pos)
 	switch tok {
-	case WORD, ASSIGNMENT_WORD:
+	case IO_NUMBER, WORD, ASSIGNMENT_WORD:
 		l.token <- word{
 			typ: tok,
 			val: l.word,

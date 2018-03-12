@@ -58,7 +58,8 @@ type (
 
 	// Cmd represents a simple command.
 	Cmd struct {
-		Expr CmdExpr
+		Expr   CmdExpr
+		Redirs []*Redir
 	}
 )
 
@@ -78,10 +79,22 @@ func (c *Pipeline) Pos() Pos {
 	return c.Cmd.Pos()
 }
 func (c *Cmd) Pos() Pos {
-	if c.Expr == nil {
-		return Pos{}
+	switch {
+	case len(c.Redirs) == 0:
+		if c.Expr == nil {
+			return Pos{}
+		}
+		return c.Expr.Pos()
+	case c.Expr == nil:
+		return c.Redirs[0].Pos()
+	default:
+		x := c.Expr.Pos()
+		r := c.Redirs[0].Pos()
+		if x.Line() < r.Line() || x.Line() == r.Line() && x.Col() < r.Col() {
+			return x
+		}
+		return r
 	}
-	return c.Expr.Pos()
 }
 
 func (c *List) End() Pos {
@@ -103,10 +116,22 @@ func (c *Pipeline) End() Pos {
 	return c.Cmd.End()
 }
 func (c *Cmd) End() Pos {
-	if c.Expr == nil {
-		return Pos{}
+	switch {
+	case len(c.Redirs) == 0:
+		if c.Expr == nil {
+			return Pos{}
+		}
+		return c.Expr.End()
+	case c.Expr == nil:
+		return c.Redirs[len(c.Redirs)-1].End()
+	default:
+		x := c.Expr.End()
+		r := c.Redirs[len(c.Redirs)-1].End()
+		if x.Line() < r.Line() || x.Line() == r.Line() && x.Col() < r.Col() {
+			return r
+		}
+		return x
 	}
-	return c.Expr.End()
 }
 
 func (c *List) commandNode()     {}

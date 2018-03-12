@@ -425,6 +425,54 @@ func TestAssign(t *testing.T) {
 	}
 }
 
+func TestRedir(t *testing.T) {
+	var n ast.Node = new(ast.Redir)
+	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Redir.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Redir.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.Redir{
+		OpPos: ast.NewPos(1, 1),
+		Op:    ">",
+		Word: ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(1, 3),
+				Value:    "lit",
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Redir.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 6); e != g {
+		t.Errorf("Redir.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.Redir{
+		N: &ast.Lit{
+			ValuePos: ast.NewPos(1, 1),
+			Value:    "1",
+		},
+		OpPos: ast.NewPos(1, 2),
+		Op:    ">",
+		Word: ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(1, 4),
+				Value:    "lit",
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Redir.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(1, 7); e != g {
+		t.Errorf("Redir.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestWord(t *testing.T) {
 	var n ast.Node = ast.Word{}
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

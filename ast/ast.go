@@ -200,6 +200,22 @@ func (a *Assign) End() Pos {
 	return a.Value.End()
 }
 
+// Redir represents an I/O redirection.
+type Redir struct {
+	N     *Lit
+	OpPos Pos
+	Op    string
+	Word  Word
+}
+
+func (r *Redir) Pos() Pos {
+	if r.N != nil {
+		return r.N.Pos()
+	}
+	return r.OpPos
+}
+func (r *Redir) End() Pos { return r.Word.End() }
+
 // Word represents a WORD token.
 type Word []WordPart
 

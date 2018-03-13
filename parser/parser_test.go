@@ -102,6 +102,13 @@ var parseCommandTests = []struct {
 			word(lit(1, 1, "pwd"), quote(1, 4, "\\", nil)),
 		),
 	},
+	{
+		src: "echo 'foo bar baz'",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, "'", word(lit(1, 7, "foo bar baz")))),
+		),
+	},
 	// <newline>
 	{
 		src: "echo 1\necho 2\n",
@@ -556,6 +563,11 @@ func comment(line, col int, text string) *ast.Comment {
 var parseErrorTests = []struct {
 	src, err string
 }{
+	// quoting
+	{
+		src: "'q",
+		err: ":1:1: syntax error: reached EOF while parsing single-quotes",
+	},
 	// simple command
 	{
 		src: "<",
@@ -629,6 +641,7 @@ func TestReadError(t *testing.T) {
 	for _, data := range []string{
 		"",
 		"\\",
+		"'",
 	} {
 		src := &reader{
 			data: data,

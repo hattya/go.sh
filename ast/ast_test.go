@@ -604,6 +604,17 @@ func TestLit(t *testing.T) {
 	if g, e := w.End(), ast.NewPos(1, 4); e != g {
 		t.Errorf("Lit.End() = %v, expected %v", g, e)
 	}
+
+	w = &ast.Lit{
+		ValuePos: ast.NewPos(1, 1),
+		Value:    "1\n2",
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Lit.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(2, 2); e != g {
+		t.Errorf("Lit.End() = %v, expected %v", g, e)
+	}
 }
 
 func TestQuote(t *testing.T) {
@@ -651,6 +662,23 @@ func TestQuote(t *testing.T) {
 
 	w = &ast.Quote{
 		TokPos: ast.NewPos(1, 1),
+		Tok:    `'`,
+		Value: ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(1, 2),
+				Value:    "single\nquote",
+			},
+		},
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Quote.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(2, 7); e != g {
+		t.Errorf("Quote.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.Quote{
+		TokPos: ast.NewPos(1, 1),
 		Tok:    `"`,
 		Value: ast.Word{
 			&ast.Lit{
@@ -663,6 +691,23 @@ func TestQuote(t *testing.T) {
 		t.Errorf("Quote.Pos() = %v, expected %v", g, e)
 	}
 	if g, e := w.End(), ast.NewPos(1, 8); e != g {
+		t.Errorf("Quote.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.Quote{
+		TokPos: ast.NewPos(1, 1),
+		Tok:    `"`,
+		Value: ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(1, 2),
+				Value:    "double\nquote",
+			},
+		},
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Quote.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(2, 7); e != g {
 		t.Errorf("Quote.End() = %v, expected %v", g, e)
 	}
 }

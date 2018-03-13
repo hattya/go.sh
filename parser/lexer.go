@@ -276,7 +276,7 @@ func (l *lexer) scanToken() int {
 				return WORD
 			}
 			return l.scanOp(r)
-		case '\\':
+		case '\\', '\'':
 			// quoting
 			l.lit()
 			l.mark(-1)
@@ -372,6 +372,7 @@ func (l *lexer) scanQuote(r rune) bool {
 	l.mark(0)
 	switch r {
 	case '\\':
+		// escape character
 		r, err := l.read()
 		if err != nil {
 			if err == io.EOF {
@@ -390,6 +391,31 @@ func (l *lexer) scanQuote(r rune) bool {
 			}
 			l.word = append(l.word, q)
 		}
+	case '\'':
+		// single-quotes
+		for {
+			r, err := l.read()
+			if err != nil {
+				if err == io.EOF {
+					l.last.Store(q.TokPos)
+					l.Error("syntax error: reached EOF while parsing single-quotes")
+				}
+				return false
+			}
+
+			if r == '\'' {
+				break
+			}
+			l.b.WriteRune(r)
+		}
+		q.Value = ast.Word{
+			&ast.Lit{
+				ValuePos: l.pos,
+				Value:    l.b.String(),
+			},
+		}
+		l.b.Reset()
+		l.word = append(l.word, q)
 	}
 	l.mark(0)
 	return true

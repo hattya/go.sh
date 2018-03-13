@@ -281,7 +281,19 @@ type (
 func (w *Lit) Pos() Pos   { return w.ValuePos }
 func (w *Quote) Pos() Pos { return w.TokPos }
 
-func (w *Lit) End() Pos { return w.ValuePos.shift(len(w.Value)) }
+func (w *Lit) End() Pos {
+	line := w.ValuePos.line
+	col := w.ValuePos.col
+	for _, r := range w.Value {
+		if r == '\n' {
+			line++
+			col = 1
+		} else {
+			col++
+		}
+	}
+	return Pos{line, col}
+}
 func (w *Quote) End() Pos {
 	end := w.Value.End()
 	if end.IsZero() || w.Tok == "\\" {

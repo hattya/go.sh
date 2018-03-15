@@ -52,6 +52,11 @@ func (p Pos) Before(q Pos) bool {
 	return p.line < q.line || p.line == q.line && p.col < q.col
 }
 
+// After reports whether the position is after q.
+func (p Pos) After(q Pos) bool {
+	return p.line > q.line || p.line == q.line && p.col > q.col
+}
+
 func (p Pos) shift(off int) Pos {
 	p.col += off
 	return p

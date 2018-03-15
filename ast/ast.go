@@ -127,10 +127,10 @@ func (c *Cmd) End() Pos {
 	default:
 		x := c.Expr.End()
 		r := c.Redirs[len(c.Redirs)-1].End()
-		if x.Line() < r.Line() || x.Line() == r.Line() && x.Col() < r.Col() {
-			return r
+		if x.After(r) {
+			return x
 		}
-		return x
+		return r
 	}
 }
 

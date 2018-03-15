@@ -47,6 +47,11 @@ func (p Pos) IsZero() bool {
 	return p == Pos{}
 }
 
+// Before reports whether the position is before q.
+func (p Pos) Before(q Pos) bool {
+	return p.line < q.line || p.line == q.line && p.col < q.col
+}
+
 func (p Pos) shift(off int) Pos {
 	p.col += off
 	return p

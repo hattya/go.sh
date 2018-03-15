@@ -55,3 +55,32 @@ func TestPos(t *testing.T) {
 		t.Errorf("Pos.IsZero() = true, expected false")
 	}
 }
+
+var posCompareTests = []struct {
+	p, q   ast.Pos
+	before bool
+}{
+	{},
+	{
+		p: ast.NewPos(1, 1),
+		q: ast.NewPos(1, 1),
+	},
+	{
+		p:      ast.NewPos(1, 1),
+		q:      ast.NewPos(1, 2),
+		before: true,
+	},
+	{
+		p:      ast.NewPos(1, 1),
+		q:      ast.NewPos(2, 1),
+		before: true,
+	},
+}
+
+func TestPosCompare(t *testing.T) {
+	for _, tt := range posCompareTests {
+		if g, e := tt.p.Before(tt.q), tt.before; g != e {
+			t.Errorf("%v.Before(%v) = %v, expected %v", tt.p, tt.q, g, e)
+		}
+	}
+}

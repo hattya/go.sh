@@ -90,7 +90,7 @@ func (c *Cmd) Pos() Pos {
 	default:
 		x := c.Expr.Pos()
 		r := c.Redirs[0].Pos()
-		if x.Line() < r.Line() || x.Line() == r.Line() && x.Col() < r.Col() {
+		if x.Before(r) {
 			return x
 		}
 		return r

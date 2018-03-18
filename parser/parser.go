@@ -43,9 +43,12 @@ type yySymType struct {
 	list     *ast.List
 	pipeline *ast.Pipeline
 	cmd      *ast.Cmd
+	expr     ast.CmdExpr
 	token    token
 	elt      *element
+	cmds     []ast.Command
 	redir    *ast.Redir
+	redirs   []*ast.Redir
 	word     ast.Word
 }
 
@@ -68,6 +71,8 @@ var yyToknames = [...]string{
 	"AND",
 	"OR",
 	"'|'",
+	"'('",
+	"')'",
 	"'&'",
 	"';'",
 	"'<'",
@@ -81,6 +86,7 @@ var yyToknames = [...]string{
 	"WORD",
 	"ASSIGNMENT_WORD",
 	"Bang",
+	"'\\n'",
 }
 var yyStatenames = [...]string{}
 
@@ -120,6 +126,16 @@ type element struct {
 	redirs  []*ast.Redir
 	assigns []*ast.Assign
 	args    []ast.Word
+}
+
+func extract(cmd *ast.List) ast.Command {
+	switch {
+	case len(cmd.List) != 0 || !cmd.SepPos.IsZero():
+		return cmd
+	case !cmd.Pipeline.Bang.IsZero() || len(cmd.Pipeline.List) != 0:
+		return cmd.Pipeline
+	}
+	return cmd.Pipeline.Cmd
 }
 
 func assign(w ast.Word) *ast.Assign {
@@ -178,72 +194,86 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 85
+const yyLast = 120
 
 var yyAct = [...]int{
 
-	10, 32, 3, 36, 6, 27, 1, 22, 12, 30,
-	33, 15, 16, 17, 18, 19, 20, 21, 13, 9,
-	11, 5, 35, 4, 14, 8, 37, 38, 7, 28,
-	33, 40, 39, 41, 15, 16, 17, 18, 19, 20,
-	21, 41, 15, 16, 17, 18, 19, 20, 21, 13,
-	9, 11, 15, 16, 17, 18, 19, 20, 21, 13,
-	29, 31, 15, 16, 17, 18, 19, 20, 21, 13,
-	42, 15, 16, 17, 18, 19, 20, 21, 13, 34,
-	23, 24, 2, 25, 26,
+	41, 12, 2, 42, 6, 37, 25, 56, 43, 14,
+	33, 35, 38, 18, 19, 20, 21, 22, 23, 24,
+	16, 10, 13, 5, 18, 19, 20, 21, 22, 23,
+	24, 16, 34, 36, 49, 48, 38, 3, 45, 51,
+	50, 28, 29, 53, 55, 18, 19, 20, 21, 22,
+	23, 24, 51, 30, 43, 26, 27, 4, 59, 61,
+	60, 58, 14, 31, 46, 47, 18, 19, 20, 21,
+	22, 23, 24, 16, 10, 13, 18, 19, 20, 21,
+	22, 23, 24, 16, 52, 18, 19, 20, 21, 22,
+	23, 24, 16, 39, 18, 19, 20, 21, 22, 23,
+	24, 16, 15, 26, 27, 1, 57, 17, 28, 29,
+	32, 54, 40, 11, 8, 9, 7, 0, 0, 44,
 }
 var yyPact = [...]int{
 
-	2, -1000, 76, -1000, -1, 33, -1000, -1000, 43, 62,
-	-1000, -1000, -1000, 25, -14, -1000, -1000, -1000, -1000, -1000,
-	-1000, -1000, -1000, 2, 2, -1000, -1000, 33, -1, 62,
-	-1000, -1000, 53, -1000, -1000, -1000, -1000, -1000, -1000, -1000,
-	53, -1000, -1000,
+	2, -1000, 99, -1000, 47, 55, -1000, -1000, 83, 13,
+	74, -1000, -1000, -1000, -14, -1000, 34, 19, -1000, -1000,
+	-1000, -1000, -1000, -1000, -1000, -1000, 2, 2, -1000, -1000,
+	55, 47, 83, -1000, 74, -1000, -1000, 65, -1000, -1000,
+	35, 2, -15, -1000, -1000, -1000, -1000, -1000, -1000, -1000,
+	65, -1000, -1000, -1000, 32, 51, -1000, 2, -14, -15,
+	51, -1000,
 }
 var yyPgo = [...]int{
 
-	0, 82, 2, 23, 4, 28, 25, 1, 0, 8,
-	24, 7, 6,
+	0, 2, 37, 57, 4, 116, 115, 5, 114, 113,
+	112, 111, 1, 102, 110, 107, 106, 6, 105, 0,
+	3,
 }
 var yyR1 = [...]int{
 
-	0, 12, 12, 12, 1, 1, 1, 2, 2, 3,
-	3, 4, 5, 5, 5, 5, 5, 6, 6, 6,
-	6, 7, 7, 7, 7, 8, 8, 9, 10, 10,
-	10, 10, 10, 10, 10, 11, 11,
+	0, 18, 18, 18, 1, 1, 1, 2, 2, 3,
+	3, 4, 4, 4, 5, 5, 5, 5, 5, 6,
+	6, 6, 6, 7, 7, 7, 7, 8, 9, 10,
+	10, 11, 11, 14, 14, 12, 12, 13, 15, 15,
+	15, 15, 15, 15, 15, 16, 16, 17, 17, 19,
+	19, 20, 20,
 }
 var yyR2 = [...]int{
 
 	0, 2, 1, 0, 1, 3, 3, 1, 2, 1,
-	3, 1, 3, 2, 1, 2, 1, 1, 2, 1,
-	2, 1, 2, 1, 2, 1, 2, 2, 1, 1,
-	1, 1, 1, 1, 1, 1, 1,
+	3, 1, 1, 2, 3, 2, 1, 2, 1, 1,
+	2, 1, 2, 1, 2, 1, 2, 1, 3, 3,
+	2, 1, 3, 1, 2, 1, 2, 2, 1, 1,
+	1, 1, 1, 1, 1, 2, 1, 1, 1, 1,
+	0, 1, 2,
 }
 var yyChk = [...]int{
 
-	-1000, -12, -1, -2, -3, 19, -4, -5, -6, 17,
-	-8, 18, -9, 16, -10, 9, 10, 11, 12, 13,
-	14, 15, -11, 4, 5, 7, 8, 6, -3, 17,
-	-8, 18, -7, -8, 17, -9, 17, -2, -2, -4,
-	-7, -8, 17,
+	-1000, -18, -1, -2, -3, 21, -4, -5, -8, -6,
+	19, -9, -12, 20, 7, -13, 18, -15, 11, 12,
+	13, 14, 15, 16, 17, -17, 4, 5, 9, 10,
+	6, -3, -14, -12, 19, -12, 20, -7, -12, 19,
+	-10, -19, -20, 22, -13, 19, -2, -2, -4, -12,
+	-7, -12, 19, 8, -11, -1, 22, -16, -17, -20,
+	-1, -19,
 }
 var yyDef = [...]int{
 
-	3, -2, 2, 4, 7, 0, 9, 11, 14, 16,
-	17, 19, 25, 0, 0, 28, 29, 30, 31, 32,
-	33, 34, 1, 0, 0, 35, 36, 0, 8, 13,
-	18, 20, 15, 21, 23, 26, 27, 5, 6, 10,
-	12, 22, 24,
+	3, -2, 2, 4, 7, 0, 9, 11, 12, 16,
+	18, 27, 19, 21, 50, 35, 0, 0, 38, 39,
+	40, 41, 42, 43, 44, 1, 0, 0, 47, 48,
+	0, 8, 13, 33, 15, 20, 22, 17, 23, 25,
+	0, 0, 49, 51, 36, 37, 5, 6, 10, 34,
+	14, 24, 26, 28, 30, 31, 52, 29, 50, 46,
+	32, 45,
 }
 var yyTok1 = [...]int{
 
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	22, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 7, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 8,
-	9, 3, 10, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 9, 3,
+	7, 8, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 10,
+	11, 3, 12, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -253,8 +283,8 @@ var yyTok1 = [...]int{
 }
 var yyTok2 = [...]int{
 
-	2, 3, 4, 5, 11, 12, 13, 14, 15, 16,
-	17, 18, 19,
+	2, 3, 4, 5, 13, 14, 15, 16, 17, 18,
+	19, 20, 21,
 }
 var yyTok3 = [...]int{
 	0,
@@ -605,15 +635,7 @@ yydefault:
 	case 2:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
-			l := yylex.(*lexer)
-			switch {
-			case len(yyDollar[1].list.List) != 0:
-				l.cmd = yyDollar[1].list
-			case !yyDollar[1].list.Pipeline.Bang.IsZero() || len(yyDollar[1].list.Pipeline.List) != 0:
-				l.cmd = yyDollar[1].list.Pipeline
-			default:
-				l.cmd = yyDollar[1].list.Pipeline.Cmd
-			}
+			yylex.(*lexer).cmd = extract(yyDollar[1].list)
 		}
 	case 4:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -670,6 +692,19 @@ yydefault:
 			}
 		}
 	case 12:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.cmd = &ast.Cmd{Expr: yyDollar[1].expr}
+		}
+	case 13:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.cmd = &ast.Cmd{
+				Expr:   yyDollar[1].expr,
+				Redirs: yyDollar[2].redirs,
+			}
+		}
+	case 14:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
 			yyVAL.elt = &element{
@@ -679,76 +714,130 @@ yydefault:
 			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[2].word)
 			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[3].elt.args...)
 		}
-	case 13:
+	case 15:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
 			yyVAL.elt = yyDollar[1].elt
 			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[2].word)
 		}
-	case 15:
+	case 17:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
 			yyVAL.elt = &element{redirs: yyDollar[2].elt.redirs}
 			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[1].word)
 			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[2].elt.args...)
 		}
-	case 16:
+	case 18:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			yyVAL.elt = new(element)
 			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[1].word)
-		}
-	case 17:
-		yyDollar = yyS[yypt-1 : yypt+1]
-		{
-			yyVAL.elt = new(element)
-			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[1].redir)
-		}
-	case 18:
-		yyDollar = yyS[yypt-2 : yypt+1]
-		{
-			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[2].redir)
 		}
 	case 19:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			yyVAL.elt = new(element)
-			yyVAL.elt.assigns = append(yyVAL.elt.assigns, assign(yyDollar[1].word))
+			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[1].redir)
 		}
 	case 20:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.elt.assigns = append(yyVAL.elt.assigns, assign(yyDollar[2].word))
+			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[2].redir)
 		}
 	case 21:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			yyVAL.elt = new(element)
-			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[1].redir)
+			yyVAL.elt.assigns = append(yyVAL.elt.assigns, assign(yyDollar[1].word))
 		}
 	case 22:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[2].redir)
+			yyVAL.elt.assigns = append(yyVAL.elt.assigns, assign(yyDollar[2].word))
 		}
 	case 23:
 		yyDollar = yyS[yypt-1 : yypt+1]
 		{
 			yyVAL.elt = new(element)
-			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[1].word)
+			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[1].redir)
 		}
 	case 24:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
-			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[2].word)
+			yyVAL.elt.redirs = append(yyVAL.elt.redirs, yyDollar[2].redir)
+		}
+	case 25:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.elt = new(element)
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[1].word)
 		}
 	case 26:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.elt.args = append(yyVAL.elt.args, yyDollar[2].word)
+		}
+	case 28:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.expr = &ast.Subshell{
+				Lparen: yyDollar[1].token.pos,
+				List:   yyDollar[2].cmds,
+				Rparen: yyDollar[3].token.pos,
+			}
+		}
+	case 29:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			cmd := yyDollar[2].cmds[len(yyDollar[2].cmds)-1].(*ast.List)
+			if yyDollar[3].token.typ != '\n' {
+				cmd.SepPos = yyDollar[3].token.pos
+				cmd.Sep = yyDollar[3].token.val
+			} else {
+				yyDollar[2].cmds[len(yyDollar[2].cmds)-1] = extract(cmd)
+			}
+			yyVAL.cmds = yyDollar[2].cmds
+		}
+	case 30:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyDollar[2].cmds[len(yyDollar[2].cmds)-1] = extract(yyDollar[2].cmds[len(yyDollar[2].cmds)-1].(*ast.List))
+			yyVAL.cmds = yyDollar[2].cmds
+		}
+	case 31:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.cmds = []ast.Command{yyDollar[1].list}
+		}
+	case 32:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			cmd := yyVAL.cmds[len(yyVAL.cmds)-1].(*ast.List)
+			if yyDollar[2].token.typ != '\n' {
+				cmd.SepPos = yyDollar[2].token.pos
+				cmd.Sep = yyDollar[2].token.val
+			} else {
+				yyVAL.cmds[len(yyVAL.cmds)-1] = extract(cmd)
+			}
+			yyVAL.cmds = append(yyVAL.cmds, yyDollar[3].list)
+		}
+	case 33:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
+			yyVAL.redirs = append(yyVAL.redirs, yyDollar[1].redir)
+		}
+	case 34:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		{
+			yyVAL.redirs = append(yyVAL.redirs, yyDollar[2].redir)
+		}
+	case 36:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
 			yyVAL.redir = yyDollar[2].redir
 			yyVAL.redir.N = yyDollar[1].word[0].(*ast.Lit)
 		}
-	case 27:
+	case 37:
 		yyDollar = yyS[yypt-2 : yypt+1]
 		{
 			yyVAL.redir = &ast.Redir{
@@ -756,6 +845,10 @@ yydefault:
 				Op:    yyDollar[1].token.val,
 				Word:  yyDollar[2].word,
 			}
+		}
+	case 46:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		{
 		}
 	}
 	goto yystack /* stack new state and value */

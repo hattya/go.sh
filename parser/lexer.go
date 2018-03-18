@@ -46,6 +46,8 @@ var (
 		AND:      "&&",
 		OR:       "||",
 		int('|'): "|",
+		int('('): "(",
+		int(')'): ")",
 		int('<'): "<",
 		int('>'): ">",
 		CLOBBER:  ">|",
@@ -72,6 +74,7 @@ type lexer struct {
 	err      error
 	token    chan ast.Node
 
+	stack   []int
 	word    ast.Word
 	b       bytes.Buffer
 	line    int
@@ -128,6 +131,8 @@ func (l *lexer) lexCmd(tok int) action {
 	switch tok {
 	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR, IO_NUMBER, WORD:
 		return l.lexSimpleCmd(tok)
+	case '(':
+		return l.lexSubshell
 	}
 	return l.lexToken(tok)
 }
@@ -217,6 +222,13 @@ func (l *lexer) isName(s string) bool {
 	return true
 }
 
+func (l *lexer) lexSubshell() action {
+	l.emit('(')
+	// push
+	l.stack = append(l.stack, ')')
+	return l.lexPipeline
+}
+
 func (l *lexer) lexToken(tok int) action {
 	switch tok {
 	case AND, OR:
@@ -229,13 +241,47 @@ func (l *lexer) lexToken(tok int) action {
 		if l.linebreak() {
 			return l.lexCmd(l.scanToken())
 		}
+	case '&', ';':
+		l.emit(tok)
+		if len(l.stack) != 0 {
+			return l.lexPipeline
+		}
 	case '\n':
+		if len(l.stack) != 0 {
+			l.emit('\n')
+			return l.lexPipeline
+		}
+	case ')':
+		l.emit(tok)
+		// pop
+		if len(l.stack) != 0 && l.stack[len(l.stack)-1] == tok {
+			l.stack = l.stack[:len(l.stack)-1]
+			return l.lexRedir
+		}
 	default:
 		if tok > 0 {
 			l.emit(tok)
 		}
 	}
 	return nil
+}
+
+func (l *lexer) lexRedir() action {
+	tok := l.scanToken()
+	switch tok {
+	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR:
+		// redirection operator
+		l.emit(tok)
+		if tok = l.scanToken(); tok == WORD {
+			goto Redir
+		}
+	case IO_NUMBER:
+		goto Redir
+	}
+	return l.lexToken(tok)
+Redir:
+	l.emit(tok)
+	return l.lexRedir
 }
 
 func (l *lexer) scanToken() int {
@@ -252,7 +298,7 @@ func (l *lexer) scanToken() int {
 		}
 
 		switch r {
-		case '&', ';', '|':
+		case '&', '(', ')', ';', '|':
 			// operator
 			if l.lit(); len(l.word) != 0 {
 				l.unread()
@@ -323,6 +369,10 @@ func (l *lexer) scanOp(r rune) int {
 				l.unread()
 			}
 		}
+	case '(':
+		op = int('(')
+	case ')':
+		op = int(')')
 	case ';':
 		op = int(';')
 	case '<':

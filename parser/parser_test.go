@@ -426,6 +426,75 @@ var parseCommandTests = []struct {
 			comment(7, 1, " && comment"),
 		},
 	},
+	// grouping command
+	{
+		src: "(cd /usr/src/linux; make -j3)",
+		cmd: subshell(
+			pos(1, 1), // (
+			list(
+				simple_command(
+					word(lit(1, 2, "cd")),
+					word(lit(1, 5, "/usr/src/linux")),
+				),
+				sep(1, 19, ";"),
+			),
+			simple_command(
+				word(lit(1, 21, "make")),
+				word(lit(1, 26, "-j3")),
+			),
+			pos(1, 29), // )
+		),
+	},
+	{
+		src: "(cd /usr/src/linux\n make -j3)",
+		cmd: subshell(
+			pos(1, 1), // (
+			simple_command(
+				word(lit(1, 2, "cd")),
+				word(lit(1, 5, "/usr/src/linux")),
+			),
+			simple_command(
+				word(lit(2, 2, "make")),
+				word(lit(2, 7, "-j3")),
+			),
+			pos(2, 10), // )
+		),
+	},
+	{
+		src: "(\n cd /usr/src/linux\n make -j3\n)",
+		cmd: subshell(
+			pos(1, 1), // (
+			simple_command(
+				word(lit(2, 2, "cd")),
+				word(lit(2, 5, "/usr/src/linux")),
+			),
+			simple_command(
+				word(lit(3, 2, "make")),
+				word(lit(3, 7, "-j3")),
+			),
+			pos(4, 1), // )
+		),
+	},
+	{
+		src: "(cd /usr/src/linux; make -j3) >/dev/null 2>&1",
+		cmd: subshell(
+			pos(1, 1), // (
+			list(
+				simple_command(
+					word(lit(1, 2, "cd")),
+					word(lit(1, 5, "/usr/src/linux")),
+				),
+				sep(1, 19, ";"),
+			),
+			simple_command(
+				word(lit(1, 21, "make")),
+				word(lit(1, 26, "-j3")),
+			),
+			pos(1, 29), // )
+			redir(nil, 1, 31, ">", word(lit(1, 32, "/dev/null"))),
+			redir(lit(1, 42, "2"), 1, 43, ">&", word(lit(1, 45, "1"))),
+		),
+	},
 }
 
 func TestParseCommand(t *testing.T) {
@@ -509,6 +578,29 @@ func simple_command(nodes ...ast.Node) *ast.Cmd {
 			x.Args = append(x.Args, n)
 		case *ast.Redir:
 			cmd.Redirs = append(cmd.Redirs, n)
+		}
+	}
+	return cmd
+}
+
+func subshell(args ...interface{}) *ast.Cmd {
+	x := new(ast.Subshell)
+	cmd := &ast.Cmd{Expr: x}
+	pos := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case ast.Pos:
+			switch pos {
+			case 0:
+				x.Lparen = a
+			case 1:
+				x.Rparen = a
+			}
+			pos++
+		case ast.Command:
+			x.List = append(x.List, a)
+		case *ast.Redir:
+			cmd.Redirs = append(cmd.Redirs, a)
 		}
 	}
 	return cmd
@@ -602,6 +694,15 @@ var parseErrorTests = []struct {
 	{
 		src: "false ||",
 		err: ":1:7: syntax error: unexpected EOF",
+	},
+	// grouping command
+	{
+		src: "(",
+		err: ":1:1: syntax error: unexpected EOF",
+	},
+	{
+		src: ")",
+		err: ":1:1: syntax error: unexpected ')'",
 	},
 }
 

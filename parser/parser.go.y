@@ -42,13 +42,16 @@ import (
 	list     *ast.List
 	pipeline *ast.Pipeline
 	cmd      *ast.Cmd
+	expr     ast.CmdExpr
 	token    token
 	elt      *element
+	cmds     []ast.Command
 	redir    *ast.Redir
+	redirs   []*ast.Redir
 	word     ast.Word
 }
 
-%token<token> AND OR '|' '&' ';'
+%token<token> AND OR '|' '(' ')' '&' ';'
 %token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER
 %token<word>  WORD ASSIGNMENT_WORD
@@ -58,8 +61,11 @@ import (
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
+%type<expr>     compound_cmd subshell
+%type<cmds>     compound_list term
 %type<redir>    io_redir io_file
-%type<token>    redir_op sep_op
+%type<redirs>   redir_list
+%type<token>    redir_op sep sep_op
 
 %left  '&' ';'
 %left  AND OR
@@ -76,15 +82,7 @@ cmdline:
 		}
 	|	and_or
 		{
-			l := yylex.(*lexer)
-			switch {
-			case len($1.List) != 0:
-				l.cmd = $1
-			case !$1.Pipeline.Bang.IsZero() || len($1.Pipeline.List) != 0:
-				l.cmd = $1.Pipeline
-			default:
-				l.cmd = $1.Pipeline.Cmd
-			}
+			yylex.(*lexer).cmd = extract($1)
 		}
 	|	/* empty */
 
@@ -141,6 +139,17 @@ cmd:
 					Args:    $1.args,
 				},
 				Redirs: $1.redirs,
+			}
+		}
+	|	compound_cmd
+		{
+			$$ = &ast.Cmd{Expr: $1}
+		}
+	|	compound_cmd redir_list
+		{
+			$$ = &ast.Cmd{
+				Expr:   $1,
+				Redirs: $2,
 			}
 		}
 
@@ -212,6 +221,64 @@ cmd_suffix:
 			$$.args = append($$.args, $2)
 		}
 
+compound_cmd:
+		subshell
+
+subshell:
+		'(' compound_list ')'
+		{
+			$$ = &ast.Subshell{
+				Lparen: $1.pos,
+				List:   $2,
+				Rparen: $3.pos,
+			}
+		}
+
+compound_list:
+		linebreak term sep
+		{
+			cmd := $2[len($2)-1].(*ast.List)
+			if $3.typ != '\n' {
+				cmd.SepPos = $3.pos
+				cmd.Sep = $3.val
+			} else {
+				$2[len($2)-1] = extract(cmd)
+			}
+			$$ = $2
+		}
+	|	linebreak term
+		{
+			$2[len($2)-1] = extract($2[len($2)-1].(*ast.List))
+			$$ = $2
+		}
+
+term:
+		         and_or
+		{
+			$$ = []ast.Command{$1}
+		}
+	|	term sep and_or
+		{
+			cmd := $$[len($$)-1].(*ast.List)
+			if $2.typ != '\n' {
+				cmd.SepPos = $2.pos
+				cmd.Sep = $2.val
+			} else {
+				$$[len($$)-1] = extract(cmd)
+			}
+			$$ = append($$, $3)
+		}
+
+redir_list:
+		           io_redir
+		{
+			$$ = append($$, $1)
+		}
+	|	redir_list io_redir
+		{
+			$$ = append($$, $2)
+		}
+
 io_redir:
 		          io_file
 	|	IO_NUMBER io_file
@@ -239,9 +306,23 @@ redir_op:
 	|	DUPOUT
 	|	RDWR
 
+sep:
+		sep_op linebreak
+	|	newline_list
+		{
+		}
+
 sep_op:
 		'&'
 	|	';'
+
+linebreak:
+		newline_list
+	|	/* empty */
+
+newline_list:
+		             '\n'
+	|	newline_list '\n'
 
 %%
 
@@ -277,6 +358,16 @@ type element struct {
 	redirs  []*ast.Redir
 	assigns []*ast.Assign
 	args    []ast.Word
+}
+
+func extract(cmd *ast.List) ast.Command {
+	switch {
+	case len(cmd.List) != 0 || !cmd.SepPos.IsZero():
+		return cmd
+	case !cmd.Pipeline.Bang.IsZero() || len(cmd.Pipeline.List) != 0:
+		return cmd.Pipeline
+	}
+	return cmd.Pipeline.Cmd
 }
 
 func assign(w ast.Word) *ast.Assign{

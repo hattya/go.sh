@@ -508,6 +508,27 @@ func TestAssign(t *testing.T) {
 	}
 }
 
+func TestSubshell(t *testing.T) {
+	var x ast.CmdExpr = new(ast.Subshell)
+	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Subshell.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Subshell.End() = %v, expected %v", g, e)
+	}
+
+	x = &ast.Subshell{
+		Lparen: ast.NewPos(1, 1),
+		Rparen: ast.NewPos(1, 3),
+	}
+	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Subshell.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(1, 4); e != g {
+		t.Errorf("Subshell.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestRedir(t *testing.T) {
 	var n ast.Node = new(ast.Redir)
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

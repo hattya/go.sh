@@ -56,7 +56,7 @@ type (
 		List []*Pipe // commands separated by "|" operator; or nil
 	}
 
-	// Cmd represents a simple command.
+	// Cmd represents a simple command or a compound command.
 	Cmd struct {
 		Expr   CmdExpr
 		Redirs []*Redir
@@ -174,11 +174,21 @@ type CmdExpr interface {
 	cmdExprNode()
 }
 
-// SimpleCmd represents a simple command.
-type SimpleCmd struct {
-	Assigns []*Assign // variable assignments; or nil
-	Args    []Word    // command line arguments
-}
+type (
+	// SimpleCmd represents a simple command.
+	SimpleCmd struct {
+		Assigns []*Assign // variable assignments; or nil
+		Args    []Word    // command line arguments
+	}
+
+	// Subshell represents a sequence of commands that executes in a subshell
+	// environment.
+	Subshell struct {
+		Lparen Pos       // position of "(" operator
+		List   []Command // commands
+		Rparen Pos       // position of ")" operator
+	}
+)
 
 func (x *SimpleCmd) Pos() Pos {
 	if len(x.Assigns) != 0 {
@@ -189,6 +199,7 @@ func (x *SimpleCmd) Pos() Pos {
 	}
 	return x.Args[0].Pos()
 }
+func (x *Subshell) Pos() Pos { return x.Lparen }
 
 func (x *SimpleCmd) End() Pos {
 	if len(x.Args) == 0 {
@@ -199,8 +210,15 @@ func (x *SimpleCmd) End() Pos {
 	}
 	return x.Args[len(x.Args)-1].End()
 }
+func (x *Subshell) End() Pos {
+	if x.Rparen.IsZero() {
+		return x.Rparen
+	}
+	return x.Rparen.shift(1)
+}
 
 func (x *SimpleCmd) cmdExprNode() {}
+func (x *Subshell) cmdExprNode()  {}
 
 // Assign represents a variable assignment.
 type Assign struct {

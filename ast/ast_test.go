@@ -529,6 +529,27 @@ func TestSubshell(t *testing.T) {
 	}
 }
 
+func TestGroup(t *testing.T) {
+	var x ast.CmdExpr = new(ast.Group)
+	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Group.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("Group.End() = %v, expected %v", g, e)
+	}
+
+	x = &ast.Group{
+		Lbrace: ast.NewPos(1, 1),
+		Rbrace: ast.NewPos(1, 3),
+	}
+	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Group.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(1, 4); e != g {
+		t.Errorf("Group.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestRedir(t *testing.T) {
 	var n ast.Node = new(ast.Redir)
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

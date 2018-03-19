@@ -188,6 +188,14 @@ type (
 		List   []Command // commands
 		Rparen Pos       // position of ")" operator
 	}
+
+	// Group represents a sequence of commands that executes in the current
+	// process environment.
+	Group struct {
+		Lbrace Pos       // position of reserved word "{"
+		List   []Command // commands
+		Rbrace Pos       // position of reserved word "}"
+	}
 )
 
 func (x *SimpleCmd) Pos() Pos {
@@ -200,6 +208,7 @@ func (x *SimpleCmd) Pos() Pos {
 	return x.Args[0].Pos()
 }
 func (x *Subshell) Pos() Pos { return x.Lparen }
+func (x *Group) Pos() Pos    { return x.Lbrace }
 
 func (x *SimpleCmd) End() Pos {
 	if len(x.Args) == 0 {
@@ -216,9 +225,16 @@ func (x *Subshell) End() Pos {
 	}
 	return x.Rparen.shift(1)
 }
+func (x *Group) End() Pos {
+	if x.Rbrace.IsZero() {
+		return x.Rbrace
+	}
+	return x.Rbrace.shift(1)
+}
 
 func (x *SimpleCmd) cmdExprNode() {}
 func (x *Subshell) cmdExprNode()  {}
+func (x *Group) cmdExprNode()     {}
 
 // Assign represents a variable assignment.
 type Assign struct {

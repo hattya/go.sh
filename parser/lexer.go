@@ -60,6 +60,8 @@ var (
 	}
 	words = map[string]int{
 		"!": Bang,
+		"{": Lbrace,
+		"}": Rbrace,
 	}
 )
 
@@ -133,6 +135,8 @@ func (l *lexer) lexCmd(tok int) action {
 		return l.lexSimpleCmd(tok)
 	case '(':
 		return l.lexSubshell
+	case Lbrace:
+		return l.lexGroup
 	}
 	return l.lexToken(tok)
 }
@@ -229,6 +233,13 @@ func (l *lexer) lexSubshell() action {
 	return l.lexPipeline
 }
 
+func (l *lexer) lexGroup() action {
+	l.emit(Lbrace)
+	// push
+	l.stack = append(l.stack, Rbrace)
+	return l.lexPipeline
+}
+
 func (l *lexer) lexToken(tok int) action {
 	switch tok {
 	case AND, OR:
@@ -251,7 +262,7 @@ func (l *lexer) lexToken(tok int) action {
 			l.emit('\n')
 			return l.lexPipeline
 		}
-	case ')':
+	case ')', Rbrace:
 		l.emit(tok)
 		// pop
 		if len(l.stack) != 0 && l.stack[len(l.stack)-1] == tok {

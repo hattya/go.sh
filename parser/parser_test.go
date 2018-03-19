@@ -495,6 +495,59 @@ var parseCommandTests = []struct {
 			redir(lit(1, 42, "2"), 1, 43, ">&", word(lit(1, 45, "1"))),
 		),
 	},
+	{
+		src: "{ ./configure; make; }",
+		cmd: group(
+			pos(1, 1), // {
+			list(
+				simple_command(
+					word(lit(1, 3, "./configure")),
+				),
+				sep(1, 14, ";"),
+			),
+			list(
+				simple_command(
+					word(lit(1, 16, "make")),
+				),
+				sep(1, 20, ";"),
+			),
+			pos(1, 22), // }
+		),
+	},
+	{
+		src: "{\n  ./configure\n  make\n}",
+		cmd: group(
+			pos(1, 1), // {
+			simple_command(
+				word(lit(2, 3, "./configure")),
+			),
+			simple_command(
+				word(lit(3, 3, "make")),
+			),
+			pos(4, 1), // }
+		),
+	},
+	{
+		src: "{ ./configure; make; } >/dev/null 2>&1",
+		cmd: group(
+			pos(1, 1), // {
+			list(
+				simple_command(
+					word(lit(1, 3, "./configure")),
+				),
+				sep(1, 14, ";"),
+			),
+			list(
+				simple_command(
+					word(lit(1, 16, "make")),
+				),
+				sep(1, 20, ";"),
+			),
+			pos(1, 22), // }
+			redir(nil, 1, 24, ">", word(lit(1, 25, "/dev/null"))),
+			redir(lit(1, 35, "2"), 1, 36, ">&", word(lit(1, 38, "1"))),
+		),
+	},
 }
 
 func TestParseCommand(t *testing.T) {
@@ -606,6 +659,29 @@ func subshell(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
+func group(args ...interface{}) *ast.Cmd {
+	x := new(ast.Group)
+	cmd := &ast.Cmd{Expr: x}
+	pos := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case ast.Pos:
+			switch pos {
+			case 0:
+				x.Lbrace = a
+			case 1:
+				x.Rbrace = a
+			}
+			pos++
+		case ast.Command:
+			x.List = append(x.List, a)
+		case *ast.Redir:
+			cmd.Redirs = append(cmd.Redirs, a)
+		}
+	}
+	return cmd
+}
+
 func redir(n *ast.Lit, line, col int, op string, word ast.Word) *ast.Redir {
 	return &ast.Redir{
 		N:     n,
@@ -703,6 +779,14 @@ var parseErrorTests = []struct {
 	{
 		src: ")",
 		err: ":1:1: syntax error: unexpected ')'",
+	},
+	{
+		src: "{",
+		err: ":1:1: syntax error: unexpected EOF",
+	},
+	{
+		src: "}",
+		err: ":1:1: syntax error: unexpected '}'",
 	},
 }
 

@@ -55,13 +55,13 @@ import (
 %token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER
 %token<word>  WORD ASSIGNMENT_WORD
-%token<token> Bang
+%token<token> Bang Lbrace Rbrace
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
-%type<expr>     compound_cmd subshell
+%type<expr>     compound_cmd subshell group
 %type<cmds>     compound_list term
 %type<redir>    io_redir io_file
 %type<redirs>   redir_list
@@ -223,6 +223,7 @@ cmd_suffix:
 
 compound_cmd:
 		subshell
+	|	group
 
 subshell:
 		'(' compound_list ')'
@@ -231,6 +232,16 @@ subshell:
 				Lparen: $1.pos,
 				List:   $2,
 				Rparen: $3.pos,
+			}
+		}
+
+group:
+		Lbrace compound_list Rbrace
+		{
+			$$ = &ast.Group{
+				Lbrace: $1.pos,
+				List:   $2,
+				Rbrace: $3.pos,
 			}
 		}
 
@@ -349,6 +360,10 @@ func init() {
 			s = "'<>'"
 		case "Bang":
 			s = "'!'"
+		case "Lbrace":
+			s ="'{'"
+		case "Rbrace":
+			s = "'}'"
 		}
 		yyToknames[i] = s
 	}

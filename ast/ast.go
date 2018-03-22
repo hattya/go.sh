@@ -196,6 +196,15 @@ type (
 		List   []Command // commands
 		Rbrace Pos       // position of reserved word "}"
 	}
+
+	// IfClause represents an if conditional construct.
+	IfClause struct {
+		If   Pos       // position of reserved word "if"
+		Cond []Command // condition
+		Then Pos       // position of reserved word "then"
+		List []Command // commands
+		Fi   Pos       // position of reserved word "fi"
+	}
 )
 
 func (x *SimpleCmd) Pos() Pos {
@@ -209,6 +218,7 @@ func (x *SimpleCmd) Pos() Pos {
 }
 func (x *Subshell) Pos() Pos { return x.Lparen }
 func (x *Group) Pos() Pos    { return x.Lbrace }
+func (x *IfClause) Pos() Pos { return x.If }
 
 func (x *SimpleCmd) End() Pos {
 	if len(x.Args) == 0 {
@@ -231,10 +241,17 @@ func (x *Group) End() Pos {
 	}
 	return x.Rbrace.shift(1)
 }
+func (x *IfClause) End() Pos {
+	if x.Fi.IsZero() {
+		return x.Fi
+	}
+	return x.Fi.shift(2)
+}
 
 func (x *SimpleCmd) cmdExprNode() {}
 func (x *Subshell) cmdExprNode()  {}
 func (x *Group) cmdExprNode()     {}
+func (x *IfClause) cmdExprNode()  {}
 
 // Assign represents a variable assignment.
 type Assign struct {

@@ -550,6 +550,27 @@ func TestGroup(t *testing.T) {
 	}
 }
 
+func TestIfClause(t *testing.T) {
+	var x ast.CmdExpr = new(ast.IfClause)
+	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("IfClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("IfClause.End() = %v, expected %v", g, e)
+	}
+
+	x = &ast.IfClause{
+		If: ast.NewPos(1, 1),
+		Fi: ast.NewPos(4, 1),
+	}
+	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("IfClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(4, 3); e != g {
+		t.Errorf("IfClause.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestRedir(t *testing.T) {
 	var n ast.Node = new(ast.Redir)
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

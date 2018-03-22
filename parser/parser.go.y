@@ -55,13 +55,13 @@ import (
 %token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER
 %token<word>  WORD ASSIGNMENT_WORD
-%token<token> Bang Lbrace Rbrace
+%token<token> Bang Lbrace Rbrace If Then Fi
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
-%type<expr>     compound_cmd subshell group
+%type<expr>     compound_cmd subshell group if_clause
 %type<cmds>     compound_list term
 %type<redir>    io_redir io_file
 %type<redirs>   redir_list
@@ -224,6 +224,7 @@ cmd_suffix:
 compound_cmd:
 		subshell
 	|	group
+	|	if_clause
 
 subshell:
 		'(' compound_list ')'
@@ -242,6 +243,18 @@ group:
 				Lbrace: $1.pos,
 				List:   $2,
 				Rbrace: $3.pos,
+			}
+		}
+
+if_clause:
+		If compound_list Then compound_list Fi
+		{
+			$$ = &ast.IfClause{
+				If:   $1.pos,
+				Cond: $2,
+				Then: $3.pos,
+				List: $4,
+				Fi:   $5.pos,
 			}
 		}
 
@@ -364,6 +377,12 @@ func init() {
 			s ="'{'"
 		case "Rbrace":
 			s = "'}'"
+		case "If":
+			s = "'if'"
+		case "Then":
+			s = "'then'"
+		case "Fi":
+			s = "'fi'"
 		}
 		yyToknames[i] = s
 	}

@@ -548,6 +548,61 @@ var parseCommandTests = []struct {
 			redir(lit(1, 35, "2"), 1, 36, ">&", word(lit(1, 38, "1"))),
 		),
 	},
+	// if conditional construct
+	{
+		src: "if true; then echo if; fi",
+		cmd: if_clause(
+			pos(1, 1), // if
+			list(
+				simple_command(
+					word(lit(1, 4, "true")),
+				),
+				sep(1, 8, ";"),
+			),
+			pos(1, 10), // then
+			list(
+				simple_command(
+					word(lit(1, 15, "echo")),
+					word(lit(1, 20, "if")),
+				),
+				sep(1, 22, ";"),
+			),
+			pos(1, 24), // fi
+		),
+	},
+	{
+		src: "if true\nthen\n  echo if\nfi",
+		cmd: if_clause(
+			pos(1, 1), // if
+			simple_command(
+				word(lit(1, 4, "true")),
+			),
+			pos(2, 1), // then
+			simple_command(
+				word(lit(3, 3, "echo")),
+				word(lit(3, 8, "if")),
+			),
+			pos(4, 1), // fi
+		),
+	},
+	{
+		src: "if true; then\n  echo if\nfi",
+		cmd: if_clause(
+			pos(1, 1), // if
+			list(
+				simple_command(
+					word(lit(1, 4, "true")),
+				),
+				sep(1, 8, ";"),
+			),
+			pos(1, 10), // then
+			simple_command(
+				word(lit(2, 3, "echo")),
+				word(lit(2, 8, "if")),
+			),
+			pos(3, 1), // fi
+		),
+	},
 }
 
 func TestParseCommand(t *testing.T) {
@@ -682,6 +737,33 @@ func group(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
+func if_clause(args ...interface{}) *ast.Cmd {
+	x := new(ast.IfClause)
+	pos := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case ast.Pos:
+			switch pos {
+			case 0:
+				x.If = a
+			case 1:
+				x.Then = a
+			case 2:
+				x.Fi = a
+			}
+			pos++
+		case ast.Command:
+			switch pos {
+			case 1:
+				x.Cond = append(x.Cond, a)
+			case 2:
+				x.List = append(x.List, a)
+			}
+		}
+	}
+	return &ast.Cmd{Expr: x}
+}
+
 func redir(n *ast.Lit, line, col int, op string, word ast.Word) *ast.Redir {
 	return &ast.Redir{
 		N:     n,
@@ -787,6 +869,23 @@ var parseErrorTests = []struct {
 	{
 		src: "}",
 		err: ":1:1: syntax error: unexpected '}'",
+	},
+	// if conditional construct
+	{
+		src: "if",
+		err: ":1:1: syntax error: unexpected EOF",
+	},
+	{
+		src: "then",
+		err: ":1:1: syntax error: unexpected 'then'",
+	},
+	{
+		src: "if true; fi",
+		err: ":1:10: syntax error: unexpected 'fi', expecting 'then'",
+	},
+	{
+		src: "fi",
+		err: ":1:1: syntax error: unexpected 'fi'",
 	},
 }
 

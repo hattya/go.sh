@@ -282,6 +282,23 @@ type ElsePart interface {
 	elsePartNode()
 }
 
+// ElseClause represents an else clause of the if conditional construct.
+type ElseClause struct {
+	Else Pos       // position of reserved word "else"
+	List []Command // commands
+}
+
+func (e *ElseClause) Pos() Pos { return e.Else }
+
+func (e *ElseClause) End() Pos {
+	if len(e.List) == 0 {
+		return Pos{}
+	}
+	return e.List[len(e.List)-1].End()
+}
+
+func (e *ElseClause) elsePartNode() {}
+
 // Redir represents an I/O redirection.
 type Redir struct {
 	N     *Lit

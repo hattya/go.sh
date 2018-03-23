@@ -571,6 +571,40 @@ func TestIfClause(t *testing.T) {
 	}
 }
 
+func TestElseClause(t *testing.T) {
+	var e ast.ElsePart = new(ast.ElseClause)
+	if g, e := e.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ElseClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := e.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ElseClause.End() = %v, expected %v", g, e)
+	}
+
+	e = &ast.ElseClause{
+		Else: ast.NewPos(4, 1),
+		List: []ast.Command{
+			&ast.Cmd{
+				Expr: &ast.SimpleCmd{
+					Args: []ast.Word{
+						{
+							&ast.Lit{
+								ValuePos: ast.NewPos(5, 3),
+								Value:    "lit",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	if g, e := e.Pos(), ast.NewPos(4, 1); e != g {
+		t.Errorf("ElseClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := e.End(), ast.NewPos(5, 6); e != g {
+		t.Errorf("ElseClause.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestRedir(t *testing.T) {
 	var n ast.Node = new(ast.Redir)
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

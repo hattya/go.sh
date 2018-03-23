@@ -571,6 +571,40 @@ func TestIfClause(t *testing.T) {
 	}
 }
 
+func TestElifClause(t *testing.T) {
+	var e ast.ElsePart = new(ast.ElifClause)
+	if g, e := e.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ElifClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := e.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ElifClause.End() = %v, expected %v", g, e)
+	}
+
+	e = &ast.ElifClause{
+		Elif: ast.NewPos(4, 1),
+		List: []ast.Command{
+			&ast.Cmd{
+				Expr: &ast.SimpleCmd{
+					Args: []ast.Word{
+						{
+							&ast.Lit{
+								ValuePos: ast.NewPos(6, 3),
+								Value:    "lit",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	if g, e := e.Pos(), ast.NewPos(4, 1); e != g {
+		t.Errorf("ElifClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := e.End(), ast.NewPos(6, 6); e != g {
+		t.Errorf("ElifClause.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestElseClause(t *testing.T) {
 	var e ast.ElsePart = new(ast.ElseClause)
 	if g, e := e.Pos(), ast.NewPos(0, 0); e != g {

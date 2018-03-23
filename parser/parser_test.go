@@ -603,6 +603,104 @@ var parseCommandTests = []struct {
 			pos(3, 1), // fi
 		),
 	},
+	{
+		src: "if false; then\n  echo if\nelif true; then\n  echo elif\nfi",
+		cmd: if_clause(
+			pos(1, 1), // if
+			list(
+				simple_command(
+					word(lit(1, 4, "false")),
+				),
+				sep(1, 9, ";"),
+			),
+			pos(1, 11), // then
+			simple_command(
+				word(lit(2, 3, "echo")),
+				word(lit(2, 8, "if")),
+			),
+			elif_clause(
+				pos(3, 1), // elif
+				list(
+					simple_command(
+						word(lit(3, 6, "true")),
+					),
+					sep(3, 10, ";"),
+				),
+				pos(3, 12), // then
+				simple_command(
+					word(lit(4, 3, "echo")),
+					word(lit(4, 8, "elif")),
+				),
+			),
+			pos(5, 1), // fi
+		),
+	},
+	{
+		src: "if false; then\n  echo if\nelse\n  echo else\nfi",
+		cmd: if_clause(
+			pos(1, 1), // if
+			list(
+				simple_command(
+					word(lit(1, 4, "false")),
+				),
+				sep(1, 9, ";"),
+			),
+			pos(1, 11), // then
+			simple_command(
+				word(lit(2, 3, "echo")),
+				word(lit(2, 8, "if")),
+			),
+			else_clause(
+				pos(3, 1), // else
+				simple_command(
+					word(lit(4, 3, "echo")),
+					word(lit(4, 8, "else")),
+				),
+			),
+			pos(5, 1), // fi
+		),
+	},
+	{
+		src: "if false; then\n  echo if\nelif false; then\n  echo elif\nelse\n  echo else\nfi >/dev/null 2>&1",
+		cmd: if_clause(
+			pos(1, 1), // if
+			list(
+				simple_command(
+					word(lit(1, 4, "false")),
+				),
+				sep(1, 9, ";"),
+			),
+			pos(1, 11), // then
+			simple_command(
+				word(lit(2, 3, "echo")),
+				word(lit(2, 8, "if")),
+			),
+			elif_clause(
+				pos(3, 1), // elif
+				list(
+					simple_command(
+						word(lit(3, 6, "false")),
+					),
+					sep(3, 11, ";"),
+				),
+				pos(3, 13), // then
+				simple_command(
+					word(lit(4, 3, "echo")),
+					word(lit(4, 8, "elif")),
+				),
+			),
+			else_clause(
+				pos(5, 1), // else
+				simple_command(
+					word(lit(6, 3, "echo")),
+					word(lit(6, 8, "else")),
+				),
+			),
+			pos(7, 1), // fi
+			redir(nil, 7, 4, ">", word(lit(7, 5, "/dev/null"))),
+			redir(lit(7, 15, "2"), 7, 16, ">&", word(lit(7, 18, "1"))),
+		),
+	},
 }
 
 func TestParseCommand(t *testing.T) {
@@ -739,6 +837,7 @@ func group(args ...interface{}) *ast.Cmd {
 
 func if_clause(args ...interface{}) *ast.Cmd {
 	x := new(ast.IfClause)
+	cmd := &ast.Cmd{Expr: x}
 	pos := 0
 	for _, a := range args {
 		switch a := a.(type) {
@@ -759,9 +858,45 @@ func if_clause(args ...interface{}) *ast.Cmd {
 			case 2:
 				x.List = append(x.List, a)
 			}
+		case ast.ElsePart:
+			x.Else = append(x.Else, a)
+		case *ast.Redir:
+			cmd.Redirs = append(cmd.Redirs, a)
 		}
 	}
-	return &ast.Cmd{Expr: x}
+	return cmd
+}
+
+func elif_clause(args ...interface{}) *ast.ElifClause {
+	e := new(ast.ElifClause)
+	pos := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case ast.Pos:
+			switch pos {
+			case 0:
+				e.Elif = a
+			case 1:
+				e.Then = a
+			}
+			pos++
+		case ast.Command:
+			switch pos {
+			case 1:
+				e.Cond = append(e.Cond, a)
+			case 2:
+				e.List = append(e.List, a)
+			}
+		}
+	}
+	return e
+}
+
+func else_clause(pos ast.Pos, list ...ast.Command) *ast.ElseClause {
+	return &ast.ElseClause{
+		Else: pos,
+		List: list,
+	}
 }
 
 func redir(n *ast.Lit, line, col int, op string, word ast.Word) *ast.Redir {
@@ -876,12 +1011,32 @@ var parseErrorTests = []struct {
 		err: ":1:1: syntax error: unexpected EOF",
 	},
 	{
+		src: "elif",
+		err: ":1:1: syntax error: unexpected 'elif'",
+	},
+	{
+		src: "if false; then :;elif",
+		err: ":1:18: syntax error: unexpected EOF",
+	},
+	{
 		src: "then",
 		err: ":1:1: syntax error: unexpected 'then'",
 	},
 	{
 		src: "if true; fi",
 		err: ":1:10: syntax error: unexpected 'fi', expecting 'then'",
+	},
+	{
+		src: "if false; then :;elif true; fi",
+		err: ":1:29: syntax error: unexpected 'fi', expecting 'then'",
+	},
+	{
+		src: "else",
+		err: ":1:1: syntax error: unexpected 'else'",
+	},
+	{
+		src: "if false; then :;else",
+		err: ":1:18: syntax error: unexpected EOF",
 	},
 	{
 		src: "fi",

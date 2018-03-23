@@ -199,11 +199,12 @@ type (
 
 	// IfClause represents an if conditional construct.
 	IfClause struct {
-		If   Pos       // position of reserved word "if"
-		Cond []Command // condition
-		Then Pos       // position of reserved word "then"
-		List []Command // commands
-		Fi   Pos       // position of reserved word "fi"
+		If   Pos        // position of reserved word "if"
+		Cond []Command  // condition
+		Then Pos        // position of reserved word "then"
+		List []Command  // commands
+		Else []ElsePart // elif clauses and/or an else clause
+		Fi   Pos        // position of reserved word "fi"
 	}
 )
 

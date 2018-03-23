@@ -45,6 +45,7 @@ import (
 	expr     ast.CmdExpr
 	token    token
 	elt      *element
+	else_    []ast.ElsePart
 	cmds     []ast.Command
 	redir    *ast.Redir
 	redirs   []*ast.Redir
@@ -55,13 +56,14 @@ import (
 %token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER
 %token<word>  WORD ASSIGNMENT_WORD
-%token<token> Bang Lbrace Rbrace If Then Fi
+%token<token> Bang Lbrace Rbrace If Elif Then Else Fi
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
 %type<expr>     compound_cmd subshell group if_clause
+%type<else_>    else_part
 %type<cmds>     compound_list term
 %type<redir>    io_redir io_file
 %type<redirs>   redir_list
@@ -247,7 +249,7 @@ group:
 		}
 
 if_clause:
-		If compound_list Then compound_list Fi
+		If compound_list Then compound_list           Fi
 		{
 			$$ = &ast.IfClause{
 				If:   $1.pos,
@@ -256,6 +258,45 @@ if_clause:
 				List: $4,
 				Fi:   $5.pos,
 			}
+		}
+	|	If compound_list Then compound_list else_part Fi
+		{
+			$$ = &ast.IfClause{
+				If:   $1.pos,
+				Cond: $2,
+				Then: $3.pos,
+				List: $4,
+				Else: $5,
+				Fi:   $6.pos,
+			}
+		}
+
+else_part:
+		Elif compound_list Then compound_list
+		{
+			$$ = append($$, &ast.ElifClause{
+				Elif: $1.pos,
+				Cond: $2,
+				Then: $3.pos,
+				List: $4,
+			})
+		}
+	|	Elif compound_list Then compound_list else_part
+		{
+			$$ = append($$, &ast.ElifClause{
+				Elif: $1.pos,
+				Cond: $2,
+				Then: $3.pos,
+				List: $4,
+			})
+			$$ = append($$, $5...)
+		}
+	|	Else compound_list
+		{
+			$$ = append($$, &ast.ElseClause{
+				Else: $1.pos,
+				List: $2,
+			})
 		}
 
 compound_list:
@@ -379,8 +420,12 @@ func init() {
 			s = "'}'"
 		case "If":
 			s = "'if'"
+		case "Elif":
+			s = "'elif'"
 		case "Then":
 			s = "'then'"
+		case "Else":
+			s = "'else'"
 		case "Fi":
 			s = "'fi'"
 		}

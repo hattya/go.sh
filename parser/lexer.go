@@ -63,7 +63,9 @@ var (
 		"{":    Lbrace,
 		"}":    Rbrace,
 		"if":   If,
+		"elif": Elif,
 		"then": Then,
+		"else": Else,
 		"fi":   Fi,
 	}
 )
@@ -142,8 +144,12 @@ func (l *lexer) lexCmd(tok int) action {
 		return l.lexGroup
 	case If:
 		return l.lexIf
+	case Elif:
+		return l.lexElif
 	case Then:
 		return l.lexThen
+	case Else:
+		return l.lexElse
 	}
 	return l.lexToken(tok)
 }
@@ -254,10 +260,30 @@ func (l *lexer) lexIf() action {
 	return l.lexPipeline
 }
 
+func (l *lexer) lexElif() action {
+	l.emit(Elif)
+	// pop & push
+	if len(l.stack) != 0 && l.stack[len(l.stack)-1] == Fi {
+		l.stack[len(l.stack)-1] = Then
+		return l.lexPipeline
+	}
+	return nil
+}
+
 func (l *lexer) lexThen() action {
 	l.emit(Then)
 	// pop & push
 	if len(l.stack) != 0 && l.stack[len(l.stack)-1] == Then {
+		l.stack[len(l.stack)-1] = Fi
+		return l.lexPipeline
+	}
+	return nil
+}
+
+func (l *lexer) lexElse() action {
+	l.emit(Else)
+	// pop & push
+	if len(l.stack) != 0 && l.stack[len(l.stack)-1] == Fi {
 		l.stack[len(l.stack)-1] = Fi
 		return l.lexPipeline
 	}

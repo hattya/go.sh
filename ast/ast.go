@@ -276,6 +276,12 @@ func (a *Assign) End() Pos {
 	return a.Value.End()
 }
 
+// ElsePart represents an elif clause or an else clause.
+type ElsePart interface {
+	Node
+	elsePartNode()
+}
+
 // Redir represents an I/O redirection.
 type Redir struct {
 	N     *Lit

@@ -215,6 +215,15 @@ type (
 		List  []Command // commands
 		Done  Pos       // position of reserved word "done"
 	}
+
+	// UntilClause represents an until loop.
+	UntilClause struct {
+		Until Pos       // position of reserved word "until"
+		Cond  []Command // condition
+		Do    Pos       // position of reserved word "do"
+		List  []Command // commands
+		Done  Pos       // position of reserved word "done"
+	}
 )
 
 func (x *SimpleCmd) Pos() Pos {
@@ -230,6 +239,7 @@ func (x *Subshell) Pos() Pos    { return x.Lparen }
 func (x *Group) Pos() Pos       { return x.Lbrace }
 func (x *IfClause) Pos() Pos    { return x.If }
 func (x *WhileClause) Pos() Pos { return x.While }
+func (x *UntilClause) Pos() Pos { return x.Until }
 
 func (x *SimpleCmd) End() Pos {
 	if len(x.Args) == 0 {
@@ -264,12 +274,19 @@ func (x *WhileClause) End() Pos {
 	}
 	return x.Done.shift(4)
 }
+func (x *UntilClause) End() Pos {
+	if x.Done.IsZero() {
+		return x.Done
+	}
+	return x.Done.shift(4)
+}
 
 func (x *SimpleCmd) cmdExprNode()   {}
 func (x *Subshell) cmdExprNode()    {}
 func (x *Group) cmdExprNode()       {}
 func (x *IfClause) cmdExprNode()    {}
 func (x *WhileClause) cmdExprNode() {}
+func (x *UntilClause) cmdExprNode() {}
 
 // Assign represents a variable assignment.
 type Assign struct {

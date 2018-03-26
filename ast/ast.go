@@ -206,6 +206,15 @@ type (
 		Else []ElsePart // elif clauses and/or an else clause
 		Fi   Pos        // position of reserved word "fi"
 	}
+
+	// WhileClause represents a while loop.
+	WhileClause struct {
+		While Pos       // position of reserved word "while"
+		Cond  []Command // condition
+		Do    Pos       // position of reserved word "do"
+		List  []Command // commands
+		Done  Pos       // position of reserved word "done"
+	}
 )
 
 func (x *SimpleCmd) Pos() Pos {
@@ -217,9 +226,10 @@ func (x *SimpleCmd) Pos() Pos {
 	}
 	return x.Args[0].Pos()
 }
-func (x *Subshell) Pos() Pos { return x.Lparen }
-func (x *Group) Pos() Pos    { return x.Lbrace }
-func (x *IfClause) Pos() Pos { return x.If }
+func (x *Subshell) Pos() Pos    { return x.Lparen }
+func (x *Group) Pos() Pos       { return x.Lbrace }
+func (x *IfClause) Pos() Pos    { return x.If }
+func (x *WhileClause) Pos() Pos { return x.While }
 
 func (x *SimpleCmd) End() Pos {
 	if len(x.Args) == 0 {
@@ -248,11 +258,18 @@ func (x *IfClause) End() Pos {
 	}
 	return x.Fi.shift(2)
 }
+func (x *WhileClause) End() Pos {
+	if x.Done.IsZero() {
+		return x.Done
+	}
+	return x.Done.shift(4)
+}
 
-func (x *SimpleCmd) cmdExprNode() {}
-func (x *Subshell) cmdExprNode()  {}
-func (x *Group) cmdExprNode()     {}
-func (x *IfClause) cmdExprNode()  {}
+func (x *SimpleCmd) cmdExprNode()   {}
+func (x *Subshell) cmdExprNode()    {}
+func (x *Group) cmdExprNode()       {}
+func (x *IfClause) cmdExprNode()    {}
+func (x *WhileClause) cmdExprNode() {}
 
 // Assign represents a variable assignment.
 type Assign struct {

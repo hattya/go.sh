@@ -639,6 +639,27 @@ func TestElseClause(t *testing.T) {
 	}
 }
 
+func TestWhileClause(t *testing.T) {
+	var x ast.CmdExpr = new(ast.WhileClause)
+	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("WhileClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("WhileClause.End() = %v, expected %v", g, e)
+	}
+
+	x = &ast.WhileClause{
+		While: ast.NewPos(1, 1),
+		Done:  ast.NewPos(4, 1),
+	}
+	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("WhileClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(4, 5); e != g {
+		t.Errorf("WhileClause.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestRedir(t *testing.T) {
 	var n ast.Node = new(ast.Redir)
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

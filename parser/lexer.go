@@ -68,6 +68,7 @@ var (
 		"else":  Else,
 		"fi":    Fi,
 		"while": While,
+		"until": Until,
 		"do":    Do,
 		"done":  Done,
 	}
@@ -155,6 +156,8 @@ func (l *lexer) lexCmd(tok int) action {
 		return l.lexElse
 	case While:
 		return l.lexWhile
+	case Until:
+		return l.lexUntil
 	case Do:
 		return l.lexDo
 	}
@@ -299,6 +302,13 @@ func (l *lexer) lexElse() action {
 
 func (l *lexer) lexWhile() action {
 	l.emit(While)
+	// push
+	l.stack = append(l.stack, Do)
+	return l.lexPipeline
+}
+
+func (l *lexer) lexUntil() action {
+	l.emit(Until)
 	// push
 	l.stack = append(l.stack, Do)
 	return l.lexPipeline

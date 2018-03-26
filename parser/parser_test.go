@@ -758,6 +758,63 @@ var parseCommandTests = []struct {
 			redir(lit(3, 17, "2"), 3, 18, ">&", word(lit(3, 20, "1"))),
 		),
 	},
+	// until loop
+	{
+		src: "until false; do echo until; done",
+		cmd: until_clause(
+			pos(1, 1), // until
+			list(
+				simple_command(
+					word(lit(1, 7, "false")),
+				),
+				sep(1, 12, ";"),
+			),
+			pos(1, 14), // do
+			list(
+				simple_command(
+					word(lit(1, 17, "echo")),
+					word(lit(1, 22, "until")),
+				),
+				sep(1, 27, ";"),
+			),
+			pos(1, 29), // done
+		),
+	},
+	{
+		src: "until false\ndo\n  echo until\ndone",
+		cmd: until_clause(
+			pos(1, 1), // until
+			simple_command(
+				word(lit(1, 7, "false")),
+			),
+			pos(2, 1), // do
+			simple_command(
+				word(lit(3, 3, "echo")),
+				word(lit(3, 8, "until")),
+			),
+			pos(4, 1), // done
+		),
+	},
+	{
+		src: "until false; do\n  echo until\ndone >/dev/null 2>&1",
+		cmd: until_clause(
+			pos(1, 1), // until
+			list(
+				simple_command(
+					word(lit(1, 7, "false")),
+				),
+				sep(1, 12, ";"),
+			),
+			pos(1, 14), // do
+			simple_command(
+				word(lit(2, 3, "echo")),
+				word(lit(2, 8, "until")),
+			),
+			pos(3, 1), // done
+			redir(nil, 3, 6, ">", word(lit(3, 7, "/dev/null"))),
+			redir(lit(3, 17, "2"), 3, 18, ">&", word(lit(3, 20, "1"))),
+		),
+	},
 }
 
 func TestParseCommand(t *testing.T) {
@@ -986,6 +1043,36 @@ func while_clause(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
+func until_clause(args ...interface{}) *ast.Cmd {
+	x := new(ast.UntilClause)
+	cmd := &ast.Cmd{Expr: x}
+	pos := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case ast.Pos:
+			switch pos {
+			case 0:
+				x.Until = a
+			case 1:
+				x.Do = a
+			case 2:
+				x.Done = a
+			}
+			pos++
+		case ast.Command:
+			switch pos {
+			case 1:
+				x.Cond = append(x.Cond, a)
+			case 2:
+				x.List = append(x.List, a)
+			}
+		case *ast.Redir:
+			cmd.Redirs = append(cmd.Redirs, a)
+		}
+	}
+	return cmd
+}
+
 func redir(n *ast.Lit, line, col int, op string, word ast.Word) *ast.Redir {
 	return &ast.Redir{
 		N:     n,
@@ -1156,6 +1243,35 @@ var parseErrorTests = []struct {
 	},
 	{
 		src: "while true\ndo",
+		err: ":2:1: syntax error: unexpected EOF",
+	},
+	// until loop
+	{
+		src: "until",
+		err: ":1:1: syntax error: unexpected EOF",
+	},
+	{
+		src: "do",
+		err: ":1:1: syntax error: unexpected 'do'",
+	},
+	{
+		src: "until true; done",
+		err: ":1:13: syntax error: unexpected 'done', expecting 'do'",
+	},
+	{
+		src: "until true\ndone",
+		err: ":2:1: syntax error: unexpected 'done', expecting 'do'",
+	},
+	{
+		src: "done",
+		err: ":1:1: syntax error: unexpected 'done'",
+	},
+	{
+		src: "until true; do",
+		err: ":1:13: syntax error: unexpected EOF",
+	},
+	{
+		src: "until true\ndo",
 		err: ":2:1: syntax error: unexpected EOF",
 	},
 }

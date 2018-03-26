@@ -701,6 +701,63 @@ var parseCommandTests = []struct {
 			redir(lit(7, 15, "2"), 7, 16, ">&", word(lit(7, 18, "1"))),
 		),
 	},
+	// while loop
+	{
+		src: "while true; do echo while; done",
+		cmd: while_clause(
+			pos(1, 1), // while
+			list(
+				simple_command(
+					word(lit(1, 7, "true")),
+				),
+				sep(1, 11, ";"),
+			),
+			pos(1, 13), // do
+			list(
+				simple_command(
+					word(lit(1, 16, "echo")),
+					word(lit(1, 21, "while")),
+				),
+				sep(1, 26, ";"),
+			),
+			pos(1, 28), // done
+		),
+	},
+	{
+		src: "while true\ndo\n  echo while\ndone",
+		cmd: while_clause(
+			pos(1, 1), // while
+			simple_command(
+				word(lit(1, 7, "true")),
+			),
+			pos(2, 1), // do
+			simple_command(
+				word(lit(3, 3, "echo")),
+				word(lit(3, 8, "while")),
+			),
+			pos(4, 1), // done
+		),
+	},
+	{
+		src: "while true; do\n  echo while\ndone >/dev/null 2>&1",
+		cmd: while_clause(
+			pos(1, 1), // while
+			list(
+				simple_command(
+					word(lit(1, 7, "true")),
+				),
+				sep(1, 11, ";"),
+			),
+			pos(1, 13), // do
+			simple_command(
+				word(lit(2, 3, "echo")),
+				word(lit(2, 8, "while")),
+			),
+			pos(3, 1), // done
+			redir(nil, 3, 6, ">", word(lit(3, 7, "/dev/null"))),
+			redir(lit(3, 17, "2"), 3, 18, ">&", word(lit(3, 20, "1"))),
+		),
+	},
 }
 
 func TestParseCommand(t *testing.T) {
@@ -899,6 +956,36 @@ func else_clause(pos ast.Pos, list ...ast.Command) *ast.ElseClause {
 	}
 }
 
+func while_clause(args ...interface{}) *ast.Cmd {
+	x := new(ast.WhileClause)
+	cmd := &ast.Cmd{Expr: x}
+	pos := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case ast.Pos:
+			switch pos {
+			case 0:
+				x.While = a
+			case 1:
+				x.Do = a
+			case 2:
+				x.Done = a
+			}
+			pos++
+		case ast.Command:
+			switch pos {
+			case 1:
+				x.Cond = append(x.Cond, a)
+			case 2:
+				x.List = append(x.List, a)
+			}
+		case *ast.Redir:
+			cmd.Redirs = append(cmd.Redirs, a)
+		}
+	}
+	return cmd
+}
+
 func redir(n *ast.Lit, line, col int, op string, word ast.Word) *ast.Redir {
 	return &ast.Redir{
 		N:     n,
@@ -1041,6 +1128,35 @@ var parseErrorTests = []struct {
 	{
 		src: "fi",
 		err: ":1:1: syntax error: unexpected 'fi'",
+	},
+	// while loop
+	{
+		src: "while",
+		err: ":1:1: syntax error: unexpected EOF",
+	},
+	{
+		src: "do",
+		err: ":1:1: syntax error: unexpected 'do'",
+	},
+	{
+		src: "while true; done",
+		err: ":1:13: syntax error: unexpected 'done', expecting 'do'",
+	},
+	{
+		src: "while true\ndone",
+		err: ":2:1: syntax error: unexpected 'done', expecting 'do'",
+	},
+	{
+		src: "done",
+		err: ":1:1: syntax error: unexpected 'done'",
+	},
+	{
+		src: "while true; do",
+		err: ":1:13: syntax error: unexpected EOF",
+	},
+	{
+		src: "while true\ndo",
+		err: ":2:1: syntax error: unexpected EOF",
 	},
 }
 

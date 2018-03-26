@@ -59,14 +59,17 @@ var (
 		int(';'): ";",
 	}
 	words = map[string]int{
-		"!":    Bang,
-		"{":    Lbrace,
-		"}":    Rbrace,
-		"if":   If,
-		"elif": Elif,
-		"then": Then,
-		"else": Else,
-		"fi":   Fi,
+		"!":     Bang,
+		"{":     Lbrace,
+		"}":     Rbrace,
+		"if":    If,
+		"elif":  Elif,
+		"then":  Then,
+		"else":  Else,
+		"fi":    Fi,
+		"while": While,
+		"do":    Do,
+		"done":  Done,
 	}
 )
 
@@ -150,6 +153,10 @@ func (l *lexer) lexCmd(tok int) action {
 		return l.lexThen
 	case Else:
 		return l.lexElse
+	case While:
+		return l.lexWhile
+	case Do:
+		return l.lexDo
 	}
 	return l.lexToken(tok)
 }
@@ -290,6 +297,23 @@ func (l *lexer) lexElse() action {
 	return nil
 }
 
+func (l *lexer) lexWhile() action {
+	l.emit(While)
+	// push
+	l.stack = append(l.stack, Do)
+	return l.lexPipeline
+}
+
+func (l *lexer) lexDo() action {
+	l.emit(Do)
+	// pop & push
+	if len(l.stack) != 0 && l.stack[len(l.stack)-1] == Do {
+		l.stack[len(l.stack)-1] = Done
+		return l.lexPipeline
+	}
+	return nil
+}
+
 func (l *lexer) lexToken(tok int) action {
 	switch tok {
 	case AND, OR:
@@ -312,7 +336,7 @@ func (l *lexer) lexToken(tok int) action {
 			l.emit('\n')
 			return l.lexPipeline
 		}
-	case ')', Rbrace, Fi:
+	case ')', Rbrace, Fi, Done:
 		l.emit(tok)
 		// pop
 		if len(l.stack) != 0 && l.stack[len(l.stack)-1] == tok {

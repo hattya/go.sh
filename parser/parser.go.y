@@ -56,13 +56,13 @@ import (
 %token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER
 %token<word>  WORD ASSIGNMENT_WORD
-%token<token> Bang Lbrace Rbrace If Elif Then Else Fi
+%token<token> Bang Lbrace Rbrace If Elif Then Else Fi While Do Done
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
-%type<expr>     compound_cmd subshell group if_clause
+%type<expr>     compound_cmd subshell group if_clause while_clause
 %type<else_>    else_part
 %type<cmds>     compound_list term
 %type<redir>    io_redir io_file
@@ -227,6 +227,7 @@ compound_cmd:
 		subshell
 	|	group
 	|	if_clause
+	|	while_clause
 
 subshell:
 		'(' compound_list ')'
@@ -297,6 +298,18 @@ else_part:
 				Else: $1.pos,
 				List: $2,
 			})
+		}
+
+while_clause:
+		While compound_list Do compound_list Done
+		{
+			$$ = &ast.WhileClause{
+				While: $1.pos,
+				Cond:  $2,
+				Do:    $3.pos,
+				List:  $4,
+				Done:  $5.pos,
+			}
 		}
 
 compound_list:
@@ -428,6 +441,12 @@ func init() {
 			s = "'else'"
 		case "Fi":
 			s = "'fi'"
+		case "While":
+			s = "'while'"
+		case "Do":
+			s = "'do'"
+		case "Done":
+			s = "'done'"
 		}
 		yyToknames[i] = s
 	}

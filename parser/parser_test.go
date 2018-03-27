@@ -548,6 +548,145 @@ var parseCommandTests = []struct {
 			redir(lit(1, 35, "2"), 1, 36, ">&", word(lit(1, 38, "1"))),
 		),
 	},
+	// for loop
+	{
+		src: "for name do echo $name; done",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			sep(0, 0, "\n"),
+			pos(1, 10), // do
+			list(
+				simple_command(
+					word(lit(1, 13, "echo")),
+					word(lit(1, 18, "$name")),
+				),
+				sep(1, 23, ";"),
+			),
+			pos(1, 25), // done
+		),
+	},
+	{
+		src: "for name; do echo $name; done",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			sep(1, 9, ";"),
+			pos(1, 11), // do
+			list(
+				simple_command(
+					word(lit(1, 14, "echo")),
+					word(lit(1, 19, "$name")),
+				),
+				sep(1, 24, ";"),
+			),
+			pos(1, 26), // done
+		),
+	},
+	{
+		src: "for name in; do echo $name; done",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			pos(1, 10), // in
+			sep(1, 12, ";"),
+			pos(1, 14), // do
+			list(
+				simple_command(
+					word(lit(1, 17, "echo")),
+					word(lit(1, 22, "$name")),
+				),
+				sep(1, 27, ";"),
+			),
+			pos(1, 29), // done
+		),
+	},
+	{
+		src: "for name in foo bar baz; do echo $name; done >/dev/null 2>&1",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			pos(1, 10), // in
+			word(lit(1, 13, "foo")),
+			word(lit(1, 17, "bar")),
+			word(lit(1, 21, "baz")),
+			sep(1, 24, ";"),
+			pos(1, 26), // do
+			list(
+				simple_command(
+					word(lit(1, 29, "echo")),
+					word(lit(1, 34, "$name")),
+				),
+				sep(1, 39, ";"),
+			),
+			pos(1, 41), // done
+			redir(nil, 1, 46, ">", word(lit(1, 47, "/dev/null"))),
+			redir(lit(1, 57, "2"), 1, 58, ">&", word(lit(1, 60, "1"))),
+		),
+	},
+	{
+		src: "for name do\n  echo $name\ndone",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			sep(0, 0, "\n"),
+			pos(1, 10), // do
+			simple_command(
+				word(lit(2, 3, "echo")),
+				word(lit(2, 8, "$name")),
+			),
+			pos(3, 1), // done
+		),
+	},
+	{
+		src: "for name\ndo\n  echo $name\ndone",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			sep(0, 0, "\n"),
+			pos(2, 1), // do
+			simple_command(
+				word(lit(3, 3, "echo")),
+				word(lit(3, 8, "$name")),
+			),
+			pos(4, 1), // done
+		),
+	},
+	{
+		src: "for name in\ndo\n  echo $name\ndone",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			pos(1, 10), // in
+			sep(0, 0, "\n"),
+			pos(2, 1), // do
+			simple_command(
+				word(lit(3, 3, "echo")),
+				word(lit(3, 8, "$name")),
+			),
+			pos(4, 1), // done
+		),
+	},
+	{
+		src: "for name in foo bar baz\ndo\n  echo $name\ndone >/dev/null 2>&1",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			pos(1, 10), // in
+			word(lit(1, 13, "foo")),
+			word(lit(1, 17, "bar")),
+			word(lit(1, 21, "baz")),
+			sep(0, 0, "\n"),
+			pos(2, 1), // do
+			simple_command(
+				word(lit(3, 3, "echo")),
+				word(lit(3, 8, "$name")),
+			),
+			pos(4, 1), // done
+			redir(nil, 4, 6, ">", word(lit(4, 7, "/dev/null"))),
+			redir(lit(4, 17, "2"), 4, 18, ">&", word(lit(4, 20, "1"))),
+		),
+	},
 	// if conditional construct
 	{
 		src: "if true; then echo if; fi",
@@ -949,6 +1088,45 @@ func group(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
+func for_clause(args ...interface{}) *ast.Cmd {
+	x := new(ast.ForClause)
+	cmd := &ast.Cmd{Expr: x}
+	pos := 0
+	lit := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case ast.Pos:
+			switch pos {
+			case 0:
+				x.For = a
+			case 1:
+				x.In = a
+			case 2:
+				x.Do = a
+			case 3:
+				x.Done = a
+			}
+			pos++
+		case *ast.Lit:
+			switch lit {
+			case 0:
+				x.Name = a
+			case 1:
+				x.Semicolon = a.ValuePos
+				pos = 2
+			}
+			lit++
+		case ast.Word:
+			x.Items = append(x.Items, a)
+		case ast.Command:
+			x.List = append(x.List, a)
+		case *ast.Redir:
+			cmd.Redirs = append(cmd.Redirs, a)
+		}
+	}
+	return cmd
+}
+
 func if_clause(args ...interface{}) *ast.Cmd {
 	x := new(ast.IfClause)
 	cmd := &ast.Cmd{Expr: x}
@@ -1179,6 +1357,51 @@ var parseErrorTests = []struct {
 		src: "}",
 		err: ":1:1: syntax error: unexpected '}'",
 	},
+	// for loop
+	{
+		src: "for 1",
+		err: ":1:5: syntax error: invalid for loop variable",
+	},
+	{
+		src: "for >/dev/null",
+		err: ":1:5: syntax error: unexpected '>', expecting NAME",
+	},
+	{
+		src: "in",
+		err: ":1:1: syntax error: unexpected 'in'",
+	},
+	{
+		src: "for name\ndone",
+		err: ":2:1: syntax error: unexpected 'done', expecting 'in'",
+	},
+	{
+		src: "do",
+		err: ":1:1: syntax error: unexpected 'do'",
+	},
+	{
+		src: "for name; done",
+		err: ":1:11: syntax error: unexpected 'done', expecting 'do'",
+	},
+	{
+		src: "for name in; done",
+		err: ":1:14: syntax error: unexpected 'done', expecting 'do'",
+	},
+	{
+		src: "for name in\ndone",
+		err: ":2:1: syntax error: unexpected 'done', expecting 'do'",
+	},
+	{
+		src: "done",
+		err: ":1:1: syntax error: unexpected 'done'",
+	},
+	{
+		src: "for name; do",
+		err: ":1:11: syntax error: unexpected EOF",
+	},
+	{
+		src: "for name\ndo",
+		err: ":2:1: syntax error: unexpected EOF",
+	},
 	// if conditional construct
 	{
 		src: "if",
@@ -1313,6 +1536,10 @@ func TestReadError(t *testing.T) {
 		"",
 		"\\",
 		"'",
+		"for name;",
+		"for name\n",
+		"for name in;",
+		"for name in\n",
 	} {
 		src := &reader{
 			data: data,

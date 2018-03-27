@@ -62,6 +62,8 @@ var (
 		"!":     Bang,
 		"{":     Lbrace,
 		"}":     Rbrace,
+		"for":   For,
+		"in":    In,
 		"if":    If,
 		"elif":  Elif,
 		"then":  Then,
@@ -146,6 +148,8 @@ func (l *lexer) lexCmd(tok int) action {
 		return l.lexSubshell
 	case Lbrace:
 		return l.lexGroup
+	case For:
+		return l.lexFor
 	case If:
 		return l.lexIf
 	case Elif:
@@ -239,16 +243,6 @@ func (l *lexer) isAssign() bool {
 	return l.isName(w.Value[:i])
 }
 
-// isName reports whether s satisfies XBD Name.
-func (l *lexer) isName(s string) bool {
-	for i, r := range s {
-		if !(r == '_' || unicode.IsLetter(r) || (i > 0 && unicode.IsDigit(r))) {
-			return false
-		}
-	}
-	return true
-}
-
 func (l *lexer) lexSubshell() action {
 	l.emit('(')
 	// push
@@ -261,6 +255,86 @@ func (l *lexer) lexGroup() action {
 	// push
 	l.stack = append(l.stack, Rbrace)
 	return l.lexPipeline
+}
+
+func (l *lexer) lexFor() action {
+	l.emit(For)
+	// name
+	switch tok := l.scanToken(); tok {
+	case WORD:
+		if w, ok := l.word[0].(*ast.Lit); !(ok && l.isName(w.Value)) {
+			l.last.Store(l.word.Pos())
+			l.Error("syntax error: invalid for loop variable")
+			return nil
+		}
+		l.emit(NAME)
+	default:
+		return l.lexToken(tok)
+	}
+
+	switch tok := l.scanToken(); tok {
+	case ';':
+		l.emit(';')
+		if !l.linebreak() {
+			return nil
+		}
+		switch tok = l.translate(l.scanToken()); tok {
+		case Do:
+			goto Do
+		default:
+			return l.lexToken(tok)
+		}
+	case '\n':
+		l.emit('\n')
+		if !l.linebreak() {
+			return nil
+		}
+		tok = l.scanToken()
+		fallthrough
+	default:
+		switch tok = l.translate(tok); tok {
+		case In:
+			goto In
+		case Do:
+			goto Do
+		default:
+			return l.lexToken(tok)
+		}
+	}
+In:
+	l.emit(In)
+	for {
+		switch tok := l.scanToken(); tok {
+		case WORD:
+			l.emit(WORD)
+		case ';', '\n':
+			l.emit(tok)
+			if !l.linebreak() {
+				return nil
+			}
+			if tok = l.translate(l.scanToken()); tok == Do {
+				goto Do
+			}
+			fallthrough
+		default:
+			return l.lexToken(tok)
+		}
+	}
+Do:
+	l.emit(Do)
+	// push
+	l.stack = append(l.stack, Done)
+	return l.lexPipeline
+}
+
+// isName reports whether s satisfies XBD Name.
+func (l *lexer) isName(s string) bool {
+	for i, r := range s {
+		if !(r == '_' || unicode.IsLetter(r) || (i > 0 && unicode.IsDigit(r))) {
+			return false
+		}
+	}
+	return true
 }
 
 func (l *lexer) lexIf() action {
@@ -617,7 +691,7 @@ func (l *lexer) lit() {
 func (l *lexer) emit(tok int) {
 	l.last.Store(l.pos)
 	switch tok {
-	case IO_NUMBER, WORD, ASSIGNMENT_WORD:
+	case IO_NUMBER, WORD, NAME, ASSIGNMENT_WORD:
 		l.token <- word{
 			typ: tok,
 			val: l.word,
@@ -677,6 +751,9 @@ func (l *lexer) unread() {
 }
 
 func (l *lexer) Error(e string) {
+	if l.err != nil && strings.Contains(e, ": unexpected EOF") {
+		return // lexing was interrupted
+	}
 	l.err = Error{
 		Name: l.name,
 		Pos:  l.last.Load().(ast.Pos),

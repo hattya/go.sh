@@ -50,24 +50,26 @@ import (
 	redir    *ast.Redir
 	redirs   []*ast.Redir
 	word     ast.Word
+	words    []ast.Word
 }
 
 %token<token> AND OR '|' '(' ')' '&' ';'
 %token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER
-%token<word>  WORD ASSIGNMENT_WORD
-%token<token> Bang Lbrace Rbrace If Elif Then Else Fi While Until Do Done
+%token<word>  WORD NAME ASSIGNMENT_WORD
+%token<token> Bang Lbrace Rbrace For In If Elif Then Else Fi While Until Do Done
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
-%type<expr>     compound_cmd subshell group if_clause while_clause until_clause
+%type<expr>     compound_cmd subshell group for_clause if_clause while_clause until_clause
+%type<words>    word_list
 %type<else_>    else_part
 %type<cmds>     compound_list term
 %type<redir>    io_redir io_file
 %type<redirs>   redir_list
-%type<token>    redir_op sep sep_op
+%type<token>    redir_op sep seq_sep sep_op
 
 %left  '&' ';'
 %left  AND OR
@@ -226,6 +228,7 @@ cmd_suffix:
 compound_cmd:
 		subshell
 	|	group
+	|	for_clause
 	|	if_clause
 	|	while_clause
 	|	until_clause
@@ -248,6 +251,64 @@ group:
 				List:   $2,
 				Rbrace: $3.pos,
 			}
+		}
+
+for_clause:
+		For NAME                                Do compound_list Done
+		{
+			$$ = &ast.ForClause{
+				For:  $1.pos,
+				Name: $2[0].(*ast.Lit),
+				Do:   $3.pos,
+				List: $4,
+				Done: $5.pos,
+			}
+		}
+	|	For NAME                        seq_sep Do compound_list Done
+		{
+			$$ = &ast.ForClause{
+				For:       $1.pos,
+				Name:      $2[0].(*ast.Lit),
+				Semicolon: $3.pos,
+				Do:        $4.pos,
+				List:      $5,
+				Done:      $6.pos,
+			}
+		}
+	|	For NAME linebreak In           seq_sep Do compound_list Done
+		{
+			$$ = &ast.ForClause{
+				For:       $1.pos,
+				Name:      $2[0].(*ast.Lit),
+				In:        $4.pos,
+				Semicolon: $5.pos,
+				Do:        $6.pos,
+				List:      $7,
+				Done:      $8.pos,
+			}
+		}
+	|	For NAME linebreak In word_list seq_sep Do compound_list Done
+		{
+			$$ = &ast.ForClause{
+				For:       $1.pos,
+				Name:      $2[0].(*ast.Lit),
+				In:        $4.pos,
+				Items:     $5,
+				Semicolon: $6.pos,
+				Do:        $7.pos,
+				List:      $8,
+				Done:      $9.pos,
+			}
+		}
+
+word_list:
+		          WORD
+		{
+			$$ = append($$, $1)
+		}
+	|	word_list WORD
+		{
+			$$ = append($$, $2)
 		}
 
 if_clause:
@@ -403,6 +464,13 @@ sep:
 		{
 		}
 
+seq_sep:
+		';' linebreak
+	|	newline_list
+		{
+			$$.pos = ast.Pos{}
+		}
+
 sep_op:
 		'&'
 	|	';'
@@ -444,6 +512,10 @@ func init() {
 			s ="'{'"
 		case "Rbrace":
 			s = "'}'"
+		case "For":
+			s = "'for'"
+		case "In":
+			s = "'in'"
 		case "If":
 			s = "'if'"
 		case "Elif":

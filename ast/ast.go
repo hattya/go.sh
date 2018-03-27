@@ -197,6 +197,18 @@ type (
 		Rbrace Pos       // position of reserved word "}"
 	}
 
+	// ForClause represents a for loop.
+	ForClause struct {
+		For       Pos       // position of reserved word "for"
+		Name      *Lit      // variable name
+		In        Pos       // position of reserved word "in" (zero if there is no "in")
+		Items     []Word    // list of words; or nil
+		Semicolon Pos       // position of ";" operator (zero if there is no ";" operator)
+		Do        Pos       // position of reserved word "do"
+		List      []Command // commands
+		Done      Pos       // position of reserved word "done"
+	}
+
 	// IfClause represents an if conditional construct.
 	IfClause struct {
 		If   Pos        // position of reserved word "if"
@@ -237,6 +249,7 @@ func (x *SimpleCmd) Pos() Pos {
 }
 func (x *Subshell) Pos() Pos    { return x.Lparen }
 func (x *Group) Pos() Pos       { return x.Lbrace }
+func (x *ForClause) Pos() Pos   { return x.For }
 func (x *IfClause) Pos() Pos    { return x.If }
 func (x *WhileClause) Pos() Pos { return x.While }
 func (x *UntilClause) Pos() Pos { return x.Until }
@@ -262,6 +275,12 @@ func (x *Group) End() Pos {
 	}
 	return x.Rbrace.shift(1)
 }
+func (x *ForClause) End() Pos {
+	if x.Done.IsZero() {
+		return x.Done
+	}
+	return x.Done.shift(4)
+}
 func (x *IfClause) End() Pos {
 	if x.Fi.IsZero() {
 		return x.Fi
@@ -284,6 +303,7 @@ func (x *UntilClause) End() Pos {
 func (x *SimpleCmd) cmdExprNode()   {}
 func (x *Subshell) cmdExprNode()    {}
 func (x *Group) cmdExprNode()       {}
+func (x *ForClause) cmdExprNode()   {}
 func (x *IfClause) cmdExprNode()    {}
 func (x *WhileClause) cmdExprNode() {}
 func (x *UntilClause) cmdExprNode() {}

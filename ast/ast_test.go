@@ -550,6 +550,27 @@ func TestGroup(t *testing.T) {
 	}
 }
 
+func TestForClause(t *testing.T) {
+	var x ast.CmdExpr = new(ast.ForClause)
+	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ForClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ForClause.End() = %v, expected %v", g, e)
+	}
+
+	x = &ast.ForClause{
+		For:  ast.NewPos(1, 1),
+		Done: ast.NewPos(4, 1),
+	}
+	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("ForClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(4, 5); e != g {
+		t.Errorf("ForClause.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestIfClause(t *testing.T) {
 	var x ast.CmdExpr = new(ast.IfClause)
 	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {

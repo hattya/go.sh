@@ -45,6 +45,8 @@ import (
 	expr     ast.CmdExpr
 	token    token
 	elt      *element
+	item     *ast.CaseItem
+	items    []*ast.CaseItem
 	else_    []ast.ElsePart
 	cmds     []ast.Command
 	redir    *ast.Redir
@@ -53,18 +55,20 @@ import (
 	words    []ast.Word
 }
 
-%token<token> AND OR '|' '(' ')' '&' ';'
+%token<token> AND OR '|' '(' ')' BREAK '&' ';'
 %token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER
 %token<word>  WORD NAME ASSIGNMENT_WORD
-%token<token> Bang Lbrace Rbrace For In If Elif Then Else Fi While Until Do Done
+%token<token> Bang Lbrace Rbrace For Case Esac In If Elif Then Else Fi While Until Do Done
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
-%type<expr>     compound_cmd subshell group for_clause if_clause while_clause until_clause
-%type<words>    word_list
+%type<expr>     compound_cmd subshell group for_clause case_clause if_clause while_clause until_clause
+%type<words>    word_list pattern_list
+%type<item>     case_item case_item_ns
+%type<items>    case_list case_list_ns
 %type<else_>    else_part
 %type<cmds>     compound_list term
 %type<redir>    io_redir io_file
@@ -229,6 +233,7 @@ compound_cmd:
 		subshell
 	|	group
 	|	for_clause
+	|	case_clause
 	|	if_clause
 	|	while_clause
 	|	until_clause
@@ -309,6 +314,139 @@ word_list:
 	|	word_list WORD
 		{
 			$$ = append($$, $2)
+		}
+
+case_clause:
+		Case WORD linebreak In linebreak              Esac
+		{
+			$$ = &ast.CaseClause{
+				Case: $1.pos,
+				Word: $2,
+				In:   $4.pos,
+				Esac: $6.pos,
+			}
+		}
+	|	Case WORD linebreak In linebreak case_list    Esac
+		{
+			$$ = &ast.CaseClause{
+				Case:  $1.pos,
+				Word:  $2,
+				In:    $4.pos,
+				Items: $6,
+				Esac:  $7.pos,
+			}
+		}
+	|	Case WORD linebreak In linebreak case_list_ns Esac
+		{
+			$$ = &ast.CaseClause{
+				Case:  $1.pos,
+				Word:  $2,
+				In:    $4.pos,
+				Items: $6,
+				Esac:  $7.pos,
+			}
+		}
+
+case_list:
+		          case_item
+		{
+			$$ = append($$, $1)
+		}
+	|	case_list case_item
+		{
+			$$ = append($$, $2)
+		}
+
+case_item:
+		    pattern_list ')' linebreak     BREAK linebreak
+		{
+			$$ = &ast.CaseItem{
+				Patterns: $1,
+				Rparen:   $2.pos,
+				Break:    $4.pos,
+			}
+		}
+	|	    pattern_list ')' compound_list BREAK linebreak
+		{
+			$$ = &ast.CaseItem{
+				Patterns: $1,
+				Rparen:   $2.pos,
+				List:     $3,
+				Break:    $4.pos,
+			}
+		}
+	|	'(' pattern_list ')' linebreak     BREAK linebreak
+		{
+			$$ = &ast.CaseItem{
+				Lparen:   $1.pos,
+				Patterns: $2,
+				Rparen:   $3.pos,
+				Break:    $5.pos,
+			}
+		}
+	|	'(' pattern_list ')' compound_list BREAK linebreak
+		{
+			$$ = &ast.CaseItem{
+				Lparen:   $1.pos,
+				Patterns: $2,
+				Rparen:   $3.pos,
+				List:     $4,
+				Break:    $5.pos,
+			}
+		}
+
+case_list_ns:
+		          case_item_ns
+		{
+			$$ = append($$, $1)
+		}
+	|	case_list case_item_ns
+		{
+			$$ = append($$, $2)
+		}
+
+case_item_ns:
+		    pattern_list ')' linebreak
+		{
+			$$ = &ast.CaseItem{
+				Patterns: $1,
+				Rparen:   $2.pos,
+			}
+		}
+	|	    pattern_list ')' compound_list
+		{
+			$$ = &ast.CaseItem{
+				Patterns: $1,
+				Rparen:   $2.pos,
+				List:     $3,
+			}
+		}
+	|	'(' pattern_list ')' linebreak
+		{
+			$$ = &ast.CaseItem{
+				Lparen:   $1.pos,
+				Patterns: $2,
+				Rparen:   $3.pos,
+			}
+		}
+	|	'(' pattern_list ')' compound_list
+		{
+			$$ = &ast.CaseItem{
+				Lparen:   $1.pos,
+				Patterns: $2,
+				Rparen:   $3.pos,
+				List:     $4,
+			}
+		}
+
+pattern_list:
+		                 WORD
+		{
+			$$ = append($$, $1)
+		}
+	|	pattern_list '|' WORD
+		{
+			$$ = append($$, $3)
 		}
 
 if_clause:
@@ -496,6 +634,8 @@ func init() {
 			s = "'&&'"
 		case "OR":
 			s = "'||'"
+		case "BREAK":
+			s = "';;'"
 		case "CLOBBER":
 			s = "'>|'"
 		case "APPEND":
@@ -514,6 +654,10 @@ func init() {
 			s = "'}'"
 		case "For":
 			s = "'for'"
+		case "Case":
+			s = "'case'"
+		case "Esac":
+			s = "'esac'"
 		case "In":
 			s = "'in'"
 		case "If":

@@ -45,6 +45,7 @@ var (
 	ops = map[int]string{
 		AND:      "&&",
 		OR:       "||",
+		BREAK:    ";;",
 		int('|'): "|",
 		int('('): "(",
 		int(')'): ")",
@@ -63,6 +64,8 @@ var (
 		"{":     Lbrace,
 		"}":     Rbrace,
 		"for":   For,
+		"case":  Case,
+		"esac":  Esac,
 		"in":    In,
 		"if":    If,
 		"elif":  Elif,
@@ -150,6 +153,10 @@ func (l *lexer) lexCmd(tok int) action {
 		return l.lexGroup
 	case For:
 		return l.lexFor
+	case Case:
+		return l.lexCase
+	case BREAK:
+		return l.lexCaseBreak
 	case If:
 		return l.lexIf
 	case Elif:
@@ -262,12 +269,15 @@ func (l *lexer) lexFor() action {
 	// name
 	switch tok := l.scanToken(); tok {
 	case WORD:
-		if w, ok := l.word[0].(*ast.Lit); !(ok && l.isName(w.Value)) {
-			l.last.Store(l.word.Pos())
-			l.Error("syntax error: invalid for loop variable")
-			return nil
+		if len(l.word) == 1 {
+			if w, ok := l.word[0].(*ast.Lit); ok && l.isName(w.Value) {
+				l.emit(NAME)
+				break
+			}
 		}
-		l.emit(NAME)
+		l.last.Store(l.word.Pos())
+		l.Error("syntax error: invalid for loop variable")
+		return nil
 	default:
 		return l.lexToken(tok)
 	}
@@ -335,6 +345,69 @@ func (l *lexer) isName(s string) bool {
 		}
 	}
 	return true
+}
+
+func (l *lexer) lexCase() action {
+	l.emit(Case)
+	// word
+	if tok := l.scanToken(); tok == WORD {
+		l.emit(WORD)
+	} else {
+		return l.lexToken(tok)
+	}
+	if !l.linebreak() {
+		return nil
+	}
+	// in
+	if tok := l.scanToken(); l.translate(tok) == In {
+		l.emit(In)
+	} else {
+		return l.lexToken(tok)
+	}
+	if !l.linebreak() {
+		return nil
+	}
+	// push
+	l.stack = append(l.stack, Esac)
+	return l.lexCaseItem
+}
+
+func (l *lexer) lexCaseItem() action {
+	tok := l.scanToken()
+	// check for esac
+	if l.translate(tok) == Esac {
+		return l.lexToken(Esac)
+	}
+	// patterns
+	if tok == '(' {
+		l.emit('(')
+		tok = l.scanToken()
+	}
+Pattern:
+	for {
+		switch tok {
+		case '|', WORD:
+			l.emit(tok)
+		case ')':
+			l.emit(')')
+			if !l.linebreak() {
+				return nil
+			}
+			break Pattern
+		default:
+			return l.lexToken(tok)
+		}
+		tok = l.scanToken()
+	}
+	return l.lexPipeline
+}
+
+func (l *lexer) lexCaseBreak() action {
+	l.emit(BREAK)
+	if !l.linebreak() {
+		return nil
+	}
+	return l.lexCaseItem
 }
 
 func (l *lexer) lexIf() action {
@@ -405,6 +478,8 @@ func (l *lexer) lexToken(tok int) action {
 		if l.linebreak() {
 			return l.lexPipeline
 		}
+	case BREAK:
+		return l.lexCaseBreak
 	case '|':
 		l.emit('|')
 		if l.linebreak() {
@@ -420,7 +495,7 @@ func (l *lexer) lexToken(tok int) action {
 			l.emit('\n')
 			return l.lexPipeline
 		}
-	case ')', Rbrace, Fi, Done:
+	case ')', Rbrace, Esac, Fi, Done:
 		l.emit(tok)
 		// pop
 		if len(l.stack) != 0 && l.stack[len(l.stack)-1] == tok {
@@ -544,6 +619,13 @@ func (l *lexer) scanOp(r rune) int {
 		op = int(')')
 	case ';':
 		op = int(';')
+		if r, _ = l.read(); l.err == nil {
+			if r == ';' {
+				op = BREAK
+			} else {
+				l.unread()
+			}
+		}
 	case '<':
 		op = int('<')
 		if r, _ = l.read(); l.err == nil {

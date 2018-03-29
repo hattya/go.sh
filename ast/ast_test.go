@@ -571,6 +571,27 @@ func TestForClause(t *testing.T) {
 	}
 }
 
+func TestCaseClause(t *testing.T) {
+	var x ast.CmdExpr = new(ast.CaseClause)
+	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("CaseClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("CaseClause.End() = %v, expected %v", g, e)
+	}
+
+	x = &ast.CaseClause{
+		Case: ast.NewPos(1, 1),
+		Esac: ast.NewPos(3, 1),
+	}
+	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("CaseClause.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(3, 5); e != g {
+		t.Errorf("CaseClause.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestIfClause(t *testing.T) {
 	var x ast.CmdExpr = new(ast.IfClause)
 	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {

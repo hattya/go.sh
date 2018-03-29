@@ -209,6 +209,14 @@ type (
 		Done      Pos       // position of reserved word "done"
 	}
 
+	// CaseClause represents a case conditional construct.
+	CaseClause struct {
+		Case Pos  // position of reserved word "case"
+		Word Word // word
+		In   Pos  // position of reserved word "in"
+		Esac Pos  // position of reserved word "esac"
+	}
+
 	// IfClause represents an if conditional construct.
 	IfClause struct {
 		If   Pos        // position of reserved word "if"
@@ -250,6 +258,7 @@ func (x *SimpleCmd) Pos() Pos {
 func (x *Subshell) Pos() Pos    { return x.Lparen }
 func (x *Group) Pos() Pos       { return x.Lbrace }
 func (x *ForClause) Pos() Pos   { return x.For }
+func (x *CaseClause) Pos() Pos  { return x.Case }
 func (x *IfClause) Pos() Pos    { return x.If }
 func (x *WhileClause) Pos() Pos { return x.While }
 func (x *UntilClause) Pos() Pos { return x.Until }
@@ -281,6 +290,12 @@ func (x *ForClause) End() Pos {
 	}
 	return x.Done.shift(4)
 }
+func (x *CaseClause) End() Pos {
+	if x.Esac.IsZero() {
+		return x.Esac
+	}
+	return x.Esac.shift(4)
+}
 func (x *IfClause) End() Pos {
 	if x.Fi.IsZero() {
 		return x.Fi
@@ -304,6 +319,7 @@ func (x *SimpleCmd) cmdExprNode()   {}
 func (x *Subshell) cmdExprNode()    {}
 func (x *Group) cmdExprNode()       {}
 func (x *ForClause) cmdExprNode()   {}
+func (x *CaseClause) cmdExprNode()  {}
 func (x *IfClause) cmdExprNode()    {}
 func (x *WhileClause) cmdExprNode() {}
 func (x *UntilClause) cmdExprNode() {}

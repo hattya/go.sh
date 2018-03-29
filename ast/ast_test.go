@@ -592,6 +592,116 @@ func TestCaseClause(t *testing.T) {
 	}
 }
 
+func TestCaseItem(t *testing.T) {
+	var n ast.Node = new(ast.CaseItem)
+	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.CaseItem{
+		Patterns: []ast.Word{
+			{
+				&ast.Lit{
+					ValuePos: ast.NewPos(2, 1),
+					Value:    "lit",
+				},
+			},
+		},
+		Break: ast.NewPos(2, 6),
+	}
+	if g, e := n.Pos(), ast.NewPos(2, 1); e != g {
+		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(2, 8); e != g {
+		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.CaseItem{
+		Lparen: ast.NewPos(2, 1),
+		Patterns: []ast.Word{
+			{
+				&ast.Lit{
+					ValuePos: ast.NewPos(2, 2),
+					Value:    "lit",
+				},
+			},
+		},
+		Break: ast.NewPos(2, 7),
+	}
+	if g, e := n.Pos(), ast.NewPos(2, 1); e != g {
+		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(2, 9); e != g {
+		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.CaseItem{
+		Patterns: []ast.Word{
+			{
+				&ast.Lit{
+					ValuePos: ast.NewPos(2, 1),
+					Value:    "lit",
+				},
+			},
+		},
+		List: []ast.Command{
+			&ast.Cmd{
+				Expr: &ast.SimpleCmd{
+					Args: []ast.Word{
+						{
+							&ast.Lit{
+								ValuePos: ast.NewPos(2, 6),
+								Value:    "lit",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(2, 1); e != g {
+		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(2, 9); e != g {
+		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
+	}
+
+	n = &ast.CaseItem{
+		Lparen: ast.NewPos(2, 1),
+		Patterns: []ast.Word{
+			{
+				&ast.Lit{
+					ValuePos: ast.NewPos(2, 2),
+					Value:    "lit",
+				},
+			},
+		},
+		List: []ast.Command{
+			&ast.Cmd{
+				Expr: &ast.SimpleCmd{
+					Args: []ast.Word{
+						{
+							&ast.Lit{
+								ValuePos: ast.NewPos(2, 7),
+								Value:    "lit",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(2, 1); e != g {
+		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(2, 10); e != g {
+		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestIfClause(t *testing.T) {
 	var x ast.CmdExpr = new(ast.IfClause)
 	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {

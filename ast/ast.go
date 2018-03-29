@@ -211,10 +211,11 @@ type (
 
 	// CaseClause represents a case conditional construct.
 	CaseClause struct {
-		Case Pos  // position of reserved word "case"
-		Word Word // word
-		In   Pos  // position of reserved word "in"
-		Esac Pos  // position of reserved word "esac"
+		Case  Pos         // position of reserved word "case"
+		Word  Word        // word
+		In    Pos         // position of reserved word "in"
+		Items []*CaseItem // patterns and commands; or nil
+		Esac  Pos         // position of reserved word "esac"
 	}
 
 	// IfClause represents an if conditional construct.
@@ -345,6 +346,34 @@ func (a *Assign) End() Pos {
 		return a.Symbol.End().shift(len(a.Op))
 	}
 	return a.Value.End()
+}
+
+// CaseItem represents patterns and commands of the case conditional construct.
+type CaseItem struct {
+	Lparen   Pos       // position of "(" operator (zero if there is no "(" operator)
+	Patterns []Word    // patterns
+	Rparen   Pos       // position of ")" operator
+	List     []Command // commands
+	Break    Pos       // position of ";;" operator (zero if there is no ";;" operator)
+}
+
+func (ci *CaseItem) Pos() Pos {
+	if !ci.Lparen.IsZero() {
+		return ci.Lparen
+	}
+	if len(ci.Patterns) == 0 {
+		return Pos{}
+	}
+	return ci.Patterns[0].Pos()
+}
+func (ci *CaseItem) End() Pos {
+	if ci.Break.IsZero() {
+		if len(ci.List) == 0 {
+			return Pos{}
+		}
+		return ci.List[len(ci.List)-1].End()
+	}
+	return ci.Break.shift(2)
 }
 
 // ElsePart represents an elif clause or an else clause.

@@ -1180,6 +1180,60 @@ var parseCommandTests = []struct {
 			redir(lit(3, 17, "2"), 3, 18, ">&", word(lit(3, 20, "1"))),
 		),
 	},
+	// function definition command
+	{
+		src: "foo() { echo foo; }",
+		cmd: func_def(
+			lit(1, 1, "foo"),
+			pos(1, 4), // (
+			pos(1, 5), // )
+			group(
+				pos(1, 7), // {
+				list(
+					simple_command(
+						word(lit(1, 9, "echo")),
+						word(lit(1, 14, "foo")),
+					),
+					sep(1, 17, ";"),
+				),
+				pos(1, 19), // }
+			),
+		),
+	},
+	{
+		src: "foo()\n{\n  echo foo\n}",
+		cmd: func_def(
+			lit(1, 1, "foo"),
+			pos(1, 4), // (
+			pos(1, 5), // )
+			group(
+				pos(2, 1), // {
+				simple_command(
+					word(lit(3, 3, "echo")),
+					word(lit(3, 8, "foo")),
+				),
+				pos(4, 1), // }
+			),
+		),
+	},
+	{
+		src: "foo() {\n  echo foo\n} >/dev/null 2>&1",
+		cmd: func_def(
+			lit(1, 1, "foo"),
+			pos(1, 4), // (
+			pos(1, 5), // )
+			group(
+				pos(1, 7), // {
+				simple_command(
+					word(lit(2, 3, "echo")),
+					word(lit(2, 8, "foo")),
+				),
+				pos(3, 1), // }
+				redir(nil, 3, 3, ">", word(lit(3, 4, "/dev/null"))),
+				redir(lit(3, 14, "2"), 3, 15, ">&", word(lit(3, 17, "1"))),
+			),
+		),
+	},
 }
 
 func TestParseCommand(t *testing.T) {
@@ -1531,6 +1585,17 @@ func until_clause(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
+func func_def(name *ast.Lit, lparen, rparen ast.Pos, body ast.Command) *ast.Cmd {
+	return &ast.Cmd{
+		Expr: &ast.FuncDef{
+			Name:   name,
+			Lparen: lparen,
+			Rparen: rparen,
+			Body:   body,
+		},
+	}
+}
+
 func redir(n *ast.Lit, line, col int, op string, word ast.Word) *ast.Redir {
 	return &ast.Redir{
 		N:     n,
@@ -1805,6 +1870,19 @@ var parseErrorTests = []struct {
 	{
 		src: "until true\ndo",
 		err: ":2:1: syntax error: unexpected EOF",
+	},
+	// function definition command
+	{
+		src: "exit()",
+		err: ":1:1: syntax error: invalid function name",
+	},
+	{
+		src: "fname(",
+		err: ":1:6: syntax error: unexpected EOF, expecting ')'",
+	},
+	{
+		src: "fname()",
+		err: ":1:7: syntax error: unexpected EOF",
 	},
 }
 

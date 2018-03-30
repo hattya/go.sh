@@ -77,6 +77,23 @@ var (
 		"do":    Do,
 		"done":  Done,
 	}
+	builtins = map[string]struct{}{
+		"break":    {},
+		":":        {},
+		"continue": {},
+		".":        {},
+		"eval":     {},
+		"exec":     {},
+		"exit":     {},
+		"export":   {},
+		"readonly": {},
+		"return":   {},
+		"set":      {},
+		"shift":    {},
+		"times":    {},
+		"trap":     {},
+		"unset":    {},
+	}
 )
 
 type action func() action
@@ -145,8 +162,39 @@ func (l *lexer) lexPipeline() action {
 func (l *lexer) lexCmd(tok int) action {
 	tok = l.translate(tok)
 	switch tok {
-	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR, IO_NUMBER, WORD:
+	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR, IO_NUMBER:
 		return l.lexSimpleCmd(tok)
+	case WORD:
+		lex := l.lexSimpleCmd
+		if len(l.word) == 1 && !l.isAssign() {
+			if w, ok := l.word[0].(*ast.Lit); ok && l.isName(w.Value) {
+				// lookahead
+				l.word = nil
+				l.mark(0)
+				la := l.scanToken()
+				if la == '(' {
+					if _, ok := builtins[w.Value]; ok {
+						l.last.Store(w.ValuePos)
+						l.Error("syntax error: invalid function name")
+						return nil
+					}
+					tok = NAME
+					lex = l.lexFuncDef
+				}
+				// save lookahead token
+				word := l.word
+				pos := l.pos
+				// emit current token
+				l.word = ast.Word{w}
+				l.pos = w.ValuePos
+				l.emit(tok)
+				// restore lookahead token
+				l.word = word
+				l.pos = pos
+				tok = la
+			}
+		}
+		return lex(tok)
 	case '(':
 		return l.lexSubshell
 	case Lbrace:
@@ -469,6 +517,19 @@ func (l *lexer) lexDo() action {
 		return l.lexPipeline
 	}
 	return nil
+}
+
+func (l *lexer) lexFuncDef(_ int) action {
+	l.emit('(')
+	if tok := l.scanToken(); tok == ')' {
+		l.emit(')')
+		if !l.linebreak() {
+			return nil
+		}
+	} else {
+		return l.lexToken(tok)
+	}
+	return l.lexCmd(l.scanToken())
 }
 
 func (l *lexer) lexToken(tok int) action {

@@ -63,9 +63,9 @@ import (
 
 %type<list>     and_or
 %type<pipeline> pipeline pipe_seq
-%type<cmd>      cmd
+%type<cmd>      cmd func_def
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
-%type<expr>     compound_cmd subshell group for_clause case_clause if_clause while_clause until_clause
+%type<expr>     compound_cmd subshell group for_clause case_clause if_clause while_clause until_clause func_body
 %type<words>    word_list pattern_list
 %type<item>     case_item case_item_ns
 %type<items>    case_list case_list_ns
@@ -160,6 +160,7 @@ cmd:
 				Redirs: $2,
 			}
 		}
+	|	func_def
 
 simple_cmd:
 		cmd_prefix WORD cmd_suffix
@@ -521,6 +522,35 @@ until_clause:
 				Do:    $3.pos,
 				List:  $4,
 				Done:  $5.pos,
+			}
+		}
+
+func_def:
+		NAME '(' ')' linebreak func_body
+		{
+			x := $5.(*ast.FuncDef)
+			x.Name = $1[0].(*ast.Lit)
+			x.Lparen = $2.pos
+			x.Rparen = $3.pos
+			$$ = &ast.Cmd{Expr: $5}
+		}
+
+func_body:
+		compound_cmd
+		{
+			$$ = &ast.FuncDef{
+				Body: &ast.Cmd{
+					Expr: $1,
+				},
+			}
+		}
+	|	compound_cmd redir_list
+		{
+			$$ = &ast.FuncDef{
+				Body: &ast.Cmd{
+					Expr:   $1,
+					Redirs: $2,
+				},
 			}
 		}
 

@@ -56,7 +56,8 @@ type (
 		List []*Pipe // commands separated by "|" operator; or nil
 	}
 
-	// Cmd represents a simple command or a compound command.
+	// Cmd represents a simple command, a compound command, or a function
+	// definition command.
 	Cmd struct {
 		Expr   CmdExpr
 		Redirs []*Redir
@@ -245,6 +246,14 @@ type (
 		List  []Command // commands
 		Done  Pos       // position of reserved word "done"
 	}
+
+	// FuncDef represents a function definition command.
+	FuncDef struct {
+		Name   *Lit    // function name
+		Lparen Pos     // position of '(' operator
+		Rparen Pos     // position of ')' operator
+		Body   Command // compound command
+	}
 )
 
 func (x *SimpleCmd) Pos() Pos {
@@ -263,6 +272,12 @@ func (x *CaseClause) Pos() Pos  { return x.Case }
 func (x *IfClause) Pos() Pos    { return x.If }
 func (x *WhileClause) Pos() Pos { return x.While }
 func (x *UntilClause) Pos() Pos { return x.Until }
+func (x *FuncDef) Pos() Pos {
+	if x.Name == nil {
+		return Pos{}
+	}
+	return x.Name.Pos()
+}
 
 func (x *SimpleCmd) End() Pos {
 	if len(x.Args) == 0 {
@@ -315,6 +330,12 @@ func (x *UntilClause) End() Pos {
 	}
 	return x.Done.shift(4)
 }
+func (x *FuncDef) End() Pos {
+	if x.Body == nil {
+		return Pos{}
+	}
+	return x.Body.End()
+}
 
 func (x *SimpleCmd) cmdExprNode()   {}
 func (x *Subshell) cmdExprNode()    {}
@@ -324,6 +345,7 @@ func (x *CaseClause) cmdExprNode()  {}
 func (x *IfClause) cmdExprNode()    {}
 func (x *WhileClause) cmdExprNode() {}
 func (x *UntilClause) cmdExprNode() {}
+func (x *FuncDef) cmdExprNode()     {}
 
 // Assign represents a variable assignment.
 type Assign struct {

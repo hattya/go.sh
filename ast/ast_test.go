@@ -833,6 +833,35 @@ func TestUntilClause(t *testing.T) {
 	}
 }
 
+func TestFuncDef(t *testing.T) {
+	var x ast.CmdExpr = new(ast.FuncDef)
+	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("FuncDef.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("FuncDef.End() = %v, expected %v", g, e)
+	}
+
+	x = &ast.FuncDef{
+		Name: &ast.Lit{
+			ValuePos: ast.NewPos(1, 1),
+			Value:    "lit",
+		},
+		Body: &ast.Cmd{
+			Expr: &ast.Group{
+				Lbrace: ast.NewPos(1, 7),
+				Rbrace: ast.NewPos(1, 10),
+			},
+		},
+	}
+	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("FuncDef.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(1, 11); e != g {
+		t.Errorf("FuncDef.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestRedir(t *testing.T) {
 	var n ast.Node = new(ast.Redir)
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

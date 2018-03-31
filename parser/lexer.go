@@ -627,7 +627,7 @@ func (l *lexer) scanToken() int {
 				return WORD
 			}
 			return l.scanOp(r)
-		case '\\', '\'':
+		case '\\', '\'', '"':
 			// quoting
 			l.lit()
 			l.mark(-1)
@@ -778,6 +778,65 @@ func (l *lexer) scanQuote(r rune) bool {
 		}
 		l.b.Reset()
 		l.word = append(l.word, q)
+	case '"':
+		// double-quotes
+		var err error
+		// save current word
+		word := l.word
+		l.word = nil
+	QQ:
+		for {
+			r, err = l.read()
+			if err != nil {
+				break QQ
+			}
+
+			switch r {
+			case '\\':
+				// escape character
+				r, err = l.read()
+				if err != nil {
+					break QQ
+				}
+
+				switch r {
+				case '\n', '"', '$', '\\', '`':
+					l.lit()
+					if r != '\n' {
+						l.word = append(l.word, &ast.Quote{
+							TokPos: l.pos,
+							Tok:    "\\",
+							Value: ast.Word{
+								&ast.Lit{
+									ValuePos: ast.NewPos(l.line, l.col-1),
+									Value:    string(r),
+								},
+							},
+						})
+					}
+					l.mark(0)
+				default:
+					l.b.WriteRune('\\')
+					l.b.WriteRune(r)
+				}
+			case '"':
+				// right double-quote
+				l.lit()
+				break QQ
+			default:
+				l.b.WriteRune(r)
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				l.last.Store(q.TokPos)
+				l.Error("syntax error: reached EOF while parsing double-quotes")
+			}
+			return false
+		}
+		// append to current word
+		q.Value = l.word
+		l.word = append(word, q)
 	}
 	l.mark(0)
 	return true

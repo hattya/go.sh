@@ -109,6 +109,34 @@ var parseCommandTests = []struct {
 			word(quote(1, 6, "'", word(lit(1, 7, "foo bar baz")))),
 		),
 	},
+	{
+		src: `echo "foo bar baz"`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `"`, word(lit(1, 7, "foo bar baz")))),
+		),
+	},
+	{
+		src: "echo \"foo\\tbar\\tbaz\"",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `"`, word(lit(1, 7, "foo\\tbar\\tbaz")))),
+		),
+	},
+	{
+		src: "echo \"foo\\\n bar\\\n baz\"",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `"`, word(lit(1, 7, "foo"), lit(2, 1, " bar"), lit(3, 1, " baz")))),
+		),
+	},
+	{
+		src: `echo "\$USER"`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `"`, word(quote(1, 7, "\\", word(lit(1, 8, "$"))), lit(1, 9, "USER")))),
+		),
+	},
 	// <newline>
 	{
 		src: "echo 1\necho 2\n",
@@ -1650,6 +1678,14 @@ var parseErrorTests = []struct {
 		src: "'q",
 		err: ":1:1: syntax error: reached EOF while parsing single-quotes",
 	},
+	{
+		src: `"qq`,
+		err: ":1:1: syntax error: reached EOF while parsing double-quotes",
+	},
+	{
+		src: `"\`,
+		err: ":1:1: syntax error: reached EOF while parsing double-quotes",
+	},
 	// simple command
 	{
 		src: "<",
@@ -1923,6 +1959,8 @@ func TestReadError(t *testing.T) {
 		"",
 		"\\",
 		"'",
+		`"`,
+		`"\`,
 		"for name;",
 		"for name\n",
 		"for name in;",

@@ -490,10 +490,21 @@ type (
 		Tok    string // quoting character
 		Value  Word
 	}
+
+	// ParamExp represents a parameter expansion.
+	ParamExp struct {
+		Dollar Pos  // position of "$"
+		Braces bool // whether this is enclosed in braces
+		Name   *Lit // parameter name
+		OpPos  Pos  // position of Op
+		Op     string
+		Word   Word
+	}
 )
 
-func (w *Lit) Pos() Pos   { return w.ValuePos }
-func (w *Quote) Pos() Pos { return w.TokPos }
+func (w *Lit) Pos() Pos      { return w.ValuePos }
+func (w *Quote) Pos() Pos    { return w.TokPos }
+func (w *ParamExp) Pos() Pos { return w.Dollar }
 
 func (w *Lit) End() Pos {
 	line := w.ValuePos.line
@@ -515,9 +526,29 @@ func (w *Quote) End() Pos {
 	}
 	return end.shift(1)
 }
+func (w *ParamExp) End() Pos {
+	var end Pos
+	switch {
+	case w.OpPos.IsZero():
+		if w.Name != nil {
+			end = w.Name.End()
+		}
+	case w.OpPos.Before(w.Name.End()):
+		end = w.Name.End()
+	case len(w.Word) == 0:
+		end = w.OpPos.shift(len(w.Op))
+	default:
+		end = w.Word.End()
+	}
+	if !w.Braces {
+		return end
+	}
+	return end.shift(1)
+}
 
-func (w *Lit) wordPartNode()   {}
-func (w *Quote) wordPartNode() {}
+func (w *Lit) wordPartNode()      {}
+func (w *Quote) wordPartNode()    {}
+func (w *ParamExp) wordPartNode() {}
 
 // Comment represents a comment.
 type Comment struct {

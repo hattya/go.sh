@@ -1066,6 +1066,102 @@ func TestQuote(t *testing.T) {
 	}
 }
 
+func TestParamExp(t *testing.T) {
+	var w ast.WordPart = new(ast.ParamExp)
+	if g, e := w.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.ParamExp{
+		Dollar: ast.NewPos(1, 1),
+		Name: &ast.Lit{
+			ValuePos: ast.NewPos(1, 2),
+			Value:    "lit",
+		},
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(1, 5); e != g {
+		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.ParamExp{
+		Dollar: ast.NewPos(1, 1),
+		Braces: true,
+		Name: &ast.Lit{
+			ValuePos: ast.NewPos(1, 2),
+			Value:    "lit",
+		},
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(1, 6); e != g {
+		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.ParamExp{
+		Dollar: ast.NewPos(1, 1),
+		Braces: true,
+		Name: &ast.Lit{
+			ValuePos: ast.NewPos(1, 3),
+			Value:    "lit",
+		},
+		OpPos: ast.NewPos(1, 6),
+		Op:    ":-",
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(1, 9); e != g {
+		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.ParamExp{
+		Dollar: ast.NewPos(1, 1),
+		Braces: true,
+		Name: &ast.Lit{
+			ValuePos: ast.NewPos(1, 3),
+			Value:    "lit",
+		},
+		OpPos: ast.NewPos(1, 6),
+		Op:    ":-",
+		Word: ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(1, 8),
+				Value:    "lit",
+			},
+		},
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(1, 12); e != g {
+		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.ParamExp{
+		Dollar: ast.NewPos(1, 1),
+		Braces: true,
+		Name: &ast.Lit{
+			ValuePos: ast.NewPos(1, 4),
+			Value:    "lit",
+		},
+		OpPos: ast.NewPos(1, 3),
+		Op:    "#",
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(1, 8); e != g {
+		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestComment(t *testing.T) {
 	var n ast.Node = new(ast.Comment)
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

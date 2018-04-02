@@ -27,7 +27,7 @@
 //go:generate goyacc -l -o parser.go parser.go.y
 
 // Package parser implemnets a parser for the Shell Command Language
-// (POSIX.1-2008).
+// (POSIX.1-2017).
 package parser
 
 import (

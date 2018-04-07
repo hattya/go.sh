@@ -32,6 +32,7 @@ package parser
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -94,6 +95,8 @@ var (
 		"trap":     {},
 		"unset":    {},
 	}
+
+	errParamExp = errors.New("syntax error: invalid parameter expansion")
 )
 
 type action func() action
@@ -634,6 +637,13 @@ func (l *lexer) scanToken() int {
 			if !l.scanQuote(r) {
 				return -1
 			}
+		case '$':
+			// parameter expansion
+			l.lit()
+			l.mark(-1)
+			if !l.scanParamExp() {
+				return -1
+			}
 		case '\t', ' ':
 			// <blank>
 			if l.lit(); len(l.word) != 0 {
@@ -840,6 +850,262 @@ func (l *lexer) scanQuote(r rune) bool {
 	}
 	l.mark(0)
 	return true
+}
+
+func (l *lexer) scanParamExp() bool {
+	r, err := l.read()
+	if err != nil {
+		if err == io.EOF {
+			l.b.WriteRune('$')
+			return true
+		}
+		return false
+	}
+
+	var pe *ast.ParamExp
+	switch r {
+	case '{':
+		// enclosed in braces
+		return l.scanParamExpInBraces()
+	case '@', '*', '#', '?', '-', '$', '!', '0':
+		// special parameter
+		pe = &ast.ParamExp{
+			Dollar: l.pos,
+			Name: &ast.Lit{
+				ValuePos: ast.NewPos(l.line, l.col-1),
+				Value:    string(r),
+			},
+		}
+	default:
+		pe = &ast.ParamExp{Dollar: l.pos}
+		l.mark(-1)
+		switch {
+		case unicode.IsDigit(r):
+			// positional parameter
+			l.b.WriteRune(r)
+		case r == '_' || unicode.IsLetter(r):
+			// XBD Name
+			for l.isNameRune(r) {
+				l.b.WriteRune(r)
+				if r, err = l.read(); err != nil {
+					if err == io.EOF {
+						break
+					}
+					return false
+				}
+			}
+			if err == nil {
+				l.unread()
+			}
+		default:
+			// continue as WORD
+			l.unread()
+			l.b.WriteRune('$')
+			l.mark(-1)
+			return true
+		}
+		pe.Name = &ast.Lit{
+			ValuePos: l.pos,
+			Value:    l.b.String(),
+		}
+		l.b.Reset()
+	}
+	l.word = append(l.word, pe)
+	l.mark(0)
+	return true
+}
+
+func (l *lexer) scanParamExpInBraces() bool {
+	pe := &ast.ParamExp{
+		Dollar: l.pos,
+		Braces: true,
+	}
+	l.mark(0)
+	// inside braces
+	r, err := l.read()
+	if err == nil {
+		if r == '#' {
+			if r, err = l.read(); err == nil {
+				switch r {
+				case ':', '=', '+', '%', '}':
+					// special parameter
+					pe.Name = &ast.Lit{
+						ValuePos: l.pos,
+						Value:    "#",
+					}
+					l.mark(-1)
+					goto Op
+				case '#', '?', '-':
+					v := r
+					if r, err = l.read(); err == nil {
+						l.unread()
+						if r != '}' {
+							// special parameter
+							pe.Name = &ast.Lit{
+								ValuePos: l.pos,
+								Value:    "#",
+							}
+							l.mark(-1)
+							r = v
+							goto Op
+						} else {
+							// string length
+							pe.OpPos = l.pos
+							pe.Op = "#"
+							l.mark(-1)
+							pe.Name = &ast.Lit{
+								ValuePos: l.pos,
+								Value:    string(v),
+							}
+							goto Rbrace
+						}
+					}
+				default:
+					// string length
+					l.unread()
+					pe.OpPos = l.pos
+					pe.Op = "#"
+					l.mark(0)
+				}
+			}
+		} else {
+			l.unread()
+		}
+	}
+	if err != nil {
+		goto Error
+	}
+	// name
+	switch r, _ = l.read(); r {
+	case '@', '*', '?', '-', '$', '!', '0':
+		// special parameter
+		l.b.WriteRune(r)
+	default:
+		// XBD Name
+		for l.isNameRune(r) {
+			l.b.WriteRune(r)
+			if r, err = l.read(); err != nil {
+				goto Error
+			}
+		}
+		l.unread()
+		if l.b.Len() == 0 {
+			err = errParamExp
+			goto Error
+		}
+	}
+	pe.Name = &ast.Lit{
+		ValuePos: l.pos,
+		Value:    l.b.String(),
+	}
+	l.b.Reset()
+	l.mark(0)
+	// op
+	r, err = l.read()
+Op:
+	if err == nil {
+		switch r {
+		case ':':
+			if r, err = l.read(); err == nil {
+				switch r {
+				case '-', '=', '?', '+':
+					pe.Op = ":" + string(r)
+				default:
+					l.unread()
+					err = errParamExp
+				}
+			}
+		case '-', '=', '?', '+':
+			pe.Op = string(r)
+		case '%', '#':
+			pe.Op = string(r)
+			if r, err = l.read(); err == nil {
+				switch r {
+				case '%', '#':
+					if s := string(r); pe.Op == s {
+						pe.Op += s
+					} else {
+						l.unread()
+						err = errParamExp
+					}
+				default:
+					l.unread()
+				}
+			}
+		default:
+			l.unread()
+			goto Rbrace
+		}
+	}
+	switch {
+	case err != nil:
+		goto Error
+	case pe.Op != "":
+		pe.OpPos = l.pos
+		l.mark(0)
+	}
+	// word
+	{
+		// save current word
+		word := l.word
+		l.word = nil
+	Word:
+		for {
+			r, err = l.read()
+			if err != nil {
+				goto Error
+			}
+
+			switch r {
+			case '\\', '\'', '"':
+				// quoting
+				l.lit()
+				l.mark(-1)
+				if !l.scanQuote(r) {
+					return false
+				}
+			case '$':
+				// parameter expansion
+				l.lit()
+				l.mark(-1)
+				if !l.scanParamExp() {
+					return false
+				}
+			case '}':
+				// right brace
+				l.unread()
+				l.lit()
+				break Word
+			default:
+				l.b.WriteRune(r)
+			}
+		}
+		// restore current word
+		pe.Word = l.word
+		l.word = word
+	}
+Rbrace:
+	if r, err = l.read(); err != nil || r != '}' {
+		goto Error
+	}
+	l.word = append(l.word, pe)
+	l.mark(0)
+	return true
+Error:
+	switch err {
+	case nil, io.EOF:
+		l.last.Store(pe.Dollar)
+		l.Error("syntax error: reached EOF while looking for matching '}'")
+	case errParamExp:
+		l.last.Store(pe.Dollar)
+		l.Error(err.Error())
+	}
+	return false
+}
+
+// isNameRune reports whether r can be used in XBD Name.
+func (l *lexer) isNameRune(r rune) bool {
+	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func (l *lexer) linebreak() bool {

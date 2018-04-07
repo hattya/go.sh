@@ -137,6 +137,270 @@ var parseCommandTests = []struct {
 			word(quote(1, 6, `"`, word(quote(1, 7, "\\", word(lit(1, 8, "$"))), lit(1, 9, "USER")))),
 		),
 	},
+	// parameter expansion
+	{
+		src: "echo $",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "$")),
+		),
+	},
+	{
+		src: "echo $@_",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "@"), nil, nil), lit(1, 8, "_")),
+		),
+	},
+	{
+		src: "echo $*_",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "*"), nil, nil), lit(1, 8, "_")),
+		),
+	},
+	{
+		src: "echo $#_",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "#"), nil, nil), lit(1, 8, "_")),
+		),
+	},
+	{
+		src: "echo $?_",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "?"), nil, nil), lit(1, 8, "_")),
+		),
+	},
+	{
+		src: "echo $-_",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "-"), nil, nil), lit(1, 8, "_")),
+		),
+	},
+	{
+		src: "echo $$_",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "$"), nil, nil), lit(1, 8, "_")),
+		),
+	},
+	{
+		src: "echo $!_",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "!"), nil, nil), lit(1, 8, "_")),
+		),
+	},
+	{
+		src: "echo $0_",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "0"), nil, nil), lit(1, 8, "_")),
+		),
+	},
+	{
+		src: "echo $1_",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "1"), nil, nil), lit(1, 8, "_")),
+		),
+	},
+	{
+		src: "echo $11",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "1"), nil, nil), lit(1, 8, "1")),
+		),
+	},
+	{
+		src: "echo $HOME",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "HOME"), nil, nil)),
+		),
+	},
+	{
+		src: "echo $HOME.",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, false, lit(1, 7, "HOME"), nil, nil), lit(1, 11, ".")),
+		),
+	},
+	{
+		src: "echo $/",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "$/")),
+		),
+	},
+	{
+		src: "echo ${@}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "@"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${*}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "*"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${#}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "#"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${?}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "?"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${-}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "-"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${$}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "$"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${!}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "!"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${0}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "0"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${1}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "1"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${11}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "11"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${HOME}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "HOME"), nil, nil)),
+		),
+	},
+	{
+		src: "echo ${LANG:-}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, ":-"), nil)),
+		),
+	},
+	{
+		src: "echo ${LANG:-C\\.${ENC:-UTF-8}}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, ":-"), word(
+				lit(1, 14, "C"),
+				quote(1, 15, "\\", word(lit(1, 16, "."))),
+				param_exp(1, 17, true, lit(1, 19, "ENC"), lit(1, 22, ":-"), word(
+					lit(1, 24, "UTF-8"),
+				)),
+			))),
+		),
+	},
+	{
+		src: "echo ${LANG-}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, "-"), nil)),
+		),
+	},
+	{
+		src: "echo ${LANG-C\\.${ENC-UTF-8}}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, "-"), word(
+				lit(1, 13, "C"),
+				quote(1, 14, "\\", word(lit(1, 15, "."))),
+				param_exp(1, 16, true, lit(1, 18, "ENC"), lit(1, 21, "-"), word(
+					lit(1, 22, "UTF-8"),
+				)),
+			))),
+		),
+	},
+	{
+		src: "echo ${#=}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "#"), lit(1, 9, "="), nil)),
+		),
+	},
+	{
+		src: "echo ${#-}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 9, "-"), lit(1, 8, "#"), nil)),
+		),
+	},
+	{
+		src: "echo ${#-9}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "#"), lit(1, 9, "-"), word(
+				lit(1, 10, "9"),
+			))),
+		),
+	},
+	{
+		src: "echo ${#LANG}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 9, "LANG"), lit(1, 8, "#"), nil)),
+		),
+	},
+	{
+		src: "echo ${LANG#*.}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, "#"), word(
+				lit(1, 13, "*."),
+			))),
+		),
+	},
+	{
+		src: "echo ${LANG##*.}",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, "##"), word(
+				lit(1, 14, "*."),
+			))),
+		),
+	},
 	// <newline>
 	{
 		src: "echo 1\necho 2\n",
@@ -587,7 +851,7 @@ var parseCommandTests = []struct {
 			list(
 				simple_command(
 					word(lit(1, 13, "echo")),
-					word(lit(1, 18, "$name")),
+					word(param_exp(1, 18, false, lit(1, 19, "name"), nil, nil)),
 				),
 				sep(1, 23, ";"),
 			),
@@ -604,7 +868,7 @@ var parseCommandTests = []struct {
 			list(
 				simple_command(
 					word(lit(1, 14, "echo")),
-					word(lit(1, 19, "$name")),
+					word(param_exp(1, 19, false, lit(1, 20, "name"), nil, nil)),
 				),
 				sep(1, 24, ";"),
 			),
@@ -622,7 +886,7 @@ var parseCommandTests = []struct {
 			list(
 				simple_command(
 					word(lit(1, 17, "echo")),
-					word(lit(1, 22, "$name")),
+					word(param_exp(1, 22, false, lit(1, 23, "name"), nil, nil)),
 				),
 				sep(1, 27, ";"),
 			),
@@ -643,7 +907,7 @@ var parseCommandTests = []struct {
 			list(
 				simple_command(
 					word(lit(1, 29, "echo")),
-					word(lit(1, 34, "$name")),
+					word(param_exp(1, 34, false, lit(1, 35, "name"), nil, nil)),
 				),
 				sep(1, 39, ";"),
 			),
@@ -661,7 +925,7 @@ var parseCommandTests = []struct {
 			pos(1, 10), // do
 			simple_command(
 				word(lit(2, 3, "echo")),
-				word(lit(2, 8, "$name")),
+				word(param_exp(2, 8, false, lit(2, 9, "name"), nil, nil)),
 			),
 			pos(3, 1), // done
 		),
@@ -675,7 +939,7 @@ var parseCommandTests = []struct {
 			pos(2, 1), // do
 			simple_command(
 				word(lit(3, 3, "echo")),
-				word(lit(3, 8, "$name")),
+				word(param_exp(3, 8, false, lit(3, 9, "name"), nil, nil)),
 			),
 			pos(4, 1), // done
 		),
@@ -690,7 +954,7 @@ var parseCommandTests = []struct {
 			pos(2, 1), // do
 			simple_command(
 				word(lit(3, 3, "echo")),
-				word(lit(3, 8, "$name")),
+				word(param_exp(3, 8, false, lit(3, 9, "name"), nil, nil)),
 			),
 			pos(4, 1), // done
 		),
@@ -708,7 +972,7 @@ var parseCommandTests = []struct {
 			pos(2, 1), // do
 			simple_command(
 				word(lit(3, 3, "echo")),
-				word(lit(3, 8, "$name")),
+				word(param_exp(3, 8, false, lit(3, 9, "name"), nil, nil)),
 			),
 			pos(4, 1), // done
 			redir(nil, 4, 6, ">", word(lit(4, 7, "/dev/null"))),
@@ -1652,6 +1916,20 @@ func quote(line, col int, tok string, v ast.Word) *ast.Quote {
 	}
 }
 
+func param_exp(line, col int, braces bool, name, op *ast.Lit, word ast.Word) *ast.ParamExp {
+	pe := &ast.ParamExp{
+		Dollar: ast.NewPos(line, col),
+		Braces: braces,
+		Name:   name,
+		Word:   word,
+	}
+	if op != nil {
+		pe.OpPos = op.ValuePos
+		pe.Op = op.Value
+	}
+	return pe
+}
+
 func assignment_word(line, col int, k string, v ast.Word) *ast.Assign {
 	return &ast.Assign{
 		Symbol: &ast.Lit{
@@ -1685,6 +1963,31 @@ var parseErrorTests = []struct {
 	{
 		src: `"\`,
 		err: ":1:1: syntax error: reached EOF while parsing double-quotes",
+	},
+	// parameter expansion
+	{
+		src: "${}",
+		err: ":1:1: syntax error: invalid parameter expansion",
+	},
+	{
+		src: "${LANG:}",
+		err: ":1:1: syntax error: invalid parameter expansion",
+	},
+	{
+		src: "${LANG%#}",
+		err: ":1:1: syntax error: invalid parameter expansion",
+	},
+	{
+		src: "${LANG-'}",
+		err: ":1:8: syntax error: reached EOF while parsing single-quotes",
+	},
+	{
+		src: "${LANG-${}}",
+		err: ":1:8: syntax error: invalid parameter expansion",
+	},
+	{
+		src: "${LANG.",
+		err: ":1:1: syntax error: reached EOF while looking for matching '}'",
 	},
 	// simple command
 	{
@@ -1961,6 +2264,12 @@ func TestReadError(t *testing.T) {
 		"'",
 		`"`,
 		`"\`,
+		"$",
+		"$_",
+		"${",
+		"${_",
+		"${@",
+		"${_-",
 		"for name;",
 		"for name\n",
 		"for name in;",

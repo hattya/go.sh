@@ -137,6 +137,19 @@ var parseCommandTests = []struct {
 			word(quote(1, 6, `"`, word(quote(1, 7, "\\", word(lit(1, 8, "$"))), lit(1, 9, "USER")))),
 		),
 	},
+	{
+		src: `echo "foo ${BAR:-"bar"} baz"`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `"`, word(
+				lit(1, 7, "foo "),
+				param_exp(1, 11, true, lit(1, 13, "BAR"), lit(1, 16, ":-"), word(
+					quote(1, 18, `"`, word(lit(1, 19, "bar"))),
+				)),
+				lit(1, 24, " baz"),
+			))),
+		),
+	},
 	// parameter expansion
 	{
 		src: "echo $",
@@ -1963,6 +1976,10 @@ var parseErrorTests = []struct {
 	{
 		src: `"\`,
 		err: ":1:1: syntax error: reached EOF while parsing double-quotes",
+	},
+	{
+		src: `"${}`,
+		err: ":1:2: syntax error: invalid parameter expansion",
 	},
 	// parameter expansion
 	{

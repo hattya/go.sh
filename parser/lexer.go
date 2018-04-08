@@ -829,6 +829,13 @@ func (l *lexer) scanQuote(r rune) bool {
 					l.b.WriteRune('\\')
 					l.b.WriteRune(r)
 				}
+			case '$':
+				// parameter expansion
+				l.lit()
+				l.mark(-1)
+				if !l.scanParamExp() {
+					return false
+				}
 			case '"':
 				// right double-quote
 				l.lit()

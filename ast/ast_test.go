@@ -1162,6 +1162,39 @@ func TestParamExp(t *testing.T) {
 	}
 }
 
+func TestCmdSubst(t *testing.T) {
+	var w ast.WordPart = new(ast.CmdSubst)
+	if g, e := w.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("CmdSubst.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("CmdSubst.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.CmdSubst{
+		Dollar: true,
+		Left:   ast.NewPos(1, 2),
+		Right:  ast.NewPos(1, 4),
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("CmdSubst.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(1, 5); e != g {
+		t.Errorf("CmdSubst.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.CmdSubst{
+		Left:  ast.NewPos(1, 1),
+		Right: ast.NewPos(1, 3),
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("CmdSubst.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(1, 4); e != g {
+		t.Errorf("CmdSubst.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestComment(t *testing.T) {
 	var n ast.Node = new(ast.Comment)
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

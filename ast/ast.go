@@ -500,11 +500,25 @@ type (
 		Op     string
 		Word   Word
 	}
+
+	// CmdSubst represents a command substisution.
+	CmdSubst struct {
+		Dollar bool      // whether this is enclosed in "$()".
+		Left   Pos       // position of "(" or "`".
+		List   []Command // commands
+		Right  Pos       // position of ")" or "`".
+	}
 )
 
 func (w *Lit) Pos() Pos      { return w.ValuePos }
 func (w *Quote) Pos() Pos    { return w.TokPos }
 func (w *ParamExp) Pos() Pos { return w.Dollar }
+func (w *CmdSubst) Pos() Pos {
+	if w.Dollar && !w.Left.IsZero() {
+		return w.Left.shift(-1)
+	}
+	return w.Left
+}
 
 func (w *Lit) End() Pos {
 	line := w.ValuePos.line
@@ -545,10 +559,17 @@ func (w *ParamExp) End() Pos {
 	}
 	return end.shift(1)
 }
+func (w *CmdSubst) End() Pos {
+	if w.Right.IsZero() {
+		return w.Right
+	}
+	return w.Right.shift(1)
+}
 
 func (w *Lit) wordPartNode()      {}
 func (w *Quote) wordPartNode()    {}
 func (w *ParamExp) wordPartNode() {}
+func (w *CmdSubst) wordPartNode() {}
 
 // Comment represents a comment.
 type Comment struct {

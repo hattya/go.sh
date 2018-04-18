@@ -414,6 +414,127 @@ var parseCommandTests = []struct {
 			))),
 		),
 	},
+	// command substitution
+	{
+		src: "echo $(basename $0).",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(
+				cmd_subst(
+					true,      // dollar
+					pos(1, 7), // left,
+					simple_command(
+						word(lit(1, 8, "basename")),
+						word(param_exp(1, 17, false, lit(1, 18, "0"), nil, nil)),
+					),
+					pos(1, 19), // right
+				),
+				lit(1, 20, "."),
+			),
+		),
+	},
+	{
+		src: "echo $(basename $(dirname $0)).",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(
+				cmd_subst(
+					true,      // dollar
+					pos(1, 7), // left,
+					simple_command(
+						word(lit(1, 8, "basename")),
+						word(
+							cmd_subst(
+								true,       // dollar
+								pos(1, 18), // left
+								simple_command(
+									word(lit(1, 19, "dirname")),
+									word(param_exp(1, 27, false, lit(1, 28, "0"), nil, nil)),
+								),
+								pos(1, 29), // right
+							),
+						),
+					),
+					pos(1, 30), // right
+				),
+				lit(1, 31, "."),
+			),
+		),
+	},
+	{
+		src: "echo $(basename `dirname $0`).",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(
+				cmd_subst(
+					true,      // dollar
+					pos(1, 7), // left,
+					simple_command(
+						word(lit(1, 8, "basename")),
+						word(
+							cmd_subst(
+								false,      // dollar
+								pos(1, 17), // left
+								simple_command(
+									word(lit(1, 18, "dirname")),
+									word(param_exp(1, 26, false, lit(1, 27, "0"), nil, nil)),
+								),
+								pos(1, 28), // right
+							),
+						),
+					),
+					pos(1, 29), // right
+				),
+				lit(1, 30, "."),
+			),
+		),
+	},
+	{
+		src: "echo `basename $0`.",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(
+				cmd_subst(
+					false,     // dollar
+					pos(1, 6), // left,
+					simple_command(
+						word(lit(1, 7, "basename")),
+						word(param_exp(1, 16, false, lit(1, 17, "0"), nil, nil)),
+					),
+					pos(1, 18), // right
+				),
+				lit(1, 19, "."),
+			),
+		),
+	},
+	{
+		src: "echo `basename $(dirname $0)`.",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(
+				cmd_subst(
+					false,     // dollar
+					pos(1, 6), // left,
+					simple_command(
+						word(lit(1, 7, "basename")),
+						word(
+							cmd_subst(
+								true,       // dollar
+								pos(1, 17), // left
+								simple_command(
+									word(lit(1, 18, "dirname")),
+									word(param_exp(1, 26, false, lit(1, 27, "0"), nil, nil)),
+								),
+								pos(1, 28), // right
+							),
+						),
+					),
+					pos(1, 29), // right
+				),
+				lit(1, 30, "."),
+			),
+		),
+	},
 	// <newline>
 	{
 		src: "echo 1\necho 2\n",
@@ -1943,6 +2064,28 @@ func param_exp(line, col int, braces bool, name, op *ast.Lit, word ast.Word) *as
 	return pe
 }
 
+func cmd_subst(args ...interface{}) *ast.CmdSubst {
+	cs := new(ast.CmdSubst)
+	pos := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case bool:
+			cs.Dollar = a
+		case ast.Pos:
+			switch pos {
+			case 0:
+				cs.Left = a
+			case 1:
+				cs.Right = a
+			}
+			pos++
+		case ast.Command:
+			cs.List = append(cs.List, a)
+		}
+	}
+	return cs
+}
+
 func assignment_word(line, col int, k string, v ast.Word) *ast.Assign {
 	return &ast.Assign{
 		Symbol: &ast.Lit{
@@ -2005,6 +2148,35 @@ var parseErrorTests = []struct {
 	{
 		src: "${LANG.",
 		err: ":1:1: syntax error: reached EOF while looking for matching '}'",
+	},
+	// command substitution
+	{
+		src: "$(!",
+		err: ":1:3: syntax error: unexpected EOF",
+	},
+	{
+		src: "$(!)",
+		err: ":1:4: syntax error: unexpected ')'",
+	},
+	{
+		src: "$(echo $(!))",
+		err: ":1:11: syntax error: unexpected ')'",
+	},
+	{
+		src: "$(echo `!`)",
+		err: ":1:10: syntax error: unexpected '`'",
+	},
+	{
+		src: "`!",
+		err: ":1:2: syntax error: unexpected EOF",
+	},
+	{
+		src: "`!`",
+		err: ":1:3: syntax error: unexpected '`'",
+	},
+	{
+		src: "`echo $(!)`",
+		err: ":1:10: syntax error: unexpected ')'",
 	},
 	// simple command
 	{

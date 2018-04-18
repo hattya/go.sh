@@ -106,9 +106,11 @@ type lexer struct {
 	r        io.RuneScanner
 	cmd      ast.Command
 	comments []*ast.Comment
+	cmdSubst rune
 	eof      bool
 	err      error
 	token    chan ast.Node
+	done     chan struct{}
 
 	stack   []int
 	word    ast.Word
@@ -151,6 +153,9 @@ func (l *lexer) run() {
 		action = action()
 	}
 	close(l.token)
+	if l.done != nil {
+		close(l.done)
+	}
 }
 
 func (l *lexer) lexPipeline() action {
@@ -559,7 +564,14 @@ func (l *lexer) lexToken(tok int) action {
 			l.emit('\n')
 			return l.lexPipeline
 		}
-	case ')', Rbrace, Esac, Fi, Done:
+	case ')':
+		if l.cmdSubst != 0 && len(l.stack) == 1 {
+			l.emit(tok)
+			l.stack = nil
+			break
+		}
+		fallthrough
+	case Rbrace, Esac, Fi, Done:
 		l.emit(tok)
 		// pop
 		if len(l.stack) != 0 && l.stack[len(l.stack)-1] == tok {
@@ -643,6 +655,24 @@ func (l *lexer) scanToken() int {
 			l.mark(-1)
 			if !l.scanParamExp() {
 				return -1
+			}
+		case '`':
+			// command substitution
+			if l.cmdSubst != '`' {
+				l.lit()
+				l.mark(-1)
+				if !l.scanCmdSubst('`') {
+					return -1
+				}
+			} else {
+				if l.lit(); len(l.word) != 0 {
+					l.unread()
+					return WORD
+				}
+				if len(l.stack) != 0 {
+					return ')'
+				}
+				return '('
 			}
 		case '\t', ' ':
 			// <blank>
@@ -874,6 +904,10 @@ func (l *lexer) scanParamExp() bool {
 	case '{':
 		// enclosed in braces
 		return l.scanParamExpInBraces()
+	case '(':
+		// command substitution
+		l.mark(-1)
+		return l.scanCmdSubst('(')
 	case '@', '*', '#', '?', '-', '$', '!', '0':
 		// special parameter
 		pe = &ast.ParamExp{
@@ -1113,6 +1147,63 @@ Error:
 // isNameRune reports whether r can be used in XBD Name.
 func (l *lexer) isNameRune(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+func (l *lexer) scanCmdSubst(r rune) bool {
+	off := 0
+	switch r {
+	case '(':
+		r = '$'
+		off = -1
+		fallthrough
+	case '`':
+		l.unread()
+		left := l.pos
+		// nest
+		ll := &lexer{
+			name:     l.name,
+			r:        l.r,
+			cmdSubst: r,
+			token:    make(chan ast.Node),
+			done:     make(chan struct{}),
+			line:     l.line,
+			col:      l.col,
+		}
+		ll.mark(off)
+		ll.last.Store(ll.pos)
+		go ll.run()
+		yyParse(ll)
+		<-ll.done
+		if ll.err != nil {
+			l.err = ll.err
+			if len(ll.stack) == 0 && r == '`' {
+				err := l.err.(Error)
+				l.err = Error{
+					Name: err.Name,
+					Pos:  err.Pos,
+					Msg:  "syntax error: unexpected '`'",
+				}
+			}
+			break
+		}
+		// apply changes
+		l.comments = append(l.comments, ll.comments...)
+		l.line = ll.line
+		l.col = ll.col
+		l.pos = ll.pos
+		// append to current word
+		switch x := ll.cmd.(*ast.Cmd).Expr.(type) {
+		case *ast.Subshell:
+			l.word = append(l.word, &ast.CmdSubst{
+				Dollar: r == '$',
+				Left:   left,
+				List:   x.List,
+				Right:  x.Rparen,
+			})
+		}
+		return true
+	}
+	return false
 }
 
 func (l *lexer) linebreak() bool {

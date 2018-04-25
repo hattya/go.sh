@@ -866,6 +866,13 @@ func (l *lexer) scanQuote(r rune) bool {
 				if !l.scanParamExp() {
 					return false
 				}
+			case '`':
+				// command substitution
+				l.lit()
+				l.mark(-1)
+				if !l.scanCmdSubst('`') {
+					return false
+				}
 			case '"':
 				// right double-quote
 				l.lit()

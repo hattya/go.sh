@@ -150,6 +150,44 @@ var parseCommandTests = []struct {
 			))),
 		),
 	},
+	{
+		src: `echo "foo $(echo bar) baz"`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `"`, word(
+				lit(1, 7, "foo "),
+				cmd_subst(
+					true,       // dollar
+					pos(1, 12), // left
+					simple_command(
+						word(lit(1, 13, "echo")),
+						word(lit(1, 18, "bar")),
+					),
+					pos(1, 21), // right
+				),
+				lit(1, 22, " baz"),
+			))),
+		),
+	},
+	{
+		src: "echo \"foo `echo bar` baz\"",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `"`, word(
+				lit(1, 7, "foo "),
+				cmd_subst(
+					false,      // dollar
+					pos(1, 11), // left
+					simple_command(
+						word(lit(1, 12, "echo")),
+						word(lit(1, 17, "bar")),
+					),
+					pos(1, 20), // right
+				),
+				lit(1, 21, " baz"),
+			))),
+		),
+	},
 	// parameter expansion
 	{
 		src: "echo $",
@@ -2123,6 +2161,14 @@ var parseErrorTests = []struct {
 	{
 		src: `"${}`,
 		err: ":1:2: syntax error: invalid parameter expansion",
+	},
+	{
+		src: `"$(!)"`,
+		err: ":1:5: syntax error: unexpected ')'",
+	},
+	{
+		src: "\"`!`\"",
+		err: ":1:4: syntax error: unexpected '`'",
 	},
 	// parameter expansion
 	{

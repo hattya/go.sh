@@ -550,6 +550,27 @@ func TestGroup(t *testing.T) {
 	}
 }
 
+func TestArithEval(t *testing.T) {
+	var x ast.CmdExpr = new(ast.ArithEval)
+	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ArithEval.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ArithEval.End() = %v, expected %v", g, e)
+	}
+
+	x = &ast.ArithEval{
+		Left:  ast.NewPos(1, 1),
+		Right: ast.NewPos(1, 4),
+	}
+	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("ArithEval.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := x.End(), ast.NewPos(1, 6); e != g {
+		t.Errorf("ArithEval.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestForClause(t *testing.T) {
 	var x ast.CmdExpr = new(ast.ForClause)
 	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {

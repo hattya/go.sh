@@ -198,6 +198,13 @@ type (
 		Rbrace Pos       // position of reserved word "}"
 	}
 
+	// ArithEval represents an arithmetic evaluation.
+	ArithEval struct {
+		Left  Pos    // position of "((" operator
+		Expr  []Word // expression
+		Right Pos    // position of "))" operator
+	}
+
 	// ForClause represents a for loop.
 	ForClause struct {
 		For       Pos       // position of reserved word "for"
@@ -267,6 +274,7 @@ func (x *SimpleCmd) Pos() Pos {
 }
 func (x *Subshell) Pos() Pos    { return x.Lparen }
 func (x *Group) Pos() Pos       { return x.Lbrace }
+func (x *ArithEval) Pos() Pos   { return x.Left }
 func (x *ForClause) Pos() Pos   { return x.For }
 func (x *CaseClause) Pos() Pos  { return x.Case }
 func (x *IfClause) Pos() Pos    { return x.If }
@@ -299,6 +307,12 @@ func (x *Group) End() Pos {
 		return x.Rbrace
 	}
 	return x.Rbrace.shift(1)
+}
+func (x *ArithEval) End() Pos {
+	if x.Right.IsZero() {
+		return x.Right
+	}
+	return x.Right.shift(2)
 }
 func (x *ForClause) End() Pos {
 	if x.Done.IsZero() {
@@ -340,6 +354,7 @@ func (x *FuncDef) End() Pos {
 func (x *SimpleCmd) cmdExprNode()   {}
 func (x *Subshell) cmdExprNode()    {}
 func (x *Group) cmdExprNode()       {}
+func (x *ArithEval) cmdExprNode()   {}
 func (x *ForClause) cmdExprNode()   {}
 func (x *CaseClause) cmdExprNode()  {}
 func (x *IfClause) cmdExprNode()    {}

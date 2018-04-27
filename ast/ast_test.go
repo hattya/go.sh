@@ -1195,6 +1195,27 @@ func TestCmdSubst(t *testing.T) {
 	}
 }
 
+func TestArithExp(t *testing.T) {
+	var w ast.WordPart = new(ast.ArithExp)
+	if g, e := w.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ArithExp.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("ArithExp.End() = %v, expected %v", g, e)
+	}
+
+	w = &ast.ArithExp{
+		Left:  ast.NewPos(1, 1),
+		Right: ast.NewPos(1, 5),
+	}
+	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("ArithExp.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := w.End(), ast.NewPos(1, 7); e != g {
+		t.Errorf("ArithExp.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestComment(t *testing.T) {
 	var n ast.Node = new(ast.Comment)
 	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {

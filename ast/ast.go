@@ -508,6 +508,13 @@ type (
 		List   []Command // commands
 		Right  Pos       // position of ")" or "`".
 	}
+
+	// ArithExp represents an arithmetic expansion.
+	ArithExp struct {
+		Left  Pos    // position of "$(("
+		Expr  []Word // expression
+		Right Pos    // position of "))"
+	}
 )
 
 func (w *Lit) Pos() Pos      { return w.ValuePos }
@@ -519,6 +526,7 @@ func (w *CmdSubst) Pos() Pos {
 	}
 	return w.Left
 }
+func (w *ArithExp) Pos() Pos { return w.Left }
 
 func (w *Lit) End() Pos {
 	line := w.ValuePos.line
@@ -565,11 +573,18 @@ func (w *CmdSubst) End() Pos {
 	}
 	return w.Right.shift(1)
 }
+func (w *ArithExp) End() Pos {
+	if w.Right.IsZero() {
+		return w.Right
+	}
+	return w.Right.shift(2)
+}
 
 func (w *Lit) wordPartNode()      {}
 func (w *Quote) wordPartNode()    {}
 func (w *ParamExp) wordPartNode() {}
 func (w *CmdSubst) wordPartNode() {}
+func (w *ArithExp) wordPartNode() {}
 
 // Comment represents a comment.
 type Comment struct {

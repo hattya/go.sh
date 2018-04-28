@@ -188,6 +188,22 @@ var parseCommandTests = []struct {
 			))),
 		),
 	},
+	{
+		src: `echo "1 + 2 = $((1 + 2))"`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `"`, word(
+				lit(1, 7, "1 + 2 = "),
+				arith_exp(
+					pos(1, 15), // left
+					word(lit(1, 18, "1")),
+					word(lit(1, 20, "+")),
+					word(lit(1, 22, "2")),
+					pos(1, 23), // right
+				),
+			))),
+		),
+	},
 	// parameter expansion
 	{
 		src: "echo $",
@@ -571,6 +587,66 @@ var parseCommandTests = []struct {
 				),
 				lit(1, 30, "."),
 			),
+		),
+	},
+	// arithmetic expansion
+	{
+		src: "echo $((x))",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(arith_exp(
+				pos(1, 6), // left
+				word(lit(1, 9, "x")),
+				pos(1, 10), // right
+			)),
+		),
+	},
+	{
+		src: "echo $(($x))",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(arith_exp(
+				pos(1, 6), // left
+				word(param_exp(1, 9, false, lit(1, 10, "x"), nil, nil)),
+				pos(1, 11), // right
+			)),
+		),
+	},
+	{
+		src: "echo $((\\x = ((1 + $(echo 2))) * `echo 3`))",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(arith_exp(
+				pos(1, 6), // left
+				word(quote(1, 9, "\\", word(lit(1, 10, "x")))),
+				word(lit(1, 12, "=")),
+				word(lit(1, 14, "(")),
+				word(lit(1, 15, "(")),
+				word(lit(1, 16, "1")),
+				word(lit(1, 18, "+")),
+				word(cmd_subst(
+					true,       // dollar
+					pos(1, 21), // left
+					simple_command(
+						word(lit(1, 22, "echo")),
+						word(lit(1, 27, "2")),
+					),
+					pos(1, 28), // right
+				)),
+				word(lit(1, 29, ")")),
+				word(lit(1, 30, ")")),
+				word(lit(1, 32, "*")),
+				word(cmd_subst(
+					false,      // dollar
+					pos(1, 34), // left
+					simple_command(
+						word(lit(1, 35, "echo")),
+						word(lit(1, 40, "3")),
+					),
+					pos(1, 41), // right
+				)),
+				pos(1, 42), // right
+			)),
 		),
 	},
 	// <newline>
@@ -2124,6 +2200,26 @@ func cmd_subst(args ...interface{}) *ast.CmdSubst {
 	return cs
 }
 
+func arith_exp(args ...interface{}) *ast.ArithExp {
+	x := new(ast.ArithExp)
+	pos := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case ast.Pos:
+			switch pos {
+			case 0:
+				x.Left = a
+			case 1:
+				x.Right = a
+			}
+			pos++
+		case ast.Word:
+			x.Expr = append(x.Expr, a)
+		}
+	}
+	return x
+}
+
 func assignment_word(line, col int, k string, v ast.Word) *ast.Assign {
 	return &ast.Assign{
 		Symbol: &ast.Lit{
@@ -2223,6 +2319,31 @@ var parseErrorTests = []struct {
 	{
 		src: "`echo $(!)`",
 		err: ":1:10: syntax error: unexpected ')'",
+	},
+	// arithmetic expansion
+	{
+		src: "$((",
+		err: ":1:1: syntax error: reached EOF while looking for matching '))'",
+	},
+	{
+		src: "$((x)",
+		err: ":1:5: syntax error: reached EOF while looking for matching '))'",
+	},
+	{
+		src: "$(('q",
+		err: ":1:4: syntax error: reached EOF while parsing single-quotes",
+	},
+	{
+		src: `$(("qq`,
+		err: ":1:4: syntax error: reached EOF while parsing double-quotes",
+	},
+	{
+		src: "$(($(!)))",
+		err: ":1:7: syntax error: unexpected ')'",
+	},
+	{
+		src: "$((`!`))",
+		err: ":1:6: syntax error: unexpected '`'",
 	},
 	// simple command
 	{

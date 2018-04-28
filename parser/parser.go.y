@@ -55,7 +55,7 @@ import (
 	words    []ast.Word
 }
 
-%token<token> AND OR '|' '(' ')' BREAK '&' ';'
+%token<token> AND OR '|' '(' ')' LAE RAE BREAK '&' ';'
 %token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER
 %token<word>  WORD NAME ASSIGNMENT_WORD
@@ -65,7 +65,7 @@ import (
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd func_def
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
-%type<expr>     compound_cmd subshell group for_clause case_clause if_clause while_clause until_clause func_body
+%type<expr>     compound_cmd subshell group arith_eval for_clause case_clause if_clause while_clause until_clause func_body
 %type<words>    word_list pattern_list
 %type<item>     case_item case_item_ns
 %type<items>    case_list case_list_ns
@@ -233,6 +233,7 @@ cmd_suffix:
 compound_cmd:
 		subshell
 	|	group
+	|	arith_eval
 	|	for_clause
 	|	case_clause
 	|	if_clause
@@ -256,6 +257,16 @@ group:
 				Lbrace: $1.pos,
 				List:   $2,
 				Rbrace: $3.pos,
+			}
+		}
+
+arith_eval:
+		LAE word_list RAE
+		{
+			$$ = &ast.ArithEval{
+				Left:  $1.pos,
+				Expr:  $2,
+				Right: $3.pos,
 			}
 		}
 
@@ -664,6 +675,10 @@ func init() {
 			s = "'&&'"
 		case "OR":
 			s = "'||'"
+		case "LAE":
+			s = "(("
+		case "RAE":
+			s = "))"
 		case "BREAK":
 			s = "';;'"
 		case "CLOBBER":

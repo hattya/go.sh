@@ -46,6 +46,8 @@ var (
 	ops = map[int]string{
 		AND:      "&&",
 		OR:       "||",
+		LAE:      "((",
+		RAE:      "))",
 		BREAK:    ";;",
 		int('|'): "|",
 		int('('): "(",
@@ -112,14 +114,16 @@ type lexer struct {
 	token    chan ast.Node
 	done     chan struct{}
 
-	stack   []int
-	word    ast.Word
-	b       bytes.Buffer
-	line    int
-	col     int
-	prevCol int
-	pos     ast.Pos
-	last    atomic.Value
+	stack     []int
+	arithExpr bool
+	paren     int
+	word      ast.Word
+	b         bytes.Buffer
+	line      int
+	col       int
+	prevCol   int
+	pos       ast.Pos
+	last      atomic.Value
 }
 
 func newLexer(name string, r io.RuneScanner) *lexer {
@@ -207,6 +211,8 @@ func (l *lexer) lexCmd(tok int) action {
 		return l.lexSubshell
 	case Lbrace:
 		return l.lexGroup
+	case LAE:
+		return l.lexArithEval
 	case For:
 		return l.lexFor
 	case Case:
@@ -318,6 +324,19 @@ func (l *lexer) lexGroup() action {
 	// push
 	l.stack = append(l.stack, Rbrace)
 	return l.lexPipeline
+}
+
+func (l *lexer) lexArithEval() action {
+	l.emit(LAE)
+	// push
+	l.stack = append(l.stack, RAE)
+	for {
+		if tok := l.scanArithExpr(); tok == WORD {
+			l.emit(WORD)
+		} else {
+			return l.lexToken(tok)
+		}
+	}
 }
 
 func (l *lexer) lexFor() action {
@@ -455,6 +474,8 @@ Pattern:
 		}
 		tok = l.scanToken()
 	}
+	// clear
+	l.paren = 0
 	return l.lexPipeline
 }
 
@@ -564,7 +585,7 @@ func (l *lexer) lexToken(tok int) action {
 			l.emit('\n')
 			return l.lexPipeline
 		}
-	case ')':
+	case ')', RAE:
 		if l.cmdSubst != 0 && len(l.stack) == 1 {
 			l.emit(tok)
 			l.stack = nil
@@ -602,6 +623,66 @@ func (l *lexer) lexRedir() action {
 Redir:
 	l.emit(tok)
 	return l.lexRedir
+}
+
+func (l *lexer) scanArithExpr() int {
+	for {
+		r, err := l.read()
+		if err != nil {
+			if err == io.EOF {
+				l.Error("syntax error: reached EOF while looking for matching '))'")
+			}
+			return -1
+		}
+
+		switch r {
+		case '(', ')':
+			// operator
+			if l.lit(); len(l.word) != 0 {
+				l.unread()
+				return WORD
+			}
+			if l.scanOp(r) == RAE {
+				return RAE
+			} else {
+				l.b.WriteRune(r)
+				l.lit()
+				return WORD
+			}
+		case '\\', '\'', '"':
+			// quoting
+			l.lit()
+			l.mark(-1)
+			if !l.scanQuote(r) {
+				return -1
+			}
+		case '$':
+			// parameter expansion
+			l.lit()
+			l.mark(-1)
+			if !l.scanParamExp() {
+				return -1
+			}
+		case '`':
+			// command substitution
+			l.lit()
+			l.mark(-1)
+			if !l.scanCmdSubst('`') {
+				return -1
+			}
+		case '\t', ' ':
+			// <blank>
+			fallthrough
+		case '\n':
+			// <newline>
+			if l.lit(); len(l.word) != 0 {
+				return WORD
+			}
+			l.mark(0)
+		default:
+			l.b.WriteRune(r)
+		}
+	}
 }
 
 func (l *lexer) scanToken() int {
@@ -716,8 +797,32 @@ func (l *lexer) scanOp(r rune) int {
 		}
 	case '(':
 		op = int('(')
+		l.paren++
+		if l.cmdSubst == '$' && l.paren == 1 {
+			if r, _ = l.read(); l.err == nil {
+				if r == '(' {
+					op = LAE
+					l.paren++
+					l.arithExpr = true
+				} else {
+					l.unread()
+				}
+			}
+		}
 	case ')':
 		op = int(')')
+		l.paren--
+		if l.arithExpr && l.paren == 1 {
+			if r, _ = l.read(); l.err == nil {
+				if r == ')' {
+					op = RAE
+					l.paren--
+					l.arithExpr = false
+				} else {
+					l.unread()
+				}
+			}
+		}
 	case ';':
 		op = int(';')
 		if r, _ = l.read(); l.err == nil {
@@ -1206,6 +1311,12 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 				Left:   left,
 				List:   x.List,
 				Right:  x.Rparen,
+			})
+		case *ast.ArithEval:
+			l.word = append(l.word, &ast.ArithExp{
+				Left:  ast.NewPos(left.Line(), left.Col()-1),
+				Expr:  x.Expr,
+				Right: x.Right,
 			})
 		}
 		return true

@@ -798,7 +798,7 @@ func (l *lexer) scanOp(r rune) int {
 	case '(':
 		op = int('(')
 		l.paren++
-		if l.cmdSubst == '$' && l.paren == 1 {
+		if l.paren == 1 {
 			if r, _ = l.read(); l.err == nil {
 				if r == '(' {
 					op = LAE

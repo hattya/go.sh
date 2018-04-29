@@ -1088,6 +1088,29 @@ var parseCommandTests = []struct {
 			redir(lit(1, 35, "2"), 1, 36, ">&", word(lit(1, 38, "1"))),
 		),
 	},
+	// arithmetic evaluation
+	{
+		src: "((x -= 1))",
+		cmd: arith_eval(
+			pos(1, 1), // left
+			word(lit(1, 3, "x")),
+			word(lit(1, 5, "-=")),
+			word(lit(1, 8, "1")),
+			pos(1, 9), // right
+		),
+	},
+	{
+		src: "((x <<= 1)) >/dev/null 2>&1",
+		cmd: arith_eval(
+			pos(1, 1), // left
+			word(lit(1, 3, "x")),
+			word(lit(1, 5, "<<=")),
+			word(lit(1, 9, "1")),
+			pos(1, 10), // right
+			redir(nil, 1, 13, ">", word(lit(1, 14, "/dev/null"))),
+			redir(lit(1, 24, "2"), 1, 25, ">&", word(lit(1, 27, "1"))),
+		),
+	},
 	// for loop
 	{
 		src: "for name do echo $name; done",
@@ -1901,6 +1924,29 @@ func group(args ...interface{}) *ast.Cmd {
 			pos++
 		case ast.Command:
 			x.List = append(x.List, a)
+		case *ast.Redir:
+			cmd.Redirs = append(cmd.Redirs, a)
+		}
+	}
+	return cmd
+}
+
+func arith_eval(args ...interface{}) *ast.Cmd {
+	x := new(ast.ArithEval)
+	cmd := &ast.Cmd{Expr: x}
+	pos := 0
+	for _, a := range args {
+		switch a := a.(type) {
+		case ast.Pos:
+			switch pos {
+			case 0:
+				x.Left = a
+			case 1:
+				x.Right = a
+			}
+			pos++
+		case ast.Word:
+			x.Expr = append(x.Expr, a)
 		case *ast.Redir:
 			cmd.Redirs = append(cmd.Redirs, a)
 		}

@@ -929,6 +929,23 @@ func TestRedir(t *testing.T) {
 	if g, e := n.End(), ast.NewPos(1, 7); e != g {
 		t.Errorf("Redir.End() = %v, expected %v", g, e)
 	}
+
+	n = &ast.Redir{
+		OpPos: ast.NewPos(1, 1),
+		Op:    "<<",
+		Delim: ast.Word{
+			&ast.Lit{
+				ValuePos: ast.NewPos(3, 1),
+				Value:    "lit",
+			},
+		},
+	}
+	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("Redir.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := n.End(), ast.NewPos(3, 4); e != g {
+		t.Errorf("Redir.End() = %v, expected %v", g, e)
+	}
 }
 
 func TestWord(t *testing.T) {

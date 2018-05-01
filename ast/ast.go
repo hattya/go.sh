@@ -456,10 +456,12 @@ func (e *ElseClause) elsePartNode() {}
 
 // Redir represents an I/O redirection.
 type Redir struct {
-	N     *Lit
-	OpPos Pos
-	Op    string
-	Word  Word
+	N       *Lit
+	OpPos   Pos
+	Op      string
+	Word    Word
+	Heredoc Word // here-document; or nil
+	Delim   Word // here-document delimiter; or nil
 }
 
 func (r *Redir) Pos() Pos {
@@ -468,7 +470,13 @@ func (r *Redir) Pos() Pos {
 	}
 	return r.OpPos
 }
-func (r *Redir) End() Pos { return r.Word.End() }
+func (r *Redir) End() Pos {
+	switch r.Op {
+	case "<<", "<<-":
+		return r.Delim.End()
+	}
+	return r.Word.End()
+}
 
 // Word represents a WORD token.
 type Word []WordPart

@@ -41,6 +41,9 @@ type Command interface {
 }
 
 type (
+	// List represents a list of AND-OR lists.
+	List []*AndOrList
+
 	// AndOrList represents an AND-OR list.
 	AndOrList struct {
 		Pipeline *Pipeline // pipeline
@@ -64,6 +67,12 @@ type (
 	}
 )
 
+func (c List) Pos() Pos {
+	if len(c) == 0 {
+		return Pos{}
+	}
+	return c[0].Pos()
+}
 func (c *AndOrList) Pos() Pos {
 	if c.Pipeline == nil {
 		return Pos{}
@@ -98,6 +107,12 @@ func (c *Cmd) Pos() Pos {
 	}
 }
 
+func (c List) End() Pos {
+	if len(c) == 0 {
+		return Pos{}
+	}
+	return c[len(c)-1].End()
+}
 func (c *AndOrList) End() Pos {
 	if len(c.List) != 0 {
 		return c.List[len(c.List)-1].End()
@@ -135,6 +150,7 @@ func (c *Cmd) End() Pos {
 	}
 }
 
+func (c List) commandNode()       {}
 func (c *AndOrList) commandNode() {}
 func (c *Pipeline) commandNode()  {}
 func (c *Cmd) commandNode()       {}

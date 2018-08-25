@@ -32,6 +32,41 @@ import (
 	"github.com/hattya/go.sh/ast"
 )
 
+func TestList(t *testing.T) {
+	var c ast.Command = new(ast.List)
+	if g, e := c.Pos(), ast.NewPos(0, 0); e != g {
+		t.Errorf("List.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := c.End(), ast.NewPos(0, 0); e != g {
+		t.Errorf("List.End() = %v, expected %v", g, e)
+	}
+
+	c = ast.List{
+		&ast.AndOrList{
+			Pipeline: &ast.Pipeline{
+				Cmd: &ast.Cmd{
+					Expr: &ast.SimpleCmd{
+						Args: []ast.Word{
+							{
+								&ast.Lit{
+									ValuePos: ast.NewPos(1, 1),
+									Value:    "lit",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+		t.Errorf("List.Pos() = %v, expected %v", g, e)
+	}
+	if g, e := c.End(), ast.NewPos(1, 4); e != g {
+		t.Errorf("List.End() = %v, expected %v", g, e)
+	}
+}
+
 func TestAndOrList(t *testing.T) {
 	var c ast.Command = new(ast.AndOrList)
 	if g, e := c.Pos(), ast.NewPos(0, 0); e != g {

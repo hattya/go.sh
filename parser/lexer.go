@@ -577,9 +577,7 @@ func (l *lexer) lexToken(tok int) action {
 		}
 	case '&', ';':
 		l.emit(tok)
-		if len(l.stack) != 0 {
-			return l.lexPipeline
-		}
+		return l.lexPipeline
 	case '\n':
 		if len(l.stack) != 0 {
 			l.emit('\n')

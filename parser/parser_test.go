@@ -876,6 +876,22 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "cd; pwd",
+		cmd: list(
+			and_or_list(
+				simple_command(
+					word(lit(1, 1, "cd")),
+				),
+				sep(1, 3, ";"),
+			),
+			and_or_list(
+				simple_command(
+					word(lit(1, 5, "pwd")),
+				),
+			),
+		),
+	},
+	{
+		src: "cd;\npwd",
 		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "cd")),
@@ -895,6 +911,22 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "make & fg",
+		cmd: list(
+			and_or_list(
+				simple_command(
+					word(lit(1, 1, "make")),
+				),
+				sep(1, 6, "&"),
+			),
+			and_or_list(
+				simple_command(
+					word(lit(1, 8, "fg")),
+				),
+			),
+		),
+	},
+	{
+		src: "make &\nfg",
 		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "make")),
@@ -971,16 +1003,20 @@ var parseCommandTests = []struct {
 		src: "(cd /usr/src/linux; make -j3)",
 		cmd: subshell(
 			pos(1, 1), // (
-			and_or_list(
-				simple_command(
-					word(lit(1, 2, "cd")),
-					word(lit(1, 5, "/usr/src/linux")),
+			list(
+				and_or_list(
+					simple_command(
+						word(lit(1, 2, "cd")),
+						word(lit(1, 5, "/usr/src/linux")),
+					),
+					sep(1, 19, ";"),
 				),
-				sep(1, 19, ";"),
-			),
-			simple_command(
-				word(lit(1, 21, "make")),
-				word(lit(1, 26, "-j3")),
+				and_or_list(
+					simple_command(
+						word(lit(1, 21, "make")),
+						word(lit(1, 26, "-j3")),
+					),
+				),
 			),
 			pos(1, 29), // )
 		),
@@ -1019,16 +1055,20 @@ var parseCommandTests = []struct {
 		src: "(cd /usr/src/linux; make -j3) >/dev/null 2>&1",
 		cmd: subshell(
 			pos(1, 1), // (
-			and_or_list(
-				simple_command(
-					word(lit(1, 2, "cd")),
-					word(lit(1, 5, "/usr/src/linux")),
+			list(
+				and_or_list(
+					simple_command(
+						word(lit(1, 2, "cd")),
+						word(lit(1, 5, "/usr/src/linux")),
+					),
+					sep(1, 19, ";"),
 				),
-				sep(1, 19, ";"),
-			),
-			simple_command(
-				word(lit(1, 21, "make")),
-				word(lit(1, 26, "-j3")),
+				and_or_list(
+					simple_command(
+						word(lit(1, 21, "make")),
+						word(lit(1, 26, "-j3")),
+					),
+				),
 			),
 			pos(1, 29), // )
 			redir(nil, 1, 31, ">", word(lit(1, 32, "/dev/null"))),
@@ -1039,17 +1079,19 @@ var parseCommandTests = []struct {
 		src: "{ ./configure; make; }",
 		cmd: group(
 			pos(1, 1), // {
-			and_or_list(
-				simple_command(
-					word(lit(1, 3, "./configure")),
+			list(
+				and_or_list(
+					simple_command(
+						word(lit(1, 3, "./configure")),
+					),
+					sep(1, 14, ";"),
 				),
-				sep(1, 14, ";"),
-			),
-			and_or_list(
-				simple_command(
-					word(lit(1, 16, "make")),
+				and_or_list(
+					simple_command(
+						word(lit(1, 16, "make")),
+					),
+					sep(1, 20, ";"),
 				),
-				sep(1, 20, ";"),
 			),
 			pos(1, 22), // }
 		),
@@ -1071,17 +1113,19 @@ var parseCommandTests = []struct {
 		src: "{ ./configure; make; } >/dev/null 2>&1",
 		cmd: group(
 			pos(1, 1), // {
-			and_or_list(
-				simple_command(
-					word(lit(1, 3, "./configure")),
+			list(
+				and_or_list(
+					simple_command(
+						word(lit(1, 3, "./configure")),
+					),
+					sep(1, 14, ";"),
 				),
-				sep(1, 14, ";"),
-			),
-			and_or_list(
-				simple_command(
-					word(lit(1, 16, "make")),
+				and_or_list(
+					simple_command(
+						word(lit(1, 16, "make")),
+					),
+					sep(1, 20, ";"),
 				),
-				sep(1, 20, ";"),
 			),
 			pos(1, 22), // }
 			redir(nil, 1, 24, ">", word(lit(1, 25, "/dev/null"))),
@@ -1814,6 +1858,10 @@ func TestParseCommand(t *testing.T) {
 }
 
 var pos = ast.NewPos
+
+func list(list ...*ast.AndOrList) ast.List {
+	return ast.List(list)
+}
 
 func sep(line, col int, sep string) *ast.Lit {
 	return &ast.Lit{

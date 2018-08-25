@@ -39,6 +39,7 @@ import (
 %}
 
 %union {
+	list     ast.List
 	and_or   *ast.AndOrList
 	pipeline *ast.Pipeline
 	cmd      *ast.Cmd
@@ -61,6 +62,7 @@ import (
 %token<word>  WORD NAME ASSIGNMENT_WORD
 %token<token> Bang Lbrace Rbrace For Case Esac In If Elif Then Else Fi While Until Do Done
 
+%type<list>     list
 %type<and_or>   and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd func_def
@@ -82,17 +84,39 @@ import (
 %%
 
 cmdline:
-		and_or sep_op
+		list sep_op
 		{
-			$1.SepPos = $2.pos
-			$1.Sep = $2.val
-			yylex.(*lexer).cmd = $1
+			ao := $1[len($1)-1]
+			ao.SepPos = $2.pos
+			ao.Sep = $2.val
+			if len($1) > 1 {
+				yylex.(*lexer).cmd = $1
+			} else {
+				yylex.(*lexer).cmd = extract($1[0])
+			}
 		}
-	|	and_or
+	|	list
 		{
-			yylex.(*lexer).cmd = extract($1)
+			if len($1) > 1 {
+				yylex.(*lexer).cmd = $1
+			} else {
+				yylex.(*lexer).cmd = extract($1[0])
+			}
 		}
 	|	/* empty */
+
+list:
+		            and_or
+		{
+			$$ = append($$, $1)
+		}
+	|	list sep_op and_or
+		{
+			ao := $$[len($$)-1]
+			ao.SepPos = $2.pos
+			ao.Sep = $2.val
+			$$ = append($$, $3)
+		}
 
 and_or:
 		           pipeline
@@ -568,36 +592,45 @@ func_body:
 compound_list:
 		linebreak term sep
 		{
-			cmd := $2[len($2)-1].(*ast.AndOrList)
+			l := $2[len($2)-1].(ast.List)
 			if $3.typ != '\n' {
-				cmd.SepPos = $3.pos
-				cmd.Sep = $3.val
-			} else {
-				$2[len($2)-1] = extract(cmd)
+				ao := l[len(l)-1]
+				ao.SepPos = $3.pos
+				ao.Sep = $3.val
+			}
+			if len(l) == 1 {
+				$2[len($2)-1] = extract(l[0])
 			}
 			$$ = $2
 		}
 	|	linebreak term
 		{
-			$2[len($2)-1] = extract($2[len($2)-1].(*ast.AndOrList))
+			l := $2[len($2)-1].(ast.List)
+			if len(l) == 1 {
+				$2[len($2)-1] = extract(l[0])
+			}
 			$$ = $2
 		}
 
 term:
 		         and_or
 		{
-			$$ = []ast.Command{$1}
+			$$ = append($$, ast.List{$1})
 		}
 	|	term sep and_or
 		{
-			cmd := $$[len($$)-1].(*ast.AndOrList)
+			l := $$[len($$)-1].(ast.List)
 			if $2.typ != '\n' {
-				cmd.SepPos = $2.pos
-				cmd.Sep = $2.val
+				ao := l[len(l)-1]
+				ao.SepPos = $2.pos
+				ao.Sep = $2.val
+				$$[len($$)-1] = append(l, $3)
 			} else {
-				$$[len($$)-1] = extract(cmd)
+				if len(l) == 1 {
+					$$[len($$)-1] = extract(l[0])
+				}
+				$$ = append($$, ast.List{$3})
 			}
-			$$ = append($$, $3)
 		}
 
 redir_list:

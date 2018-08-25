@@ -866,7 +866,7 @@ var parseCommandTests = []struct {
 	// list
 	{
 		src: "sleep 1;",
-		cmd: list(
+		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "sleep")),
 				word(lit(1, 7, "1")),
@@ -876,7 +876,7 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "cd; pwd",
-		cmd: list(
+		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "cd")),
 			),
@@ -885,7 +885,7 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "sleep 1 &",
-		cmd: list(
+		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "sleep")),
 				word(lit(1, 7, "1")),
@@ -895,7 +895,7 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "make & fg",
-		cmd: list(
+		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "make")),
 			),
@@ -904,7 +904,7 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "false && echo foo || echo bar",
-		cmd: list(
+		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "false")),
 			),
@@ -924,7 +924,7 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "true || echo foo && echo bar",
-		cmd: list(
+		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "true")),
 			),
@@ -944,7 +944,7 @@ var parseCommandTests = []struct {
 	},
 	{
 		src: "true ||\n\n# || comment\n\necho foo &&\n\n# && comment\n\necho bar",
-		cmd: list(
+		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "true")),
 			),
@@ -971,7 +971,7 @@ var parseCommandTests = []struct {
 		src: "(cd /usr/src/linux; make -j3)",
 		cmd: subshell(
 			pos(1, 1), // (
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 2, "cd")),
 					word(lit(1, 5, "/usr/src/linux")),
@@ -1019,7 +1019,7 @@ var parseCommandTests = []struct {
 		src: "(cd /usr/src/linux; make -j3) >/dev/null 2>&1",
 		cmd: subshell(
 			pos(1, 1), // (
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 2, "cd")),
 					word(lit(1, 5, "/usr/src/linux")),
@@ -1039,13 +1039,13 @@ var parseCommandTests = []struct {
 		src: "{ ./configure; make; }",
 		cmd: group(
 			pos(1, 1), // {
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 3, "./configure")),
 				),
 				sep(1, 14, ";"),
 			),
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 16, "make")),
 				),
@@ -1071,13 +1071,13 @@ var parseCommandTests = []struct {
 		src: "{ ./configure; make; } >/dev/null 2>&1",
 		cmd: group(
 			pos(1, 1), // {
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 3, "./configure")),
 				),
 				sep(1, 14, ";"),
 			),
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 16, "make")),
 				),
@@ -1119,7 +1119,7 @@ var parseCommandTests = []struct {
 			lit(1, 5, "name"),
 			sep(0, 0, "\n"),
 			pos(1, 10), // do
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 13, "echo")),
 					word(param_exp(1, 18, false, lit(1, 19, "name"), nil, nil)),
@@ -1136,7 +1136,7 @@ var parseCommandTests = []struct {
 			lit(1, 5, "name"),
 			sep(1, 9, ";"),
 			pos(1, 11), // do
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 14, "echo")),
 					word(param_exp(1, 19, false, lit(1, 20, "name"), nil, nil)),
@@ -1154,7 +1154,7 @@ var parseCommandTests = []struct {
 			pos(1, 10), // in
 			sep(1, 12, ";"),
 			pos(1, 14), // do
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 17, "echo")),
 					word(param_exp(1, 22, false, lit(1, 23, "name"), nil, nil)),
@@ -1175,7 +1175,7 @@ var parseCommandTests = []struct {
 			word(lit(1, 21, "baz")),
 			sep(1, 24, ";"),
 			pos(1, 26), // do
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 29, "echo")),
 					word(param_exp(1, 34, false, lit(1, 35, "name"), nil, nil)),
@@ -1389,7 +1389,7 @@ var parseCommandTests = []struct {
 				word(lit(1, 55, "3")),
 				word(lit(1, 57, "qux")),
 				pos(1, 60), // )
-				list(
+				and_or_list(
 					simple_command(
 						word(lit(1, 62, "echo")),
 						word(lit(1, 67, "qux")),
@@ -1481,14 +1481,14 @@ var parseCommandTests = []struct {
 		src: "if true; then echo if; fi",
 		cmd: if_clause(
 			pos(1, 1), // if
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 4, "true")),
 				),
 				sep(1, 8, ";"),
 			),
 			pos(1, 10), // then
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 15, "echo")),
 					word(lit(1, 20, "if")),
@@ -1517,7 +1517,7 @@ var parseCommandTests = []struct {
 		src: "if true; then\n  echo if\nfi",
 		cmd: if_clause(
 			pos(1, 1), // if
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 4, "true")),
 				),
@@ -1535,7 +1535,7 @@ var parseCommandTests = []struct {
 		src: "if false; then\n  echo if\nelif true; then\n  echo elif\nfi",
 		cmd: if_clause(
 			pos(1, 1), // if
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 4, "false")),
 				),
@@ -1548,7 +1548,7 @@ var parseCommandTests = []struct {
 			),
 			elif_clause(
 				pos(3, 1), // elif
-				list(
+				and_or_list(
 					simple_command(
 						word(lit(3, 6, "true")),
 					),
@@ -1567,7 +1567,7 @@ var parseCommandTests = []struct {
 		src: "if false; then\n  echo if\nelse\n  echo else\nfi",
 		cmd: if_clause(
 			pos(1, 1), // if
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 4, "false")),
 				),
@@ -1592,7 +1592,7 @@ var parseCommandTests = []struct {
 		src: "if false; then\n  echo if\nelif false; then\n  echo elif\nelse\n  echo else\nfi >/dev/null 2>&1",
 		cmd: if_clause(
 			pos(1, 1), // if
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 4, "false")),
 				),
@@ -1605,7 +1605,7 @@ var parseCommandTests = []struct {
 			),
 			elif_clause(
 				pos(3, 1), // elif
-				list(
+				and_or_list(
 					simple_command(
 						word(lit(3, 6, "false")),
 					),
@@ -1634,14 +1634,14 @@ var parseCommandTests = []struct {
 		src: "while true; do echo while; done",
 		cmd: while_clause(
 			pos(1, 1), // while
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 7, "true")),
 				),
 				sep(1, 11, ";"),
 			),
 			pos(1, 13), // do
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 16, "echo")),
 					word(lit(1, 21, "while")),
@@ -1670,7 +1670,7 @@ var parseCommandTests = []struct {
 		src: "while true; do\n  echo while\ndone >/dev/null 2>&1",
 		cmd: while_clause(
 			pos(1, 1), // while
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 7, "true")),
 				),
@@ -1691,14 +1691,14 @@ var parseCommandTests = []struct {
 		src: "until false; do echo until; done",
 		cmd: until_clause(
 			pos(1, 1), // until
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 7, "false")),
 				),
 				sep(1, 12, ";"),
 			),
 			pos(1, 14), // do
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 17, "echo")),
 					word(lit(1, 22, "until")),
@@ -1727,7 +1727,7 @@ var parseCommandTests = []struct {
 		src: "until false; do\n  echo until\ndone >/dev/null 2>&1",
 		cmd: until_clause(
 			pos(1, 1), // until
-			list(
+			and_or_list(
 				simple_command(
 					word(lit(1, 7, "false")),
 				),
@@ -1752,7 +1752,7 @@ var parseCommandTests = []struct {
 			pos(1, 5), // )
 			group(
 				pos(1, 7), // {
-				list(
+				and_or_list(
 					simple_command(
 						word(lit(1, 9, "echo")),
 						word(lit(1, 14, "foo")),
@@ -1822,8 +1822,8 @@ func sep(line, col int, sep string) *ast.Lit {
 	}
 }
 
-func list(nodes ...ast.Node) *ast.List {
-	cmd := new(ast.List)
+func and_or_list(nodes ...ast.Node) *ast.AndOrList {
+	cmd := new(ast.AndOrList)
 	for _, n := range nodes {
 		switch n := n.(type) {
 		case *ast.Cmd:

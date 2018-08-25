@@ -39,7 +39,7 @@ import (
 %}
 
 %union {
-	list     *ast.List
+	and_or   *ast.AndOrList
 	pipeline *ast.Pipeline
 	cmd      *ast.Cmd
 	expr     ast.CmdExpr
@@ -61,7 +61,7 @@ import (
 %token<word>  WORD NAME ASSIGNMENT_WORD
 %token<token> Bang Lbrace Rbrace For Case Esac In If Elif Then Else Fi While Until Do Done
 
-%type<list>     and_or
+%type<and_or>   and_or
 %type<pipeline> pipeline pipe_seq
 %type<cmd>      cmd func_def
 %type<elt>      simple_cmd cmd_prefix cmd_suffix
@@ -97,7 +97,7 @@ cmdline:
 and_or:
 		           pipeline
 		{
-			$$ = &ast.List{Pipeline: $1}
+			$$ = &ast.AndOrList{Pipeline: $1}
 		}
 	|	and_or AND pipeline
 		{
@@ -568,7 +568,7 @@ func_body:
 compound_list:
 		linebreak term sep
 		{
-			cmd := $2[len($2)-1].(*ast.List)
+			cmd := $2[len($2)-1].(*ast.AndOrList)
 			if $3.typ != '\n' {
 				cmd.SepPos = $3.pos
 				cmd.Sep = $3.val
@@ -579,7 +579,7 @@ compound_list:
 		}
 	|	linebreak term
 		{
-			$2[len($2)-1] = extract($2[len($2)-1].(*ast.List))
+			$2[len($2)-1] = extract($2[len($2)-1].(*ast.AndOrList))
 			$$ = $2
 		}
 
@@ -590,7 +590,7 @@ term:
 		}
 	|	term sep and_or
 		{
-			cmd := $$[len($$)-1].(*ast.List)
+			cmd := $$[len($$)-1].(*ast.AndOrList)
 			if $2.typ != '\n' {
 				cmd.SepPos = $2.pos
 				cmd.Sep = $2.val
@@ -734,7 +734,7 @@ type element struct {
 	args    []ast.Word
 }
 
-func extract(cmd *ast.List) ast.Command {
+func extract(cmd *ast.AndOrList) ast.Command {
 	switch {
 	case len(cmd.List) != 0 || !cmd.SepPos.IsZero():
 		return cmd

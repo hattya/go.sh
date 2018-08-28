@@ -727,6 +727,175 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
+		src: "cat <<EOF\nfoo\nbar\nbaz\nEOF\n",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			heredoc(
+				nil, 1, 5, "<<", word(lit(1, 7, "EOF")),
+				word(lit(2, 1, "foo\nbar\nbaz\n")),
+				word(lit(5, 1, "EOF")),
+			),
+		),
+	},
+	{
+		src: "cat <<EOF\nfoo\nbar\nbaz\nEOF",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			heredoc(
+				nil, 1, 5, "<<", word(lit(1, 7, "EOF")),
+				word(lit(2, 1, "foo\nbar\nbaz\n")),
+				word(lit(5, 1, "EOF")),
+			),
+		),
+	},
+	{
+		src: "cat <<E\\\nO\\\nF\nfoo\nbar\nbaz\nE\\\nO\\\nF\n",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			heredoc(
+				nil, 1, 5, "<<", word(lit(1, 7, "E"), lit(2, 1, "O"), lit(3, 1, "F")),
+				word(lit(4, 1, "foo\nbar\nbaz\n")),
+				word(lit(7, 1, "E"), lit(8, 1, "O"), lit(9, 1, "F")),
+			),
+		),
+	},
+	{
+		src: "cat <<E\\\n'O'\\\nF\nfoo\nbar\nbaz\nEOF\n",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			heredoc(
+				nil, 1, 5, "<<", word(lit(1, 7, "E"), quote(2, 1, "'", word(lit(2, 2, "O"))), lit(3, 1, "F")),
+				word(lit(4, 1, "foo\nbar\nbaz\n")),
+				word(lit(7, 1, "EOF")),
+			),
+		),
+	},
+	{
+		src: "cat <<EOF\n\\foo\n$bar\n`baz`\nEOF\n",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			heredoc(
+				nil, 1, 5, "<<", word(lit(1, 7, "EOF")),
+				word(
+					lit(2, 1, "\\foo\n"),
+					param_exp(3, 1, false, lit(3, 2, "bar"), nil, nil),
+					lit(3, 5, "\n"),
+					cmd_subst(
+						false,     // dollar
+						pos(4, 1), // left
+						simple_command(
+							word(lit(4, 2, "baz")),
+						),
+						pos(4, 5), // right
+					),
+					lit(4, 6, "\n"),
+				),
+				word(lit(5, 1, "EOF")),
+			),
+		),
+	},
+	{
+		src: "cat <<-EOF\n\\foo\n$bar\n`baz`\nEOF\n",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			heredoc(
+				nil, 1, 5, "<<-", word(lit(1, 8, "EOF")),
+				word(
+					lit(2, 1, "\\foo\n"),
+					param_exp(3, 1, false, lit(3, 2, "bar"), nil, nil),
+					lit(3, 5, "\n"),
+					cmd_subst(
+						false,     // dollar
+						pos(4, 1), // left
+						simple_command(
+							word(lit(4, 2, "baz")),
+						),
+						pos(4, 5), // right
+					),
+					lit(4, 6, "\n"),
+				),
+				word(lit(5, 1, "EOF")),
+			),
+		),
+	},
+	{
+		src: "cat <<'EOF'\n\\foo\n$bar\n`baz`\nEOF\n",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			heredoc(
+				nil, 1, 5, "<<", word(quote(1, 7, "'", word(lit(1, 8, "EOF")))),
+				word(lit(2, 1, "\\foo\n$bar\n`baz`\n")),
+				word(lit(5, 1, "EOF")),
+			),
+		),
+	},
+	{
+		src: "cat <<EOF1; echo 2; cat <<EOF3\n1\nEOF1\n3\nEOF3\n",
+		cmd: list(
+			and_or_list(
+				simple_command(
+					word(lit(1, 1, "cat")),
+					heredoc(
+						nil, 1, 5, "<<", word(lit(1, 7, "EOF1")),
+						word(lit(2, 1, "1\n")),
+						word(lit(3, 1, "EOF1")),
+					),
+				),
+				sep(1, 11, ";"),
+			),
+			and_or_list(
+				simple_command(
+					word(lit(1, 13, "echo")),
+					word(lit(1, 18, "2")),
+				),
+				sep(1, 19, ";"),
+			),
+			and_or_list(
+				simple_command(
+					word(lit(1, 21, "cat")),
+					heredoc(
+						nil, 1, 25, "<<", word(lit(1, 27, "EOF3")),
+						word(lit(4, 1, "3\n")),
+						word(lit(5, 1, "EOF3")),
+					),
+				),
+			),
+		),
+	},
+	{
+		src: "echo $(cat <<EOF\n1\nEOF\necho 2\ncat <<EOF\n3\nEOF\n)",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(
+				cmd_subst(
+					true,      //dollar
+					pos(1, 7), // left
+					simple_command(
+						word(lit(1, 8, "cat")),
+						heredoc(
+							nil, 1, 12, "<<", word(lit(1, 14, "EOF")),
+							word(lit(2, 1, "1\n")),
+							word(lit(3, 1, "EOF")),
+						),
+					),
+					simple_command(
+						word(lit(4, 1, "echo")),
+						word(lit(4, 6, "2")),
+					),
+					simple_command(
+						word(lit(5, 1, "cat")),
+						heredoc(
+							nil, 5, 5, "<<", word(lit(5, 7, "EOF")),
+							word(lit(6, 1, "3\n")),
+							word(lit(7, 1, "EOF")),
+						),
+					),
+					pos(8, 1), // right
+				),
+			),
+		),
+	},
+	{
 		src: "exec 3<&-",
 		cmd: simple_command(
 			word(lit(1, 1, "exec")),
@@ -2239,6 +2408,17 @@ func redir(n *ast.Lit, line, col int, op string, word ast.Word) *ast.Redir {
 	}
 }
 
+func heredoc(n *ast.Lit, line, col int, op string, word, heredoc, delim ast.Word) *ast.Redir {
+	return &ast.Redir{
+		N:       n,
+		OpPos:   ast.NewPos(line, col),
+		Op:      op,
+		Word:    word,
+		Heredoc: heredoc,
+		Delim:   delim,
+	}
+}
+
 func word(w ...ast.WordPart) ast.Word {
 	return ast.Word(w)
 }
@@ -2447,6 +2627,26 @@ var parseErrorTests = []struct {
 	{
 		src: ">",
 		err: ":1:1: syntax error: unexpected EOF, expecting WORD",
+	},
+	{
+		src: "cat <<$((x))",
+		err: ":1:7: syntax error: here-document delimiter",
+	},
+	{
+		src: "cat <<'\n'",
+		err: `:1:7: syntax error: here-document delimiter contains '\n'`,
+	},
+	{
+		src: "cat <<EOF\n",
+		err: ":1:5: syntax error: here-document delimited by EOF",
+	},
+	{
+		src: "cat <<EOF\n$(!",
+		err: ":2:3: syntax error: unexpected EOF",
+	},
+	{
+		src: "cat <<EOF\n`!",
+		err: ":2:2: syntax error: unexpected EOF",
 	},
 	// pipeline
 	{
@@ -2720,6 +2920,7 @@ func TestReadError(t *testing.T) {
 		"${_",
 		"${@",
 		"${_-",
+		"cat <<EOF\n\\",
 		"for name;",
 		"for name\n",
 		"for name in;",

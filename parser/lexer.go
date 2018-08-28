@@ -36,10 +36,12 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"unicode"
 
 	"github.com/hattya/go.sh/ast"
+	"github.com/hattya/go.sh/printer"
 )
 
 var (
@@ -56,6 +58,8 @@ var (
 		int('>'): ">",
 		CLOBBER:  ">|",
 		APPEND:   ">>",
+		HEREDOC:  "<<",
+		HEREDOCI: "<<-",
 		DUPIN:    "<&",
 		DUPOUT:   ">&",
 		RDWR:     "<>",
@@ -117,6 +121,7 @@ type lexer struct {
 	stack     []int
 	arithExpr bool
 	paren     int
+	heredoc   heredoc
 	word      ast.Word
 	b         bytes.Buffer
 	line      int
@@ -128,11 +133,12 @@ type lexer struct {
 
 func newLexer(name string, r io.RuneScanner) *lexer {
 	l := &lexer{
-		name:  name,
-		r:     r,
-		token: make(chan ast.Node),
-		line:  1,
-		col:   1,
+		name:    name,
+		r:       r,
+		token:   make(chan ast.Node),
+		heredoc: heredoc{c: make(chan struct{})},
+		line:    1,
+		col:     1,
 	}
 	l.mark(0)
 	go l.run()
@@ -174,7 +180,7 @@ func (l *lexer) lexPipeline() action {
 func (l *lexer) lexCmd(tok int) action {
 	tok = l.translate(tok)
 	switch tok {
-	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR, IO_NUMBER:
+	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR, IO_NUMBER:
 		return l.lexSimpleCmd(tok)
 	case WORD:
 		lex := l.lexSimpleCmd
@@ -259,10 +265,10 @@ func (l *lexer) lexSimpleCmd(tok int) action {
 
 func (l *lexer) lexCmdPrefix(tok int) action {
 	switch tok {
-	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR:
+	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR:
 		// redirection operator
 		l.emit(tok)
-		if tok = l.scanToken(); tok == WORD {
+		if tok = l.scanRedir(tok); tok == WORD {
 			goto Prefix
 		}
 	case IO_NUMBER:
@@ -284,10 +290,10 @@ Prefix:
 func (l *lexer) lexCmdSuffix() action {
 	tok := l.scanToken()
 	switch tok {
-	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR:
+	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR:
 		// redirection operator
 		l.emit(tok)
-		if tok = l.scanToken(); tok == WORD {
+		if tok = l.scanRedir(tok); tok == WORD {
 			goto Suffix
 		}
 	case IO_NUMBER, WORD:
@@ -579,7 +585,10 @@ func (l *lexer) lexToken(tok int) action {
 		l.emit(tok)
 		return l.lexPipeline
 	case '\n':
-		if len(l.stack) != 0 {
+		switch {
+		case l.heredoc.exists():
+			return l.lexHeredoc
+		case len(l.stack) != 0:
 			l.emit('\n')
 			return l.lexPipeline
 		}
@@ -608,10 +617,10 @@ func (l *lexer) lexToken(tok int) action {
 func (l *lexer) lexRedir() action {
 	tok := l.scanToken()
 	switch tok {
-	case '<', '>', CLOBBER, APPEND, DUPIN, DUPOUT, RDWR:
+	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR:
 		// redirection operator
 		l.emit(tok)
-		if tok = l.scanToken(); tok == WORD {
+		if tok = l.scanRedir(tok); tok == WORD {
 			goto Redir
 		}
 	case IO_NUMBER:
@@ -621,6 +630,119 @@ func (l *lexer) lexRedir() action {
 Redir:
 	l.emit(tok)
 	return l.lexRedir
+}
+
+func (l *lexer) lexHeredoc() action {
+	var b bytes.Buffer
+	find := func(r *ast.Redir, delim string) bool {
+		for i := len(l.word) - 1; i >= 0; i-- {
+			if l.word[i].Pos().Col() == 1 {
+				b.Reset()
+				if err := printer.Fprint(&b, l.word[i:]); err != nil {
+					break
+				}
+				if s := b.String(); strings.ContainsRune(s, '\n') {
+					break
+				} else if s == delim {
+					r.Heredoc = l.word[:i]
+					r.Delim = l.word[i:]
+					l.word = nil
+					return true
+				}
+			}
+		}
+		return false
+	}
+	for h := l.heredoc.pop(); h != nil; h = l.heredoc.pop() {
+		l.mark(0)
+		// unquote
+		var word ast.Word
+		var quoted bool
+		for _, w := range h.Word {
+			if q, ok := w.(*ast.Quote); ok {
+				word = append(word, q.Value...)
+				quoted = true
+			} else {
+				word = append(word, w)
+			}
+		}
+		// token → string
+		b.Reset()
+		printer.Fprint(&b, word)
+		delim := b.String()
+	Heredoc:
+		for {
+			r, err := l.read()
+			if err != nil {
+				if !l.heredoc.exists() {
+					if l.lit(); find(h, delim) {
+						return nil
+					}
+				}
+				goto Error
+			}
+
+			switch {
+			case r == '\n':
+				// <newline>
+				if l.lit(); find(h, delim) {
+					break Heredoc
+				}
+				// store <newline>
+				if w1, ok := l.word[len(l.word)-1].(*ast.Lit); ok {
+					w1.Value += "\n"
+					// concatenate
+					if len(l.word) > 1 {
+						if w2, ok := l.word[len(l.word)-2].(*ast.Lit); ok && w2.End() == w1.Pos() {
+							w2.Value += w1.Value
+							l.word = l.word[:len(l.word)-1]
+						}
+					}
+				} else {
+					l.b.WriteRune('\n')
+					l.lit()
+				}
+				l.mark(0)
+			case !quoted:
+				switch r {
+				case '\\':
+					// escape character
+					r, err = l.read()
+					if err != nil {
+						goto Error
+					}
+					l.esc(r)
+				case '$':
+					// parameter expansion
+					l.lit()
+					l.mark(-1)
+					if !l.scanParamExp() {
+						return nil
+					}
+				case '`':
+					// command substitution
+					l.lit()
+					l.mark(-1)
+					if !l.scanCmdSubst('`') {
+						return nil
+					}
+				default:
+					l.b.WriteRune(r)
+				}
+			default:
+				l.b.WriteRune(r)
+			}
+
+			continue
+		Error:
+			if err == io.EOF {
+				l.last.Store(h.OpPos)
+				l.Error("syntax error: here-document delimited by EOF")
+			}
+			return nil
+		}
+	}
+	return l.lexToken('\n')
 }
 
 func (l *lexer) scanArithExpr() int {
@@ -681,6 +803,30 @@ func (l *lexer) scanArithExpr() int {
 			l.b.WriteRune(r)
 		}
 	}
+}
+
+func (l *lexer) scanRedir(tok int) int {
+	var heredoc bool
+	switch tok {
+	case HEREDOC, HEREDOCI:
+		heredoc = true
+	}
+	tok = l.scanToken()
+	if tok == WORD && heredoc {
+		var b bytes.Buffer
+		if err := printer.Fprint(&b, l.word); err != nil {
+			l.last.Store(l.word.Pos())
+			l.Error("syntax error: here-document delimiter")
+			return -1
+		}
+		if strings.ContainsRune(b.String(), '\n') {
+			l.last.Store(l.word.Pos())
+			l.Error(`syntax error: here-document delimiter contains '\n'`)
+			return -1
+		}
+		l.heredoc.inc()
+	}
+	return tok
 }
 
 func (l *lexer) scanToken() int {
@@ -836,6 +982,15 @@ func (l *lexer) scanOp(r rune) int {
 			switch r {
 			case '&':
 				op = DUPIN
+			case '<':
+				op = HEREDOC
+				if r, _ = l.read(); l.err == nil {
+					if r == '-' {
+						op = HEREDOCI
+					} else {
+						l.unread()
+					}
+				}
 			case '>':
 				op = RDWR
 			default:
@@ -941,27 +1096,7 @@ func (l *lexer) scanQuote(r rune) bool {
 				if err != nil {
 					break QQ
 				}
-
-				switch r {
-				case '\n', '"', '$', '\\', '`':
-					l.lit()
-					if r != '\n' {
-						l.word = append(l.word, &ast.Quote{
-							TokPos: l.pos,
-							Tok:    "\\",
-							Value: ast.Word{
-								&ast.Lit{
-									ValuePos: ast.NewPos(l.line, l.col-1),
-									Value:    string(r),
-								},
-							},
-						})
-					}
-					l.mark(0)
-				default:
-					l.b.WriteRune('\\')
-					l.b.WriteRune(r)
-				}
+				l.esc(r)
 			case '$':
 				// parameter expansion
 				l.lit()
@@ -1276,6 +1411,7 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 			cmdSubst: r,
 			token:    make(chan ast.Node),
 			done:     make(chan struct{}),
+			heredoc:  heredoc{c: make(chan struct{})},
 			line:     l.line,
 			col:      l.col,
 		}
@@ -1367,6 +1503,29 @@ func (l *lexer) lit() {
 			Value:    l.b.String(),
 		})
 		l.b.Reset()
+	}
+}
+
+func (l *lexer) esc(r rune) {
+	switch r {
+	case '\n', '"', '$', '\\', '`':
+		l.lit()
+		if r != '\n' {
+			l.word = append(l.word, &ast.Quote{
+				TokPos: ast.NewPos(l.line, l.col-2),
+				Tok:    "\\",
+				Value: ast.Word{
+					&ast.Lit{
+						ValuePos: ast.NewPos(l.line, l.col-1),
+						Value:    string(r),
+					},
+				},
+			})
+		}
+		l.mark(0)
+	default:
+		l.b.WriteRune('\\')
+		l.b.WriteRune(r)
 	}
 }
 
@@ -1470,3 +1629,53 @@ type word struct {
 
 func (w word) Pos() ast.Pos { return w.val.Pos() }
 func (w word) End() ast.Pos { return w.val.End() }
+
+type heredoc struct {
+	c     chan struct{}
+	n     uint32
+	mu    sync.Mutex
+	stack []*ast.Redir
+}
+
+func (h *heredoc) exists() bool {
+	return atomic.LoadUint32(&h.n) != 0
+}
+
+func (h *heredoc) inc() {
+	atomic.AddUint32(&h.n, 1)
+}
+
+func (h *heredoc) push(r *ast.Redir) {
+	h.mu.Lock()
+	h.stack = append(h.stack, r)
+	h.mu.Unlock()
+	// incoming
+	select {
+	case h.c <- struct{}{}:
+	default:
+	}
+}
+
+func (h *heredoc) pop() *ast.Redir {
+	for atomic.LoadUint32(&h.n) != 0 {
+		h.mu.Lock()
+		if n := len(h.stack); n != 0 {
+			r := h.stack[0]
+			h.stack = h.stack[1:]
+			h.mu.Unlock()
+			atomic.AddUint32(&h.n, ^uint32(0))
+			if n > 1 {
+				// not empty
+				select {
+				case h.c <- struct{}{}:
+				default:
+				}
+			}
+			return r
+		}
+		h.mu.Unlock()
+		// wait
+		<-h.c
+	}
+	return nil
+}

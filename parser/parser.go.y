@@ -57,7 +57,7 @@ import (
 }
 
 %token<token> AND OR '|' '(' ')' LAE RAE BREAK '&' ';'
-%token<token> '<' '>' CLOBBER APPEND DUPIN DUPOUT RDWR
+%token<token> '<' '>' CLOBBER APPEND HEREDOC HEREDOCI DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER
 %token<word>  WORD NAME ASSIGNMENT_WORD
 %token<token> Bang Lbrace Rbrace For Case Esac In If Elif Then Else Fi While Until Do Done
@@ -73,9 +73,9 @@ import (
 %type<items>    case_list case_list_ns
 %type<else_>    else_part
 %type<cmds>     compound_list term
-%type<redir>    io_redir io_file
+%type<redir>    io_redir io_file io_here
 %type<redirs>   redir_list
-%type<token>    redir_op sep seq_sep sep_op
+%type<token>    redir_op here_op sep seq_sep sep_op
 
 %left  '&' ';'
 %left  AND OR
@@ -650,6 +650,12 @@ io_redir:
 			$$ = $2
 			$$.N = $1[0].(*ast.Lit)
 		}
+	|	          io_here
+	|	IO_NUMBER io_here
+		{
+			$$ = $2
+			$$.N = $1[0].(*ast.Lit)
+		}
 
 io_file:
 		redir_op WORD
@@ -669,6 +675,21 @@ redir_op:
 	|	DUPIN
 	|	DUPOUT
 	|	RDWR
+
+io_here:
+		here_op WORD
+		{
+			$$ = &ast.Redir{
+				OpPos:   $1.pos,
+				Op:      $1.val,
+				Word:    $2,
+			}
+			yylex.(*lexer).heredoc.push($$)
+		}
+
+here_op:
+		HEREDOC
+	|	HEREDOCI
 
 sep:
 		sep_op linebreak
@@ -718,6 +739,10 @@ func init() {
 			s = "'>|'"
 		case "APPEND":
 			s = "'>>'"
+		case "HEREDOC":
+			s = "'<<'"
+		case "HEREDOCI":
+			s = "'<<-'"
 		case "DUPIN":
 			s = "'<&'"
 		case "DUPOUT":

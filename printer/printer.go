@@ -38,12 +38,25 @@ import (
 
 // Fprint pretty-prints an AST node to w.
 func Fprint(w io.Writer, n ast.Node) error {
-	c := new(Config)
+	c := &Config{
+		Redir:  After,
+		Assign: Before,
+	}
 	return c.Fprint(w, n)
 }
 
 // Config controls the output of Fprint.
 type Config struct {
+	// Redir controls the output of redirections:
+	//   - before commands
+	//   - after commands (default)
+	//   - space after operators, except for "<&" and ">&" operators
+	Redir Style
+
+	// Assign controls the output of assignments in simple commands:
+	//   - before redirections (default)
+	//   - after redirections
+	Assign Style
 }
 
 // Fprint pretty-prints an AST node to w with the specified configuration.
@@ -55,9 +68,29 @@ func (c *Config) Fprint(w io.Writer, n ast.Node) error {
 	return p.print(n)
 }
 
+// Style represents a coding style.
+type Style uint
+
+// List of styles.
+const (
+	Space = 1 << iota
+	Before
+	After
+)
+
 type printer struct {
 	cfg Config
 	w   *bufio.Writer
+
+	stack [][]*ast.Redir
+}
+
+func (p *printer) space() {
+	p.w.WriteByte(' ')
+}
+
+func (p *printer) newline() {
+	p.w.WriteByte('\n')
 }
 
 func (p *printer) print(n ast.Node) (err error) {
@@ -67,7 +100,10 @@ func (p *printer) print(n ast.Node) (err error) {
 		}
 	}()
 
+	p.push()
 	switch n := n.(type) {
+	case ast.Command:
+		p.command(n)
 	case ast.Word:
 		p.word(n)
 	case ast.WordPart:
@@ -77,7 +113,108 @@ func (p *printer) print(n ast.Node) (err error) {
 	default:
 		return fmt.Errorf("sh/printer: unsupported node: %T", n)
 	}
+	p.heredoc()
 	return p.w.Flush()
+}
+
+func (p *printer) command(c ast.Command) {
+	switch c := c.(type) {
+	case *ast.Cmd:
+		p.cmd(c)
+	default:
+		panic("sh/printer: unsupported ast.Command")
+	}
+}
+
+func (p *printer) cmd(c *ast.Cmd) {
+	if x, ok := c.Expr.(*ast.SimpleCmd); ok {
+		p.simpleCmd(x, c.Redirs)
+	} else {
+		panic("sh/printer: unsupported ast.CmdExpr")
+	}
+}
+
+func (p *printer) simpleCmd(x *ast.SimpleCmd, redirs []*ast.Redir) (err error) {
+	var order [3]string
+	if p.cfg.Redir&Before == 0 {
+		order[0] = "assign"
+		order[1] = "args"
+		order[2] = "redir"
+	} else {
+		if p.cfg.Assign&After == 0 {
+			order[0] = "assign"
+			order[1] = "redir"
+		} else {
+			order[0] = "redir"
+			order[1] = "assign"
+		}
+		order[2] = "args"
+	}
+	var sp bool
+	for _, s := range order {
+		switch s {
+		case "assign":
+			for _, a := range x.Assigns {
+				if sp {
+					p.space()
+				}
+				p.w.WriteString(a.Symbol.Value + a.Op)
+				p.word(a.Value)
+				sp = true
+			}
+		case "args":
+			for _, w := range x.Args {
+				if sp {
+					p.space()
+				}
+				p.word(w)
+				sp = true
+			}
+		case "redir":
+			for _, r := range redirs {
+				if sp {
+					p.space()
+				}
+				p.redir(r)
+				sp = true
+			}
+		}
+	}
+	return
+}
+
+func (p *printer) redir(r *ast.Redir) {
+	if r.Heredoc != nil {
+		p.stack[len(p.stack)-1] = append(p.stack[len(p.stack)-1], r)
+	}
+
+	if r.N != nil {
+		p.w.WriteString(r.N.Value)
+	}
+	p.w.WriteString(r.Op)
+	if p.cfg.Redir&Space != 0 {
+		switch r.Op {
+		case "<&", ">&":
+		default:
+			p.space()
+		}
+	}
+	p.word(r.Word)
+}
+
+func (p *printer) push() {
+	p.stack = append(p.stack, nil)
+}
+
+func (p *printer) heredoc() {
+	// pop
+	list := p.stack[len(p.stack)-1]
+	p.stack = p.stack[:len(p.stack)-1]
+	for _, r := range list {
+		p.newline()
+		p.word(r.Heredoc)
+		p.word(r.Delim)
+	}
 }
 
 func (p *printer) word(w ast.Word) {

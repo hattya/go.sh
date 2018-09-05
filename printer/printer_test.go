@@ -31,8 +31,83 @@ import (
 	"testing"
 
 	"github.com/hattya/go.sh/ast"
+	"github.com/hattya/go.sh/parser"
 	"github.com/hattya/go.sh/printer"
 )
+
+var simpleCmdTests = []struct {
+	n ast.Node
+	e []string
+}{
+	{
+		parse("FOO=foo BAR=bar command env >/dev/null 2>&1"),
+		[]string{
+			"FOO=foo BAR=bar >/dev/null 2>&1 command env",
+			"FOO=foo BAR=bar > /dev/null 2>&1 command env",
+			">/dev/null 2>&1 FOO=foo BAR=bar command env",
+			"> /dev/null 2>&1 FOO=foo BAR=bar command env",
+			"FOO=foo BAR=bar command env >/dev/null 2>&1",
+			"FOO=foo BAR=bar command env > /dev/null 2>&1",
+		},
+	},
+	{
+		parse("NAME=value cat <<EOF\nheredoc\nEOF"),
+		[]string{
+			"NAME=value <<EOF cat\nheredoc\nEOF",
+			"NAME=value << EOF cat\nheredoc\nEOF",
+			"<<EOF NAME=value cat\nheredoc\nEOF",
+			"<< EOF NAME=value cat\nheredoc\nEOF",
+			"NAME=value cat <<EOF\nheredoc\nEOF",
+			"NAME=value cat << EOF\nheredoc\nEOF",
+		},
+	},
+}
+
+func TestSimpleCmd(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range simpleCmdTests {
+		for i, cfg := range []printer.Config{
+			{
+				Redir:  printer.Before,
+				Assign: printer.Before,
+			},
+			{
+				Redir:  printer.Before | printer.Space,
+				Assign: printer.Before,
+			},
+			{
+				Redir:  printer.Before,
+				Assign: printer.After,
+			},
+			{
+				Redir:  printer.Before | printer.Space,
+				Assign: printer.After,
+			},
+			{
+				Redir: printer.After,
+			},
+			{
+				Redir: printer.After | printer.Space,
+			},
+		} {
+			b.Reset()
+			if err := cfg.Fprint(&b, tt.n); err != nil {
+				t.Error(err)
+			}
+			if g, e := b.String(), tt.e[i]; g != e {
+				t.Errorf("expected %q, got %q", e, g)
+			}
+		}
+	}
+}
+
+func parse(src string) ast.Command {
+	cmd, _, err := parser.ParseCommand("<stdin>", src)
+	if err != nil {
+		panic(err)
+	}
+	return cmd
+}
 
 var wordTests = []struct {
 	n ast.Node
@@ -222,7 +297,7 @@ func TestComment(t *testing.T) {
 }
 
 func TestPrintError(t *testing.T) {
-	for _, n := range []ast.Node{nil, ast.Word{nil}} {
+	for _, n := range []ast.Node{nil, new(ast.Cmd), ast.Word{nil}} {
 		if err := printer.Fprint(nil, n); err == nil {
 			t.Error("expected error")
 		}

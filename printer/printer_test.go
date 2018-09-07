@@ -35,6 +35,64 @@ import (
 	"github.com/hattya/go.sh/printer"
 )
 
+var listTests = []struct {
+	n ast.Node
+	e string
+}{
+	{
+		parse("cd; pwd"),
+		"cd; pwd",
+	},
+	{
+		parse("sleep 7 & wait"),
+		"sleep 7 & wait",
+	},
+	{
+		parse("cat <<EOF; echo bar\nfoo\nEOF"),
+		"cat <<EOF; echo bar\nfoo\nEOF",
+	},
+}
+
+func TestList(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range listTests {
+		b.Reset()
+		if err := printer.Fprint(&b, tt.n); err != nil {
+			t.Error(err)
+		}
+		if g, e := b.String(), tt.e; g != e {
+			t.Errorf("expected %q, got %q", e, g)
+		}
+	}
+}
+
+var andOrListTests = []struct {
+	n ast.Node
+	e string
+}{
+	{
+		parse("true && echo foo || echo bar"),
+		"true && echo foo || echo bar",
+	},
+	{
+		parse("false && cat <<EOF1 || cat <<EOF2\nfoo\nEOF1\nbar\nEOF2"),
+		"false && cat <<EOF1 || cat <<EOF2\nfoo\nEOF1\nbar\nEOF2",
+	},
+}
+
+func TestAndOrList(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range andOrListTests {
+		b.Reset()
+		if err := printer.Fprint(&b, tt.n); err != nil {
+			t.Error(err)
+		}
+		if g, e := b.String(), tt.e; g != e {
+			t.Errorf("expected %q, got %q", e, g)
+		}
+	}
+}
+
 var pipelineTests = []struct {
 	n ast.Node
 	e string

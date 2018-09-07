@@ -119,12 +119,39 @@ func (p *printer) print(n ast.Node) (err error) {
 
 func (p *printer) command(c ast.Command) {
 	switch c := c.(type) {
+	case ast.List:
+		p.list(c)
+	case *ast.AndOrList:
+		p.andOrList(c)
 	case *ast.Pipeline:
 		p.pipeline(c)
 	case *ast.Cmd:
 		p.cmd(c)
 	default:
 		panic("sh/printer: unsupported ast.Command")
+	}
+}
+
+func (p *printer) list(c ast.List) {
+	for i, ao := range c {
+		if i > 0 {
+			p.space()
+		}
+		p.andOrList(ao)
+	}
+}
+
+func (p *printer) andOrList(c *ast.AndOrList) {
+	p.pipeline(c.Pipeline)
+	for _, ao := range c.List {
+		p.w.WriteString(" " + ao.Op + " ")
+		p.pipeline(ao.Pipeline)
+	}
+	switch c.Sep {
+	case "&":
+		p.w.WriteString(" " + c.Sep)
+	case ";":
+		p.w.WriteString(c.Sep)
 	}
 }
 

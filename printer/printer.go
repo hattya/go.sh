@@ -119,10 +119,23 @@ func (p *printer) print(n ast.Node) (err error) {
 
 func (p *printer) command(c ast.Command) {
 	switch c := c.(type) {
+	case *ast.Pipeline:
+		p.pipeline(c)
 	case *ast.Cmd:
 		p.cmd(c)
 	default:
 		panic("sh/printer: unsupported ast.Command")
+	}
+}
+
+func (p *printer) pipeline(c *ast.Pipeline) {
+	if !c.Bang.IsZero() {
+		p.w.WriteString("! ")
+	}
+	p.cmd(c.Cmd)
+	for _, c := range c.List {
+		p.w.WriteString(" " + c.Op + " ")
+		p.cmd(c.Cmd)
 	}
 }
 

@@ -35,6 +35,41 @@ import (
 	"github.com/hattya/go.sh/printer"
 )
 
+var pipelineTests = []struct {
+	n ast.Node
+	e string
+}{
+	{
+		parse("echo foo | grep o"),
+		"echo foo | grep o",
+	},
+	{
+		parse("cat <<EOF | grep o\nfoo\nEOF"),
+		"cat <<EOF | grep o\nfoo\nEOF",
+	},
+	{
+		parse("! echo foo | grep x"),
+		"! echo foo | grep x",
+	},
+	{
+		parse("! cat <<EOF | grep x\nfoo\nEOF"),
+		"! cat <<EOF | grep x\nfoo\nEOF",
+	},
+}
+
+func TestPipeline(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range pipelineTests {
+		b.Reset()
+		if err := printer.Fprint(&b, tt.n); err != nil {
+			t.Error(err)
+		}
+		if g, e := b.String(), tt.e; g != e {
+			t.Errorf("expected %q, got %q", e, g)
+		}
+	}
+}
+
 var simpleCmdTests = []struct {
 	n ast.Node
 	e []string

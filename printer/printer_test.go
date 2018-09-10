@@ -194,6 +194,148 @@ func TestSimpleCmd(t *testing.T) {
 	}
 }
 
+var subshellTests = []struct {
+	n ast.Node
+	e []string
+}{
+	{
+		parse("(cd /usr/src/linux; make -j3) >/dev/null 2>&1"),
+		[]string{
+			"(cd /usr/src/linux; make -j3) >/dev/null 2>&1",
+			"(cd /usr/src/linux; make -j3) >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("(\n\tcd /usr/src/linux; make -j3\n) >/dev/null 2>&1"),
+		[]string{
+			"(\n\tcd /usr/src/linux; make -j3\n) >/dev/null 2>&1",
+			"(\n  cd /usr/src/linux; make -j3\n) >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("(\n\tcd /usr/src/linux\n\tmake -j3\n) >/dev/null 2>&1"),
+		[]string{
+			"(\n\tcd /usr/src/linux\n\tmake -j3\n) >/dev/null 2>&1",
+			"(\n  cd /usr/src/linux\n  make -j3\n) >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("(cat <<EOF; echo bar)\nfoo\nEOF"),
+		[]string{
+			"(cat <<EOF; echo bar)\nfoo\nEOF",
+			"(cat <<EOF; echo bar)\nfoo\nEOF",
+		},
+	},
+	{
+		parse("(\n\tcat <<EOF; echo bar\nfoo\nEOF\n)"),
+		[]string{
+			"(\n\tcat <<EOF; echo bar\nfoo\nEOF\n)",
+			"(\n  cat <<EOF; echo bar\nfoo\nEOF\n)",
+		},
+	},
+	{
+		parse("(\n\tcat <<EOF\nfoo\nEOF\n\techo bar\n)"),
+		[]string{
+			"(\n\tcat <<EOF\nfoo\nEOF\n\techo bar\n)",
+			"(\n  cat <<EOF\nfoo\nEOF\n  echo bar\n)",
+		},
+	},
+}
+
+func TestSubshell(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range subshellTests {
+		for i, cfg := range []printer.Config{
+			{
+				Indent: printer.Tab,
+			},
+			{
+				Indent: printer.Space,
+				Width:  2,
+			},
+		} {
+			b.Reset()
+			if err := cfg.Fprint(&b, tt.n); err != nil {
+				t.Error(err)
+			}
+			if g, e := b.String(), tt.e[i]; g != e {
+				t.Errorf("expected %q, got %q", e, g)
+			}
+		}
+	}
+}
+
+var groupTests = []struct {
+	n ast.Node
+	e []string
+}{
+	{
+		parse("{ ./configure; make -j3; } >/dev/null 2>&1"),
+		[]string{
+			"{ ./configure; make -j3; } >/dev/null 2>&1",
+			"{ ./configure; make -j3; } >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("{\n\t./configure; make -j3;\n} >/dev/null 2>&1"),
+		[]string{
+			"{\n\t./configure; make -j3;\n} >/dev/null 2>&1",
+			"{\n  ./configure; make -j3;\n} >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("{\n\t./configure\n\tmake -j3;\n} >/dev/null 2>&1"),
+		[]string{
+			"{\n\t./configure\n\tmake -j3;\n} >/dev/null 2>&1",
+			"{\n  ./configure\n  make -j3;\n} >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("{ cat <<EOF; echo bar; }\nfoo\nEOF"),
+		[]string{
+			"{ cat <<EOF; echo bar; }\nfoo\nEOF",
+			"{ cat <<EOF; echo bar; }\nfoo\nEOF",
+		},
+	},
+	{
+		parse("{\n\tcat <<EOF; echo bar\nfoo\nEOF\n}"),
+		[]string{
+			"{\n\tcat <<EOF; echo bar\nfoo\nEOF\n}",
+			"{\n  cat <<EOF; echo bar\nfoo\nEOF\n}",
+		},
+	},
+	{
+		parse("{\n\tcat <<EOF\nfoo\nEOF\n\techo bar\n}"),
+		[]string{
+			"{\n\tcat <<EOF\nfoo\nEOF\n\techo bar\n}",
+			"{\n  cat <<EOF\nfoo\nEOF\n  echo bar\n}",
+		},
+	},
+}
+
+func TestGroup(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range groupTests {
+		for i, cfg := range []printer.Config{
+			{
+				Indent: printer.Tab,
+			},
+			{
+				Indent: printer.Space,
+				Width:  2,
+			},
+		} {
+			b.Reset()
+			if err := cfg.Fprint(&b, tt.n); err != nil {
+				t.Error(err)
+			}
+			if g, e := b.String(), tt.e[i]; g != e {
+				t.Errorf("expected %q, got %q", e, g)
+			}
+		}
+	}
+}
+
 func parse(src string) ast.Command {
 	cmd, _, err := parser.ParseCommand("<stdin>", src)
 	if err != nil {
@@ -390,7 +532,7 @@ func TestComment(t *testing.T) {
 }
 
 func TestPrintError(t *testing.T) {
-	for _, n := range []ast.Node{nil, new(ast.Cmd), ast.Word{nil}} {
+	for _, n := range []ast.Node{nil, &ast.Cmd{Expr: &ast.Subshell{List: []ast.Command{nil}}}, new(ast.Cmd), ast.Word{nil}} {
 		if err := printer.Fprint(nil, n); err == nil {
 			t.Error("expected error")
 		}

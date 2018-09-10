@@ -29,6 +29,7 @@ package printer
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -39,6 +40,7 @@ import (
 // Fprint pretty-prints an AST node to w.
 func Fprint(w io.Writer, n ast.Node) error {
 	c := &Config{
+		Indent: Tab,
 		Redir:  After,
 		Assign: Before,
 	}
@@ -47,6 +49,14 @@ func Fprint(w io.Writer, n ast.Node) error {
 
 // Config controls the output of Fprint.
 type Config struct {
+	// Indent controls the indentation style:
+	//   - indents with tabs (default)
+	//   - indents with spaces
+	Indent Style
+
+	// Width controls the indentation width for spaces.
+	Width int
+
 	// Redir controls the output of redirections:
 	//   - before commands
 	//   - after commands (default)
@@ -73,7 +83,8 @@ type Style uint
 
 // List of styles.
 const (
-	Space = 1 << iota
+	Tab = 1 << iota
+	Space
 	Before
 	After
 )
@@ -82,7 +93,16 @@ type printer struct {
 	cfg Config
 	w   *bufio.Writer
 
+	lv    int
 	stack [][]*ast.Redir
+}
+
+func (p *printer) indent() {
+	if p.cfg.Indent&Space == 0 {
+		p.w.Write(bytes.Repeat([]byte{'\t'}, p.lv))
+	} else {
+		p.w.Write(bytes.Repeat([]byte{' '}, p.lv*p.cfg.Width))
+	}
 }
 
 func (p *printer) space() {
@@ -170,7 +190,18 @@ func (p *printer) cmd(c *ast.Cmd) {
 	if x, ok := c.Expr.(*ast.SimpleCmd); ok {
 		p.simpleCmd(x, c.Redirs)
 	} else {
-		panic("sh/printer: unsupported ast.CmdExpr")
+		switch x := c.Expr.(type) {
+		case *ast.Subshell:
+			p.subshell(x)
+		case *ast.Group:
+			p.group(x)
+		default:
+			panic("sh/printer: unsupported ast.CmdExpr")
+		}
+		for _, r := range c.Redirs {
+			p.space()
+			p.redir(r)
+		}
 	}
 }
 
@@ -240,6 +271,44 @@ func (p *printer) redir(r *ast.Redir) {
 		}
 	}
 	p.word(r.Word)
+}
+
+func (p *printer) subshell(x *ast.Subshell) {
+	p.w.WriteByte('(')
+	if len(x.List) > 1 || x.Lparen.Line() != x.Rparen.Line() {
+		p.compoundList(x.List)
+		p.newline()
+		p.indent()
+	} else {
+		p.command(x.List[0])
+	}
+	p.w.WriteByte(')')
+}
+
+func (p *printer) group(x *ast.Group) {
+	p.w.WriteByte('{')
+	if len(x.List) > 1 || x.Lbrace.Line() != x.Rbrace.Line() {
+		p.compoundList(x.List)
+		p.newline()
+		p.indent()
+	} else {
+		p.space()
+		p.command(x.List[0])
+		p.space()
+	}
+	p.w.WriteByte('}')
+}
+
+func (p *printer) compoundList(cmds []ast.Command) {
+	p.lv++
+	for _, c := range cmds {
+		p.newline()
+		p.indent()
+		p.push()
+		p.command(c)
+		p.heredoc()
+	}
+	p.lv--
 }
 
 func (p *printer) push() {

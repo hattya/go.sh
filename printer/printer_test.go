@@ -336,6 +336,83 @@ func TestGroup(t *testing.T) {
 	}
 }
 
+var ifClauseTests = []struct {
+	n ast.Node
+	e []string
+}{
+	{
+		parse("if true && false; false; then echo if; elif true; false || false; then echo elif; else echo else; fi >/dev/null 2>&1"),
+		[]string{
+			"if true && false; false; then echo if; elif true; false || false; then echo elif; else echo else; fi >/dev/null 2>&1",
+			"if true && false; false; then echo if; elif true; false || false; then echo elif; else echo else; fi >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("if true && false; false; then\n\techo if\nelif true; false || false; then\n\techo elif\nelse\n\techo else\nfi >/dev/null 2>&1"),
+		[]string{
+			"if true && false; false; then\n\techo if\nelif true; false || false; then\n\techo elif\nelse\n\techo else\nfi >/dev/null 2>&1",
+			"if true && false; false\nthen\n\techo if\nelif true; false || false\nthen\n\techo elif\nelse\n\techo else\nfi >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("if true && false\n\tfalse\nthen\n\techo if\nelif true\n\tfalse || false\nthen\n\techo elif\nelse\n\techo else\nfi >/dev/null 2>&1"),
+		[]string{
+			"if true && false; false; then\n\techo if\nelif true; false || false; then\n\techo elif\nelse\n\techo else\nfi >/dev/null 2>&1",
+			"if true && false; false\nthen\n\techo if\nelif true; false || false\nthen\n\techo elif\nelse\n\techo else\nfi >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("if false; then echo if; cat <<EOF1; elif false; then echo elif; cat <<EOF2; else echo else; cat <<EOF3; fi\nfoo\nEOF1\nbar\nEOF2\nbaz\nEOF3"),
+		[]string{
+			"if false; then echo if; cat <<EOF1; elif false; then echo elif; cat <<EOF2; else echo else; cat <<EOF3; fi\nfoo\nEOF1\nbar\nEOF2\nbaz\nEOF3",
+			"if false; then echo if; cat <<EOF1; elif false; then echo elif; cat <<EOF2; else echo else; cat <<EOF3; fi\nfoo\nEOF1\nbar\nEOF2\nbaz\nEOF3",
+		},
+	},
+	{
+		parse("if false\nthen\n\tcat <<EOF\n1\nEOF\n\techo 2\nelif false; then\n\tcat <<EOF\n2\nEOF\n\techo 3\nelse\n\tcat <<EOF\n3\nEOF\n\techo 4\nfi"),
+		[]string{
+			"if false; then\n\tcat <<EOF\n1\nEOF\n\techo 2\nelif false; then\n\tcat <<EOF\n2\nEOF\n\techo 3\nelse\n\tcat <<EOF\n3\nEOF\n\techo 4\nfi",
+			"if false\nthen\n\tcat <<EOF\n1\nEOF\n\techo 2\nelif false\nthen\n\tcat <<EOF\n2\nEOF\n\techo 3\nelse\n\tcat <<EOF\n3\nEOF\n\techo 4\nfi",
+		},
+	},
+	{
+		parse("if cat <<EOF1 | grep x; then echo if; elif cat <<EOF2 | grep x; then echo elif; fi\nfoo\nEOF1\nbar\nEOF2"),
+		[]string{
+			"if cat <<EOF1 | grep x; then echo if; elif cat <<EOF2 | grep x; then echo elif; fi\nfoo\nEOF1\nbar\nEOF2",
+			"if cat <<EOF1 | grep x; then echo if; elif cat <<EOF2 | grep x; then echo elif; fi\nfoo\nEOF1\nbar\nEOF2",
+		},
+	},
+	{
+		parse("if cat <<EOF | grep x\nfoo\nEOF\nthen\n\techo if\nelif cat <<EOF | grep x\nbar\nEOF\nthen\n\techo elif\nfi"),
+		[]string{
+			"if cat <<EOF | grep x; then\nfoo\nEOF\n\techo if\nelif cat <<EOF | grep x; then\nbar\nEOF\n\techo elif\nfi",
+			"if cat <<EOF | grep x\nfoo\nEOF\nthen\n\techo if\nelif cat <<EOF | grep x\nbar\nEOF\nthen\n\techo elif\nfi",
+		},
+	},
+}
+
+func TestIfClause(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range ifClauseTests {
+		for i, cfg := range []printer.Config{
+			{
+				Then: 0,
+			},
+			{
+				Then: printer.Newline,
+			},
+		} {
+			b.Reset()
+			if err := cfg.Fprint(&b, tt.n); err != nil {
+				t.Error(err)
+			}
+			if g, e := b.String(), tt.e[i]; g != e {
+				t.Errorf("expected %q, got %q", e, g)
+			}
+		}
+	}
+}
+
 func parse(src string) ast.Command {
 	cmd, _, err := parser.ParseCommand("<stdin>", src)
 	if err != nil {

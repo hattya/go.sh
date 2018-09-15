@@ -67,6 +67,10 @@ type Config struct {
 	//   - before redirections (default)
 	//   - after redirections
 	Assign Style
+
+	// Then controls the output of the if conditional constract:
+	//   - newline before the reserved keyword "then"
+	Then Style
 }
 
 // Fprint pretty-prints an AST node to w with the specified configuration.
@@ -85,6 +89,7 @@ type Style uint
 const (
 	Tab = 1 << iota
 	Space
+	Newline
 	Before
 	After
 )
@@ -195,6 +200,8 @@ func (p *printer) cmd(c *ast.Cmd) {
 			p.subshell(x)
 		case *ast.Group:
 			p.group(x)
+		case *ast.IfClause:
+			p.ifClause(x)
 		default:
 			panic("sh/printer: unsupported ast.CmdExpr")
 		}
@@ -299,6 +306,79 @@ func (p *printer) group(x *ast.Group) {
 	p.w.WriteByte('}')
 }
 
+func (p *printer) ifClause(x *ast.IfClause) {
+	list := x.If.Line() == x.Fi.Line()
+	ifPart := func(word string, cond []ast.Command, cmds []ast.Command) {
+		p.w.WriteString(word)
+		sep := "_"
+		if !list {
+			if p.cfg.Then&Newline != 0 {
+				if undo := p.trim(cond[len(cond)-1]); undo != nil {
+					defer undo()
+				}
+			}
+			p.push()
+		}
+		for _, c := range cond {
+			if sep != "" {
+				p.space()
+			} else {
+				p.w.WriteString("; ")
+			}
+			p.command(c)
+			sep = p.sepOf(c)
+		}
+		if !list {
+			if p.cfg.Then&Newline == 0 {
+				if sep != "" {
+					p.w.WriteString(" then")
+				} else {
+					p.w.WriteString("; then")
+				}
+				p.heredoc()
+			} else {
+				p.heredoc()
+				p.newline()
+				p.indent()
+				p.w.WriteString("then")
+			}
+			p.compoundList(cmds)
+		} else {
+			p.w.WriteString(" then ")
+			p.command(cmds[0])
+		}
+	}
+
+	ifPart("if", x.Cond, x.List)
+	for _, e := range x.Else {
+		if !list {
+			p.newline()
+			p.indent()
+		} else {
+			p.space()
+		}
+		switch e := e.(type) {
+		case *ast.ElifClause:
+			ifPart("elif", e.Cond, e.List)
+		case *ast.ElseClause:
+			p.w.WriteString("else")
+			if !list {
+				p.compoundList(e.List)
+			} else {
+				p.space()
+				p.command(e.List[0])
+			}
+		}
+	}
+	if !list {
+		p.newline()
+		p.indent()
+	} else {
+		p.space()
+	}
+	p.w.WriteString("fi")
+}
+
 func (p *printer) compoundList(cmds []ast.Command) {
 	p.lv++
 	for _, c := range cmds {
@@ -309,6 +389,33 @@ func (p *printer) compoundList(cmds []ast.Command) {
 		p.heredoc()
 	}
 	p.lv--
+}
+
+func (p *printer) sepOf(c ast.Command) string {
+	switch c := c.(type) {
+	case ast.List:
+		return c[len(c)-1].Sep
+	case *ast.AndOrList:
+		return c.Sep
+	}
+	return ""
+}
+
+func (p *printer) trim(c ast.Command) func() {
+	switch c := c.(type) {
+	case ast.List:
+		ao := c[len(c)-1]
+		if ao.Sep == ";" {
+			ao.Sep = ""
+			return func() { ao.Sep = ";" }
+		}
+	case *ast.AndOrList:
+		if c.Sep == ";" {
+			c.Sep = ""
+			return func() { c.Sep = ";" }
+		}
+	}
+	return nil
 }
 
 func (p *printer) push() {

@@ -445,6 +445,8 @@ func (p *printer) wordPart(w ast.WordPart) {
 		p.lit(w)
 	case *ast.Quote:
 		p.quote(w)
+	case *ast.ParamExp:
+		p.paramExp(w)
 	default:
 		panic("sh/printer: unsupported node in ast.Word")
 	}
@@ -462,6 +464,24 @@ func (p *printer) quote(w *ast.Quote) {
 		p.w.WriteString(w.Tok)
 		p.word(w.Value)
 		p.w.WriteString(w.Tok)
+	}
+}
+
+func (p *printer) paramExp(w *ast.ParamExp) {
+	if w.Braces {
+		switch {
+		case w.Op == "":
+			p.w.WriteString("${" + w.Name.Value + "}")
+		case w.Op == "#" && w.OpPos.Before(w.Name.ValuePos):
+			// string length
+			p.w.WriteString("${#" + w.Name.Value + "}")
+		default:
+			p.w.WriteString("${" + w.Name.Value + w.Op)
+			p.word(w.Word)
+			p.w.WriteByte('}')
+		}
+	} else {
+		p.w.WriteString("$" + w.Name.Value)
 	}
 }
 

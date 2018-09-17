@@ -579,6 +579,60 @@ var wordTests = []struct {
 		},
 		`qu"o"te`,
 	},
+	// parameter expansion
+	{
+		&ast.ParamExp{
+			Dollar: ast.NewPos(1, 1),
+			Name: &ast.Lit{
+				ValuePos: ast.NewPos(1, 2),
+				Value:    "@",
+			},
+		},
+		"$@",
+	},
+	{
+		&ast.ParamExp{
+			Dollar: ast.NewPos(1, 1),
+			Braces: true,
+			Name: &ast.Lit{
+				ValuePos: ast.NewPos(1, 3),
+				Value:    "@",
+			},
+		},
+		"${@}",
+	},
+	{
+		&ast.ParamExp{
+			Dollar: ast.NewPos(1, 1),
+			Braces: true,
+			Name: &ast.Lit{
+				ValuePos: ast.NewPos(1, 4),
+				Value:    "LANG",
+			},
+			OpPos: ast.NewPos(1, 3),
+			Op:    "#",
+		},
+		"${#LANG}",
+	},
+	{
+		&ast.ParamExp{
+			Dollar: ast.NewPos(1, 1),
+			Braces: true,
+			Name: &ast.Lit{
+				ValuePos: ast.NewPos(1, 3),
+				Value:    "LANG",
+			},
+			OpPos: ast.NewPos(1, 7),
+			Op:    "#",
+			Word: ast.Word{
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 8),
+					Value:    "*.",
+				},
+			},
+		},
+		"${LANG#*.}",
+	},
 }
 
 func TestWord(t *testing.T) {

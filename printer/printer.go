@@ -68,6 +68,10 @@ type Config struct {
 	//   - after redirections
 	Assign Style
 
+	// Do controls the output of the for loop:
+	//   - newline before the reserved keyword "do"
+	Do Style
+
 	// Then controls the output of the if conditional constract:
 	//   - newline before the reserved keyword "then"
 	Then Style
@@ -200,6 +204,8 @@ func (p *printer) cmd(c *ast.Cmd) {
 			p.subshell(x)
 		case *ast.Group:
 			p.group(x)
+		case *ast.ForClause:
+			p.forClause(x)
 		case *ast.IfClause:
 			p.ifClause(x)
 		default:
@@ -304,6 +310,43 @@ func (p *printer) group(x *ast.Group) {
 		p.space()
 	}
 	p.w.WriteByte('}')
+}
+
+func (p *printer) forClause(x *ast.ForClause) {
+	p.w.WriteString("for ")
+	p.lit(x.Name)
+	if !x.In.IsZero() {
+		p.w.WriteString(" in")
+		for _, w := range x.Items {
+			p.space()
+			p.word(w)
+		}
+	}
+	if x.For.Line() != x.Done.Line() {
+		if p.cfg.Do&Newline == 0 {
+			if !x.In.IsZero() {
+				p.w.WriteString("; do")
+			} else {
+				p.w.WriteString(" do")
+			}
+		} else {
+			p.newline()
+			p.indent()
+			p.w.WriteString("do")
+		}
+		p.compoundList(x.List)
+		p.newline()
+		p.indent()
+	} else {
+		if !x.In.IsZero() {
+			p.w.WriteString("; do ")
+		} else {
+			p.w.WriteString(" do ")
+		}
+		p.command(x.List[0])
+		p.space()
+	}
+	p.w.WriteString("done")
 }
 
 func (p *printer) ifClause(x *ast.IfClause) {

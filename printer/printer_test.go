@@ -336,6 +336,125 @@ func TestGroup(t *testing.T) {
 	}
 }
 
+var forClauseTests = []struct {
+	n ast.Node
+	e []string
+}{
+	{
+		parse("for name do echo $name; done >/dev/null 2>&1"),
+		[]string{
+			"for name do echo $name; done >/dev/null 2>&1",
+			"for name do echo $name; done >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name; do echo $name; done >/dev/null 2>&1"),
+		[]string{
+			"for name do echo $name; done >/dev/null 2>&1",
+			"for name do echo $name; done >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name do\n\techo $name\ndone >/dev/null 2>&1"),
+		[]string{
+			"for name do\n\techo $name\ndone >/dev/null 2>&1",
+			"for name\ndo\n\techo $name\ndone >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name; do\n\techo $name\ndone >/dev/null 2>&1"),
+		[]string{
+			"for name do\n\techo $name\ndone >/dev/null 2>&1",
+			"for name\ndo\n\techo $name\ndone >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name\ndo\n\techo $name\ndone >/dev/null 2>&1"),
+		[]string{
+			"for name do\n\techo $name\ndone >/dev/null 2>&1",
+			"for name\ndo\n\techo $name\ndone >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name in; do echo $name; done >/dev/null 2>&1"),
+		[]string{
+			"for name in; do echo $name; done >/dev/null 2>&1",
+			"for name in; do echo $name; done >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name in; do\n\techo $name\ndone >/dev/null 2>&1"),
+		[]string{
+			"for name in; do\n\techo $name\ndone >/dev/null 2>&1",
+			"for name in\ndo\n\techo $name\ndone >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name in\ndo\n\techo $name\ndone >/dev/null 2>&1"),
+		[]string{
+			"for name in; do\n\techo $name\ndone >/dev/null 2>&1",
+			"for name in\ndo\n\techo $name\ndone >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name in foo bar baz; do echo $name; done >/dev/null 2>&1"),
+		[]string{
+			"for name in foo bar baz; do echo $name; done >/dev/null 2>&1",
+			"for name in foo bar baz; do echo $name; done >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name in foo bar baz; do\n\techo $name\ndone >/dev/null 2>&1"),
+		[]string{
+			"for name in foo bar baz; do\n\techo $name\ndone >/dev/null 2>&1",
+			"for name in foo bar baz\ndo\n\techo $name\ndone >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name in foo bar baz\ndo\n\techo $name\ndone >/dev/null 2>&1"),
+		[]string{
+			"for name in foo bar baz; do\n\techo $name\ndone >/dev/null 2>&1",
+			"for name in foo bar baz\ndo\n\techo $name\ndone >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("for name do cat <<EOF; echo $name; done\nfoo\nEOF"),
+		[]string{
+			"for name do cat <<EOF; echo $name; done\nfoo\nEOF",
+			"for name do cat <<EOF; echo $name; done\nfoo\nEOF",
+		},
+	},
+	{
+		parse("for name do\n\tcat <<EOF\nfoo\nEOF\n\techo $name\ndone"),
+		[]string{
+			"for name do\n\tcat <<EOF\nfoo\nEOF\n\techo $name\ndone",
+			"for name\ndo\n\tcat <<EOF\nfoo\nEOF\n\techo $name\ndone",
+		},
+	},
+}
+
+func TestForClause(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range forClauseTests {
+		for i, cfg := range []printer.Config{
+			{
+				Do: 0,
+			},
+			{
+				Do: printer.Newline,
+			},
+		} {
+			b.Reset()
+			if err := cfg.Fprint(&b, tt.n); err != nil {
+				t.Error(err)
+			}
+			if g, e := b.String(), tt.e[i]; g != e {
+				t.Errorf("expected %q, got %q", e, g)
+			}
+		}
+	}
+}
+
 var ifClauseTests = []struct {
 	n ast.Node
 	e []string

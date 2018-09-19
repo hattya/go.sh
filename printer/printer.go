@@ -68,7 +68,7 @@ type Config struct {
 	//   - after redirections
 	Assign Style
 
-	// Do controls the output of the for and while loop:
+	// Do controls the output of the for, while, and until loop:
 	//   - newline before the reserved keyword "do"
 	Do Style
 
@@ -210,6 +210,8 @@ func (p *printer) cmd(c *ast.Cmd) {
 			p.ifClause(x)
 		case *ast.WhileClause:
 			p.whileClause(x)
+		case *ast.UntilClause:
+			p.untilClause(x)
 		default:
 			panic("sh/printer: unsupported ast.CmdExpr")
 		}
@@ -426,6 +428,10 @@ func (p *printer) ifClause(x *ast.IfClause) {
 
 func (p *printer) whileClause(x *ast.WhileClause) {
 	p.loop(x.While.Line() == x.Done.Line(), "while", x.Cond, x.List)
+}
+
+func (p *printer) untilClause(x *ast.UntilClause) {
+	p.loop(x.Until.Line() == x.Done.Line(), "until", x.Cond, x.List)
 }
 
 func (p *printer) loop(list bool, word string, cond []ast.Command, cmds []ast.Command) {

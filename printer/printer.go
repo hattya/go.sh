@@ -68,7 +68,7 @@ type Config struct {
 	//   - after redirections
 	Assign Style
 
-	// Do controls the output of the for loop:
+	// Do controls the output of the for and while loop:
 	//   - newline before the reserved keyword "do"
 	Do Style
 
@@ -208,6 +208,8 @@ func (p *printer) cmd(c *ast.Cmd) {
 			p.forClause(x)
 		case *ast.IfClause:
 			p.ifClause(x)
+		case *ast.WhileClause:
+			p.whileClause(x)
 		default:
 			panic("sh/printer: unsupported ast.CmdExpr")
 		}
@@ -420,6 +422,55 @@ func (p *printer) ifClause(x *ast.IfClause) {
 		p.space()
 	}
 	p.w.WriteString("fi")
+}
+
+func (p *printer) whileClause(x *ast.WhileClause) {
+	p.loop(x.While.Line() == x.Done.Line(), "while", x.Cond, x.List)
+}
+
+func (p *printer) loop(list bool, word string, cond []ast.Command, cmds []ast.Command) {
+	p.w.WriteString(word)
+	sep := "_"
+	if !list {
+		if p.cfg.Do&Newline != 0 {
+			if undo := p.trim(cond[len(cond)-1]); undo != nil {
+				defer undo()
+			}
+		}
+		p.push()
+	}
+	for _, c := range cond {
+		if sep != "" {
+			p.space()
+		} else {
+			p.w.WriteString("; ")
+		}
+		p.command(c)
+		sep = p.sepOf(c)
+	}
+	if !list {
+		if p.cfg.Do&Newline == 0 {
+			if sep != "" {
+				p.w.WriteString(" do")
+			} else {
+				p.w.WriteString("; do")
+			}
+			p.heredoc()
+		} else {
+			p.heredoc()
+			p.newline()
+			p.indent()
+			p.w.WriteString("do")
+		}
+		p.compoundList(cmds)
+		p.newline()
+		p.indent()
+	} else {
+		p.w.WriteString(" do ")
+		p.command(cmds[0])
+		p.space()
+	}
+	p.w.WriteString("done")
 }
 
 func (p *printer) sepOf(c ast.Command) string {

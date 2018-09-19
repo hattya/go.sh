@@ -532,6 +532,83 @@ func TestIfClause(t *testing.T) {
 	}
 }
 
+var whileClauseTests = []struct {
+	n ast.Node
+	e []string
+}{
+	{
+		parse("while false; true && true; do echo while; done >/dev/null 2>&1"),
+		[]string{
+			"while false; true && true; do echo while; done >/dev/null 2>&1",
+			"while false; true && true; do echo while; done >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("while false; true && true; do\n\techo while\ndone >/dev/null 2>&1"),
+		[]string{
+			"while false; true && true; do\n\techo while\ndone >/dev/null 2>&1",
+			"while false; true && true\ndo\n\techo while\ndone >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("while false\n\ttrue && true\ndo\n\techo while\ndone >/dev/null 2>&1"),
+		[]string{
+			"while false; true && true; do\n\techo while\ndone >/dev/null 2>&1",
+			"while false; true && true\ndo\n\techo while\ndone >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("while true; do cat <<EOF; echo bar; done\nfoo\nEOF"),
+		[]string{
+			"while true; do cat <<EOF; echo bar; done\nfoo\nEOF",
+			"while true; do cat <<EOF; echo bar; done\nfoo\nEOF",
+		},
+	},
+	{
+		parse("while true\ndo\n\tcat <<EOF\nfoo\nEOF\n\techo bar\ndone"),
+		[]string{
+			"while true; do\n\tcat <<EOF\nfoo\nEOF\n\techo bar\ndone",
+			"while true\ndo\n\tcat <<EOF\nfoo\nEOF\n\techo bar\ndone",
+		},
+	},
+	{
+		parse("while cat <<EOF | grep o; do echo while; done\nfoo\nEOF"),
+		[]string{
+			"while cat <<EOF | grep o; do echo while; done\nfoo\nEOF",
+			"while cat <<EOF | grep o; do echo while; done\nfoo\nEOF",
+		},
+	},
+	{
+		parse("while cat <<EOF | grep o\nfoo\nEOF\ndo\n\techo while\ndone"),
+		[]string{
+			"while cat <<EOF | grep o; do\nfoo\nEOF\n\techo while\ndone",
+			"while cat <<EOF | grep o\nfoo\nEOF\ndo\n\techo while\ndone",
+		},
+	},
+}
+
+func TestWhileClause(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range whileClauseTests {
+		for i, cfg := range []printer.Config{
+			{
+				Do: 0,
+			},
+			{
+				Do: printer.Newline,
+			},
+		} {
+			b.Reset()
+			if err := cfg.Fprint(&b, tt.n); err != nil {
+				t.Error(err)
+			}
+			if g, e := b.String(), tt.e[i]; g != e {
+				t.Errorf("expected %q, got %q", e, g)
+			}
+		}
+	}
+}
+
 func parse(src string) ast.Command {
 	cmd, _, err := parser.ParseCommand("<stdin>", src)
 	if err != nil {

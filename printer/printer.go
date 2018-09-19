@@ -422,18 +422,6 @@ func (p *printer) ifClause(x *ast.IfClause) {
 	p.w.WriteString("fi")
 }
 
-func (p *printer) compoundList(cmds []ast.Command) {
-	p.lv++
-	for _, c := range cmds {
-		p.newline()
-		p.indent()
-		p.push()
-		p.command(c)
-		p.heredoc()
-	}
-	p.lv--
-}
-
 func (p *printer) sepOf(c ast.Command) string {
 	switch c := c.(type) {
 	case ast.List:
@@ -490,6 +478,8 @@ func (p *printer) wordPart(w ast.WordPart) {
 		p.quote(w)
 	case *ast.ParamExp:
 		p.paramExp(w)
+	case *ast.CmdSubst:
+		p.cmdSubst(w)
 	default:
 		panic("sh/printer: unsupported node in ast.Word")
 	}
@@ -526,6 +516,38 @@ func (p *printer) paramExp(w *ast.ParamExp) {
 	} else {
 		p.w.WriteString("$" + w.Name.Value)
 	}
+}
+
+func (p *printer) cmdSubst(w *ast.CmdSubst) {
+	if w.Dollar {
+		p.w.WriteString("$(")
+	} else {
+		p.w.WriteByte('`')
+	}
+	if len(w.List) > 1 || w.Left.Line() != w.Right.Line() {
+		p.compoundList(w.List)
+		p.newline()
+		p.indent()
+	} else {
+		p.command(w.List[0])
+	}
+	if w.Dollar {
+		p.w.WriteByte(')')
+	} else {
+		p.w.WriteByte('`')
+	}
+}
+
+func (p *printer) compoundList(cmds []ast.Command) {
+	p.lv++
+	for _, c := range cmds {
+		p.newline()
+		p.indent()
+		p.push()
+		p.command(c)
+		p.heredoc()
+	}
+	p.lv--
 }
 
 func (p *printer) comment(c *ast.Comment) {

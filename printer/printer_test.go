@@ -752,6 +752,93 @@ var wordTests = []struct {
 		},
 		"${LANG#*.}",
 	},
+	// command substitution
+	{
+		&ast.CmdSubst{
+			Dollar: true,
+			Left:   ast.NewPos(1, 2),
+			List: []ast.Command{
+				&ast.Cmd{
+					Expr: &ast.SimpleCmd{
+						Args: []ast.Word{
+							{
+								&ast.Lit{
+									ValuePos: ast.NewPos(1, 3),
+									Value:    "pwd",
+								},
+							},
+						},
+					},
+				},
+			},
+			Right: ast.NewPos(1, 6),
+		},
+		"$(pwd)",
+	},
+	{
+		&ast.CmdSubst{
+			Dollar: true,
+			Left:   ast.NewPos(1, 2),
+			List: []ast.Command{
+				&ast.Cmd{
+					Expr: &ast.SimpleCmd{
+						Args: []ast.Word{
+							{
+								&ast.Lit{
+									ValuePos: ast.NewPos(2, 2),
+									Value:    "pwd",
+								},
+							},
+						},
+					},
+				},
+			},
+			Right: ast.NewPos(3, 1),
+		},
+		"$(\n\tpwd\n)",
+	},
+	{
+		&ast.CmdSubst{
+			Left: ast.NewPos(1, 1),
+			List: []ast.Command{
+				&ast.Cmd{
+					Expr: &ast.SimpleCmd{
+						Args: []ast.Word{
+							{
+								&ast.Lit{
+									ValuePos: ast.NewPos(1, 2),
+									Value:    "pwd",
+								},
+							},
+						},
+					},
+				},
+			},
+			Right: ast.NewPos(1, 5),
+		},
+		"`pwd`",
+	},
+	{
+		&ast.CmdSubst{
+			Left: ast.NewPos(1, 1),
+			List: []ast.Command{
+				&ast.Cmd{
+					Expr: &ast.SimpleCmd{
+						Args: []ast.Word{
+							{
+								&ast.Lit{
+									ValuePos: ast.NewPos(2, 2),
+									Value:    "pwd",
+								},
+							},
+						},
+					},
+				},
+			},
+			Right: ast.NewPos(3, 1),
+		},
+		"`\n\tpwd\n`",
+	},
 }
 
 func TestWord(t *testing.T) {

@@ -455,6 +455,76 @@ func TestForClause(t *testing.T) {
 	}
 }
 
+var caseClauseTests = []struct {
+	n ast.Node
+	e []string
+}{
+	{
+		parse("case word in foo|bar) ;; baz) echo baz ;; esac"),
+		[]string{
+			"case word in foo|bar) ;; baz) echo baz ;; esac",
+			"case word in foo|bar) ;; baz) echo baz ;; esac",
+		},
+	},
+	{
+		parse("case word in foo|bar) ;; baz) echo baz; esac"),
+		[]string{
+			"case word in foo|bar) ;; baz) echo baz ;; esac",
+			"case word in foo|bar) ;; baz) echo baz ;; esac",
+		},
+	},
+	{
+		parse("case word in\nfoo|bar) ;;\nbaz)\n\techo baz\n\t;;\nesac"),
+		[]string{
+			"case word in\nfoo|bar)\n\t;;\nbaz)\n\techo baz\n\t;;\nesac",
+			"case word in\n\tfoo|bar)\n\t\t;;\n\tbaz)\n\t\techo baz\n\t\t;;\nesac",
+		},
+	},
+	{
+		parse("case word in\nfoo|bar) ;;\nbaz)\necho baz\nesac"),
+		[]string{
+			"case word in\nfoo|bar)\n\t;;\nbaz)\n\techo baz\n\t;;\nesac",
+			"case word in\n\tfoo|bar)\n\t\t;;\n\tbaz)\n\t\techo baz\n\t\t;;\nesac",
+		},
+	},
+	{
+		parse("case word in *) cat <<EOF; echo bar ;; esac\nfoo\nEOF"),
+		[]string{
+			"case word in *) cat <<EOF; echo bar ;; esac\nfoo\nEOF",
+			"case word in *) cat <<EOF; echo bar ;; esac\nfoo\nEOF",
+		},
+	},
+	{
+		parse("case word in\n*)\n\tcat <<EOF\nfoo\nEOF\n\techo bar\n\t;;\nesac"),
+		[]string{
+			"case word in\n*)\n\tcat <<EOF\nfoo\nEOF\n\techo bar\n\t;;\nesac",
+			"case word in\n\t*)\n\t\tcat <<EOF\nfoo\nEOF\n\t\techo bar\n\t\t;;\nesac",
+		},
+	},
+}
+
+func TestCaseClause(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range caseClauseTests {
+		for i, cfg := range []printer.Config{
+			{
+				Case: false,
+			},
+			{
+				Case: true,
+			},
+		} {
+			b.Reset()
+			if err := cfg.Fprint(&b, tt.n); err != nil {
+				t.Error(err)
+			}
+			if g, e := b.String(), tt.e[i]; g != e {
+				t.Errorf("expected %q, got %q", e, g)
+			}
+		}
+	}
+}
+
 var ifClauseTests = []struct {
 	n ast.Node
 	e []string

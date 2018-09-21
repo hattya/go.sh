@@ -72,6 +72,10 @@ type Config struct {
 	//   - newline before the reserved keyword "do"
 	Do Style
 
+	// Case controls the additional indentation of the case conditional
+	// constract.
+	Case bool
+
 	// Then controls the output of the if conditional constract:
 	//   - newline before the reserved keyword "then"
 	Then Style
@@ -206,6 +210,8 @@ func (p *printer) cmd(c *ast.Cmd) {
 			p.group(x)
 		case *ast.ForClause:
 			p.forClause(x)
+		case *ast.CaseClause:
+			p.caseClause(x)
 		case *ast.IfClause:
 			p.ifClause(x)
 		case *ast.WhileClause:
@@ -351,6 +357,60 @@ func (p *printer) forClause(x *ast.ForClause) {
 		p.space()
 	}
 	p.w.WriteString("done")
+}
+
+func (p *printer) caseClause(x *ast.CaseClause) {
+	p.w.WriteString("case ")
+	p.word(x.Word)
+	p.w.WriteString(" in")
+	if x.Case.Line() != x.Esac.Line() {
+		if p.cfg.Case {
+			p.lv++
+		}
+		for _, c := range x.Items {
+			p.newline()
+			p.indent()
+			for i, w := range c.Patterns {
+				if i > 0 {
+					p.w.WriteByte('|')
+				}
+				p.word(w)
+			}
+			p.w.WriteByte(')')
+			p.compoundList(c.List)
+			p.lv++
+			p.newline()
+			p.indent()
+			p.w.WriteString(";;")
+			p.lv--
+		}
+		if p.cfg.Case {
+			p.lv--
+		}
+		p.newline()
+		p.indent()
+	} else {
+		for _, c := range x.Items {
+			p.space()
+			for i, w := range c.Patterns {
+				if i > 0 {
+					p.w.WriteByte('|')
+				}
+				p.word(w)
+			}
+			p.w.WriteByte(')')
+			if len(c.List) != 0 {
+				if undo := p.trim(c.List[0]); undo != nil {
+					defer undo()
+				}
+				p.space()
+				p.command(c.List[0])
+			}
+			p.w.WriteString(" ;;")
+		}
+		p.space()
+	}
+	p.w.WriteString("esac")
 }
 
 func (p *printer) ifClause(x *ast.IfClause) {

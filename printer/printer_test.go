@@ -764,6 +764,33 @@ func parse(src string) ast.Command {
 	return cmd
 }
 
+var funcDefTests = []struct {
+	n ast.Node
+	e string
+}{
+	{
+		parse("foo() { echo foo; } >/dev/null 2>&1"),
+		"foo() { echo foo; } >/dev/null 2>&1",
+	},
+	{
+		parse("foo() {\n\techo foo\n} >/dev/null 2>&1"),
+		"foo() {\n\techo foo\n} >/dev/null 2>&1",
+	},
+}
+
+func TestFuncDef(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range funcDefTests {
+		b.Reset()
+		if err := printer.Fprint(&b, tt.n); err != nil {
+			t.Error(err)
+		}
+		if g, e := b.String(), tt.e; g != e {
+			t.Errorf("expected %q, got %q", e, g)
+		}
+	}
+}
+
 var wordTests = []struct {
 	n ast.Node
 	e string

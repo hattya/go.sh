@@ -218,6 +218,8 @@ func (p *printer) cmd(c *ast.Cmd) {
 			p.whileClause(x)
 		case *ast.UntilClause:
 			p.untilClause(x)
+		case *ast.FuncDef:
+			p.funcDef(x)
 		default:
 			panic("sh/printer: unsupported ast.CmdExpr")
 		}
@@ -564,6 +566,11 @@ func (p *printer) trim(c ast.Command) func() {
 		}
 	}
 	return nil
+}
+
+func (p *printer) funcDef(x *ast.FuncDef) {
+	p.w.WriteString(x.Name.Value + "() ")
+	p.command(x.Body)
 }
 
 func (p *printer) push() {

@@ -336,6 +336,49 @@ func TestGroup(t *testing.T) {
 	}
 }
 
+var arithEvalTests = []struct {
+	n ast.Node
+	e []string
+}{
+	{
+		parse("((x)) >/dev/null 2>&1"),
+		[]string{
+			"((x)) >/dev/null 2>&1",
+			"((x)) >/dev/null 2>&1",
+		},
+	},
+	{
+		parse("((\n\tx\n)) >/dev/null 2>&1"),
+		[]string{
+			"((\n\tx\n)) >/dev/null 2>&1",
+			"((\n  x\n)) >/dev/null 2>&1",
+		},
+	},
+}
+
+func TestArithEval(t *testing.T) {
+	var b bytes.Buffer
+	for _, tt := range arithEvalTests {
+		for i, cfg := range []printer.Config{
+			{
+				Indent: printer.Tab,
+			},
+			{
+				Indent: printer.Space,
+				Width:  2,
+			},
+		} {
+			b.Reset()
+			if err := cfg.Fprint(&b, tt.n); err != nil {
+				t.Error(err)
+			}
+			if g, e := b.String(), tt.e[i]; g != e {
+				t.Errorf("expected %q, got %q", e, g)
+			}
+		}
+	}
+}
+
 var forClauseTests = []struct {
 	n ast.Node
 	e []string
@@ -1203,9 +1246,20 @@ func TestComment(t *testing.T) {
 }
 
 func TestPrintError(t *testing.T) {
-	for _, n := range []ast.Node{nil, &ast.Cmd{Expr: &ast.Subshell{List: []ast.Command{nil}}}, new(ast.Cmd), ast.Word{nil}} {
-		if err := printer.Fprint(nil, n); err == nil {
-			t.Error("expected error")
-		}
+	if err := printer.Fprint(nil, nil); err == nil {
+		t.Error("expected error")
+	}
+
+	for _, n := range []ast.Node{&ast.Cmd{Expr: &ast.Subshell{List: []ast.Command{nil}}}, new(ast.Cmd), ast.Word{nil}} {
+		func(n ast.Node) {
+			defer func() {
+				if recover() == nil {
+					t.Error("expected panic")
+				}
+			}()
+			if err := printer.Fprint(nil, n); err == nil {
+				t.Error("expected error")
+			}
+		}(n)
 	}
 }

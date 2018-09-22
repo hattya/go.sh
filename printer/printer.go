@@ -30,7 +30,6 @@ package printer
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 
@@ -127,12 +126,6 @@ func (p *printer) newline() {
 }
 
 func (p *printer) print(n ast.Node) (err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = errors.New(e.(string))
-		}
-	}()
-
 	p.push()
 	switch n := n.(type) {
 	case ast.Command:
@@ -208,6 +201,8 @@ func (p *printer) cmd(c *ast.Cmd) {
 			p.subshell(x)
 		case *ast.Group:
 			p.group(x)
+		case *ast.ArithEval:
+			p.arithEval(x)
 		case *ast.ForClause:
 			p.forClause(x)
 		case *ast.CaseClause:
@@ -322,6 +317,10 @@ func (p *printer) group(x *ast.Group) {
 		p.space()
 	}
 	p.w.WriteByte('}')
+}
+
+func (p *printer) arithEval(x *ast.ArithEval) {
+	p.arithExpr(x.Left.Line() == x.Right.Line(), "((", x.Expr)
 }
 
 func (p *printer) forClause(x *ast.ForClause) {

@@ -638,9 +638,7 @@ func (l *lexer) lexHeredoc() action {
 		for i := len(l.word) - 1; i >= 0; i-- {
 			if l.word[i].Pos().Col() == 1 {
 				b.Reset()
-				if err := printer.Fprint(&b, l.word[i:]); err != nil {
-					break
-				}
+				printer.Fprint(&b, l.word[i:])
 				if s := b.String(); strings.ContainsRune(s, '\n') {
 					break
 				} else if s == delim {
@@ -814,11 +812,7 @@ func (l *lexer) scanRedir(tok int) int {
 	tok = l.scanToken()
 	if tok == WORD && heredoc {
 		var b bytes.Buffer
-		if err := printer.Fprint(&b, l.word); err != nil {
-			l.last.Store(l.word.Pos())
-			l.Error("syntax error: here-document delimiter")
-			return -1
-		}
+		printer.Fprint(&b, l.word)
 		if strings.ContainsRune(b.String(), '\n') {
 			l.last.Store(l.word.Pos())
 			l.Error(`syntax error: here-document delimiter contains '\n'`)

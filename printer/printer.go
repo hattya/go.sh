@@ -604,6 +604,8 @@ func (p *printer) wordPart(w ast.WordPart) {
 		p.paramExp(w)
 	case *ast.CmdSubst:
 		p.cmdSubst(w)
+	case *ast.ArithExp:
+		p.arithExp(w)
 	default:
 		panic("sh/printer: unsupported node in ast.Word")
 	}
@@ -672,6 +674,31 @@ func (p *printer) compoundList(cmds []ast.Command) {
 		p.heredoc()
 	}
 	p.lv--
+}
+
+func (p *printer) arithExp(w *ast.ArithExp) {
+	p.arithExpr(w.Left.Line() == w.Right.Line(), "$((", w.Expr)
+}
+
+func (p *printer) arithExpr(list bool, left string, x []ast.Word) {
+	p.w.WriteString(left)
+	if !list {
+		p.lv++
+		p.newline()
+		p.indent()
+	}
+	for i, w := range x {
+		if i > 0 {
+			p.space()
+		}
+		p.word(w)
+	}
+	if !list {
+		p.lv--
+		p.newline()
+		p.indent()
+	}
+	p.w.WriteString("))")
 }
 
 func (p *printer) comment(c *ast.Comment) {

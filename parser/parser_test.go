@@ -2629,10 +2629,6 @@ var parseErrorTests = []struct {
 		err: ":1:1: syntax error: unexpected EOF, expecting WORD",
 	},
 	{
-		src: "cat <<$((x))",
-		err: ":1:7: syntax error: here-document delimiter",
-	},
-	{
 		src: "cat <<'\n'",
 		err: `:1:7: syntax error: here-document delimiter contains '\n'`,
 	},

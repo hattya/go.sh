@@ -1090,6 +1090,89 @@ var wordTests = []struct {
 		},
 		"`\n\tpwd\n`",
 	},
+	// arithmetic expansion
+	{
+		&ast.ArithExp{
+			Left: ast.NewPos(1, 1),
+			Expr: []ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 4),
+						Value:    "x",
+					},
+				},
+			},
+			Right: ast.NewPos(1, 5),
+		},
+		"$((x))",
+	},
+	{
+		&ast.ArithExp{
+			Left: ast.NewPos(1, 1),
+			Expr: []ast.Word{
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(2, 2),
+						Value:    "x",
+					},
+				},
+			},
+			Right: ast.NewPos(3, 1),
+		},
+		"$((\n\tx\n))",
+	},
+	{
+		&ast.ArithExp{
+			Left: ast.NewPos(1, 1),
+			Expr: []ast.Word{
+				{
+					&ast.ParamExp{
+						Dollar: ast.NewPos(1, 4),
+						Name: &ast.Lit{
+							ValuePos: ast.NewPos(1, 5),
+							Value:    "x",
+						},
+					},
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 6),
+						Value:    "-1",
+					},
+				},
+			},
+			Right: ast.NewPos(1, 8),
+		},
+		"$(($x-1))",
+	},
+	{
+		&ast.ArithExp{
+			Left: ast.NewPos(1, 1),
+			Expr: []ast.Word{
+				{
+					&ast.ParamExp{
+						Dollar: ast.NewPos(1, 4),
+						Name: &ast.Lit{
+							ValuePos: ast.NewPos(1, 5),
+							Value:    "x",
+						},
+					},
+				},
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 7),
+						Value:    "-",
+					},
+				},
+				{
+					&ast.Lit{
+						ValuePos: ast.NewPos(1, 9),
+						Value:    "1",
+					},
+				},
+			},
+			Right: ast.NewPos(1, 10),
+		},
+		"$(($x - 1))",
+	},
 }
 
 func TestWord(t *testing.T) {

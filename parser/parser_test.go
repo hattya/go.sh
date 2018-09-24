@@ -48,46 +48,54 @@ var parseCommandTests = []struct {
 		src: "",
 	},
 	{
-		src: "\n",
-	},
-	{
 		src: "\t ",
 	},
 	{
-		src: "echo 1\t\t22 \t 333",
+		src: "echo 1\t\t2 \t 3",
 		cmd: simple_command(
 			word(lit(1, 1, "echo")),
 			word(lit(1, 6, "1")),
-			word(lit(1, 9, "22")),
-			word(lit(1, 14, "333")),
+			word(lit(1, 9, "2")),
+			word(lit(1, 13, "3")),
 		),
 	},
 	{
-		src: "echo\t1  22\t \t333\n",
+		src: "echo\t1  2\t \t3",
 		cmd: simple_command(
 			word(lit(1, 1, "echo")),
 			word(lit(1, 6, "1")),
-			word(lit(1, 9, "22")),
-			word(lit(1, 14, "333")),
+			word(lit(1, 9, "2")),
+			word(lit(1, 13, "3")),
+		),
+	},
+	// <newline>
+	{
+		src: "\n",
+	},
+	{
+		src: "echo 1\necho 2\n",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "1")),
 		),
 	},
 	// quoting
 	{
 		src: "\\pwd\n",
 		cmd: simple_command(
-			word(quote(1, 1, "\\", word(lit(1, 2, "p"))), lit(1, 3, "wd")),
+			word(quote(1, 1, `\`, word(lit(1, 2, "p"))), lit(1, 3, "wd")),
 		),
 	},
 	{
 		src: "p\\wd\n",
 		cmd: simple_command(
-			word(lit(1, 1, "p"), quote(1, 2, "\\", word(lit(1, 3, "w"))), lit(1, 4, "d")),
+			word(lit(1, 1, "p"), quote(1, 2, `\`, word(lit(1, 3, "w"))), lit(1, 4, "d")),
 		),
 	},
 	{
 		src: "pw\\d\n",
 		cmd: simple_command(
-			word(lit(1, 1, "pw"), quote(1, 3, "\\", word(lit(1, 4, "d")))),
+			word(lit(1, 1, "pw"), quote(1, 3, `\`, word(lit(1, 4, "d")))),
 		),
 	},
 	{
@@ -99,7 +107,7 @@ var parseCommandTests = []struct {
 	{
 		src: "pwd\\",
 		cmd: simple_command(
-			word(lit(1, 1, "pwd"), quote(1, 4, "\\", nil)),
+			word(lit(1, 1, "pwd"), quote(1, 4, `\`, nil)),
 		),
 	},
 	{
@@ -134,7 +142,7 @@ var parseCommandTests = []struct {
 		src: `echo "\$USER"`,
 		cmd: simple_command(
 			word(lit(1, 1, "echo")),
-			word(quote(1, 6, `"`, word(quote(1, 7, "\\", word(lit(1, 8, "$"))), lit(1, 9, "USER")))),
+			word(quote(1, 6, `"`, word(quote(1, 7, `\`, word(lit(1, 8, "$"))), lit(1, 9, "USER")))),
 		),
 	},
 	{
@@ -393,7 +401,7 @@ var parseCommandTests = []struct {
 			word(lit(1, 1, "echo")),
 			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, ":-"), word(
 				lit(1, 14, "C"),
-				quote(1, 15, "\\", word(lit(1, 16, "."))),
+				quote(1, 15, `\`, word(lit(1, 16, "."))),
 				param_exp(1, 17, true, lit(1, 19, "ENC"), lit(1, 22, ":-"), word(
 					lit(1, 24, "UTF-8"),
 				)),
@@ -413,7 +421,7 @@ var parseCommandTests = []struct {
 			word(lit(1, 1, "echo")),
 			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, "-"), word(
 				lit(1, 13, "C"),
-				quote(1, 14, "\\", word(lit(1, 15, "."))),
+				quote(1, 14, `\`, word(lit(1, 15, "."))),
 				param_exp(1, 16, true, lit(1, 18, "ENC"), lit(1, 21, "-"), word(
 					lit(1, 22, "UTF-8"),
 				)),
@@ -618,7 +626,7 @@ var parseCommandTests = []struct {
 			word(lit(1, 1, "echo")),
 			word(arith_exp(
 				pos(1, 6), // left
-				word(quote(1, 9, "\\", word(lit(1, 10, "x")))),
+				word(quote(1, 9, `\`, word(lit(1, 10, "x")))),
 				word(lit(1, 12, "=")),
 				word(lit(1, 14, "(")),
 				word(lit(1, 15, "(")),
@@ -647,14 +655,6 @@ var parseCommandTests = []struct {
 				)),
 				pos(1, 42), // right
 			)),
-		),
-	},
-	// <newline>
-	{
-		src: "echo 1\necho 2\n",
-		cmd: simple_command(
-			word(lit(1, 1, "echo")),
-			word(lit(1, 6, "1")),
 		),
 	},
 	// simple command
@@ -711,19 +711,30 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "echo baz >|file",
+		src: "echo foo >|file",
 		cmd: simple_command(
 			word(lit(1, 1, "echo")),
-			word(lit(1, 6, "baz")),
+			word(lit(1, 6, "foo")),
 			redir(nil, 1, 10, ">|", word(lit(1, 12, "file"))),
 		),
 	},
 	{
-		src: "echo bar >>file",
+		src: "echo foo >>file",
 		cmd: simple_command(
 			word(lit(1, 1, "echo")),
-			word(lit(1, 6, "bar")),
+			word(lit(1, 6, "foo")),
 			redir(nil, 1, 10, ">>", word(lit(1, 12, "file"))),
+		),
+	},
+	{
+		src: "cat <<EOF\nEOF\n",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			heredoc(
+				nil, 1, 5, "<<", word(lit(1, 7, "EOF")),
+				word(),
+				word(lit(2, 1, "EOF")),
+			),
 		),
 	},
 	{
@@ -926,11 +937,18 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "echo \\foo>&2",
+		src: `echo \2>file`,
 		cmd: simple_command(
 			word(lit(1, 1, "echo")),
-			word(quote(1, 6, "\\", word(lit(1, 7, "f"))), lit(1, 8, "oo")),
-			redir(nil, 1, 10, ">&", word(lit(1, 12, "2"))),
+			word(quote(1, 6, `\`, word(lit(1, 7, "2")))),
+			redir(nil, 1, 8, ">", word(lit(1, 9, "file"))),
+		),
+	},
+	{
+		src: `echo 2\>file`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "2"), quote(1, 7, `\`, word(lit(1, 8, ">"))), lit(1, 9, "file")),
 		),
 	},
 	{
@@ -1034,11 +1052,11 @@ var parseCommandTests = []struct {
 	},
 	// list
 	{
-		src: "sleep 1;",
+		src: "sleep 7;",
 		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "sleep")),
-				word(lit(1, 7, "1")),
+				word(lit(1, 7, "7")),
 			),
 			sep(1, 8, ";"),
 		),
@@ -1069,17 +1087,17 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "sleep 1 &",
+		src: "sleep 7 &",
 		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "sleep")),
-				word(lit(1, 7, "1")),
+				word(lit(1, 7, "7")),
 			),
 			sep(1, 9, "&"),
 		),
 	},
 	{
-		src: "make & fg",
+		src: "make & wait",
 		cmd: list(
 			and_or_list(
 				simple_command(
@@ -1089,13 +1107,13 @@ var parseCommandTests = []struct {
 			),
 			and_or_list(
 				simple_command(
-					word(lit(1, 8, "fg")),
+					word(lit(1, 8, "wait")),
 				),
 			),
 		),
 	},
 	{
-		src: "make &\nfg",
+		src: "make &\nwait",
 		cmd: and_or_list(
 			simple_command(
 				word(lit(1, 1, "make")),
@@ -1191,22 +1209,29 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "(cd /usr/src/linux\n make -j3)",
+		src: "(\n\tcd /usr/src/linux; make -j3\n)",
 		cmd: subshell(
 			pos(1, 1), // (
-			simple_command(
-				word(lit(1, 2, "cd")),
-				word(lit(1, 5, "/usr/src/linux")),
+			list(
+				and_or_list(
+					simple_command(
+						word(lit(2, 2, "cd")),
+						word(lit(2, 5, "/usr/src/linux")),
+					),
+					sep(2, 19, ";"),
+				),
+				and_or_list(
+					simple_command(
+						word(lit(2, 21, "make")),
+						word(lit(2, 26, "-j3")),
+					),
+				),
 			),
-			simple_command(
-				word(lit(2, 2, "make")),
-				word(lit(2, 7, "-j3")),
-			),
-			pos(2, 10), // )
+			pos(3, 1), // )
 		),
 	},
 	{
-		src: "(\n cd /usr/src/linux\n make -j3\n)",
+		src: "(\n\tcd /usr/src/linux\n\tmake -j3\n)",
 		cmd: subshell(
 			pos(1, 1), // (
 			simple_command(
@@ -1245,7 +1270,7 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "{ ./configure; make; }",
+		src: "{ ./configure; make -j3; }",
 		cmd: group(
 			pos(1, 1), // {
 			list(
@@ -1258,22 +1283,45 @@ var parseCommandTests = []struct {
 				and_or_list(
 					simple_command(
 						word(lit(1, 16, "make")),
+						word(lit(1, 21, "-j3")),
 					),
-					sep(1, 20, ";"),
+					sep(1, 24, ";"),
 				),
 			),
-			pos(1, 22), // }
+			pos(1, 26), // }
 		),
 	},
 	{
-		src: "{\n  ./configure\n  make\n}",
+		src: "{\n\t./configure; make -j3\n}",
+		cmd: group(
+			pos(1, 1), // {
+			list(
+				and_or_list(
+					simple_command(
+						word(lit(2, 2, "./configure")),
+					),
+					sep(2, 13, ";"),
+				),
+				and_or_list(
+					simple_command(
+						word(lit(2, 15, "make")),
+						word(lit(2, 20, "-j3")),
+					),
+				),
+			),
+			pos(3, 1), // }
+		),
+	},
+	{
+		src: "{\n\t./configure\n\tmake -j3\n}",
 		cmd: group(
 			pos(1, 1), // {
 			simple_command(
-				word(lit(2, 3, "./configure")),
+				word(lit(2, 2, "./configure")),
 			),
 			simple_command(
-				word(lit(3, 3, "make")),
+				word(lit(3, 2, "make")),
+				word(lit(3, 7, "-j3")),
 			),
 			pos(4, 1), // }
 		),
@@ -1310,6 +1358,16 @@ var parseCommandTests = []struct {
 			word(lit(1, 5, "-=")),
 			word(lit(1, 8, "1")),
 			pos(1, 9), // right
+		),
+	},
+	{
+		src: "((\n\tx += 1\n))",
+		cmd: arith_eval(
+			pos(1, 1), // left
+			word(lit(2, 2, "x")),
+			word(lit(2, 4, "+=")),
+			word(lit(2, 7, "1")),
+			pos(3, 1), // right
 		),
 	},
 	{
@@ -1360,6 +1418,48 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
+		src: "for name do\n\techo $name\ndone",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			sep(0, 0, "\n"),
+			pos(1, 10), // do
+			simple_command(
+				word(lit(2, 2, "echo")),
+				word(param_exp(2, 7, false, lit(2, 8, "name"), nil, nil)),
+			),
+			pos(3, 1), // done
+		),
+	},
+	{
+		src: "for name; do\n\techo $name\ndone",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			sep(1, 9, ";"),
+			pos(1, 11), // do
+			simple_command(
+				word(lit(2, 2, "echo")),
+				word(param_exp(2, 7, false, lit(2, 8, "name"), nil, nil)),
+			),
+			pos(3, 1), // done
+		),
+	},
+	{
+		src: "for name\ndo\n\techo $name\ndone",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			sep(0, 0, "\n"),
+			pos(2, 1), // do
+			simple_command(
+				word(lit(3, 2, "echo")),
+				word(param_exp(3, 7, false, lit(3, 8, "name"), nil, nil)),
+			),
+			pos(4, 1), // done
+		),
+	},
+	{
 		src: "for name in; do echo $name; done",
 		cmd: for_clause(
 			pos(1, 1), // for
@@ -1375,6 +1475,51 @@ var parseCommandTests = []struct {
 				sep(1, 27, ";"),
 			),
 			pos(1, 29), // done
+		),
+	},
+	{
+		src: "for name in; do\n\techo $name\ndone",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			pos(1, 10), // in
+			sep(1, 12, ";"),
+			pos(1, 14), // do
+			simple_command(
+				word(lit(2, 2, "echo")),
+				word(param_exp(2, 7, false, lit(2, 8, "name"), nil, nil)),
+			),
+			pos(3, 1), // done
+		),
+	},
+	{
+		src: "for name in\ndo\n\techo $name\ndone",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			pos(1, 10), // in
+			sep(0, 0, "\n"),
+			pos(2, 1), // do
+			simple_command(
+				word(lit(3, 2, "echo")),
+				word(param_exp(3, 7, false, lit(3, 8, "name"), nil, nil)),
+			),
+			pos(4, 1), // done
+		),
+	},
+	{
+		src: "for name\nin\ndo\n\techo $name\ndone",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			pos(2, 1), // in
+			sep(0, 0, "\n"),
+			pos(3, 1), // do
+			simple_command(
+				word(lit(4, 2, "echo")),
+				word(param_exp(4, 7, false, lit(4, 8, "name"), nil, nil)),
+			),
+			pos(5, 1), // done
 		),
 	},
 	{
@@ -1401,50 +1546,27 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "for name do\n  echo $name\ndone",
-		cmd: for_clause(
-			pos(1, 1), // for
-			lit(1, 5, "name"),
-			sep(0, 0, "\n"),
-			pos(1, 10), // do
-			simple_command(
-				word(lit(2, 3, "echo")),
-				word(param_exp(2, 8, false, lit(2, 9, "name"), nil, nil)),
-			),
-			pos(3, 1), // done
-		),
-	},
-	{
-		src: "for name\ndo\n  echo $name\ndone",
-		cmd: for_clause(
-			pos(1, 1), // for
-			lit(1, 5, "name"),
-			sep(0, 0, "\n"),
-			pos(2, 1), // do
-			simple_command(
-				word(lit(3, 3, "echo")),
-				word(param_exp(3, 8, false, lit(3, 9, "name"), nil, nil)),
-			),
-			pos(4, 1), // done
-		),
-	},
-	{
-		src: "for name in\ndo\n  echo $name\ndone",
+		src: "for name in foo bar baz; do\n\techo $name\ndone >/dev/null 2>&1",
 		cmd: for_clause(
 			pos(1, 1), // for
 			lit(1, 5, "name"),
 			pos(1, 10), // in
-			sep(0, 0, "\n"),
-			pos(2, 1), // do
+			word(lit(1, 13, "foo")),
+			word(lit(1, 17, "bar")),
+			word(lit(1, 21, "baz")),
+			sep(1, 24, ";"),
+			pos(1, 26), // do
 			simple_command(
-				word(lit(3, 3, "echo")),
-				word(param_exp(3, 8, false, lit(3, 9, "name"), nil, nil)),
+				word(lit(2, 2, "echo")),
+				word(param_exp(2, 7, false, lit(2, 8, "name"), nil, nil)),
 			),
-			pos(4, 1), // done
+			pos(3, 1), // done
+			redir(nil, 3, 6, ">", word(lit(3, 7, "/dev/null"))),
+			redir(lit(3, 17, "2"), 3, 18, ">&", word(lit(3, 20, "1"))),
 		),
 	},
 	{
-		src: "for name in foo bar baz\ndo\n  echo $name\ndone >/dev/null 2>&1",
+		src: "for name in foo bar baz\ndo\n\techo $name\ndone >/dev/null 2>&1",
 		cmd: for_clause(
 			pos(1, 1), // for
 			lit(1, 5, "name"),
@@ -1455,12 +1577,32 @@ var parseCommandTests = []struct {
 			sep(0, 0, "\n"),
 			pos(2, 1), // do
 			simple_command(
-				word(lit(3, 3, "echo")),
-				word(param_exp(3, 8, false, lit(3, 9, "name"), nil, nil)),
+				word(lit(3, 2, "echo")),
+				word(param_exp(3, 7, false, lit(3, 8, "name"), nil, nil)),
 			),
 			pos(4, 1), // done
 			redir(nil, 4, 6, ">", word(lit(4, 7, "/dev/null"))),
 			redir(lit(4, 17, "2"), 4, 18, ">&", word(lit(4, 20, "1"))),
+		),
+	},
+	{
+		src: "for name\nin foo bar baz\ndo\n\techo $name\ndone >/dev/null 2>&1",
+		cmd: for_clause(
+			pos(1, 1), // for
+			lit(1, 5, "name"),
+			pos(2, 1), // in
+			word(lit(2, 4, "foo")),
+			word(lit(2, 8, "bar")),
+			word(lit(2, 12, "baz")),
+			sep(0, 0, "\n"),
+			pos(3, 1), // do
+			simple_command(
+				word(lit(4, 2, "echo")),
+				word(param_exp(4, 7, false, lit(4, 8, "name"), nil, nil)),
+			),
+			pos(5, 1), // done
+			redir(nil, 5, 6, ">", word(lit(5, 7, "/dev/null"))),
+			redir(lit(5, 17, "2"), 5, 18, ">&", word(lit(5, 20, "1"))),
 		),
 	},
 	// case conditional construct
@@ -1471,6 +1613,15 @@ var parseCommandTests = []struct {
 			word(lit(1, 6, "word")),
 			pos(1, 11), // in
 			pos(1, 14), // esac
+		),
+	},
+	{
+		src: "case word in\nesac",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			pos(2, 1),  // esac
 		),
 	},
 	{
@@ -1526,46 +1677,46 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "case word\nin\n0|foo)\n  ;;\n1|bar)\n  echo bar\n  ;;\n(2|baz)\n  ;;\n(3|qux)\n  echo qux\n  ;;\nesac",
+		src: "case word in\n0|foo)\n\t;;\n1|bar)\n\techo bar\n\t;;\n(2|baz)\n\t;;\n(3|qux)\n\techo qux\n\t;;\nesac",
 		cmd: case_clause(
 			pos(1, 1), // case
 			word(lit(1, 6, "word")),
-			pos(2, 1), // in
+			pos(1, 11), // in
 			case_item(
-				word(lit(3, 1, "0")),
-				word(lit(3, 3, "foo")),
-				pos(3, 6), // )
-				pos(4, 3), // ;;
+				word(lit(2, 1, "0")),
+				word(lit(2, 3, "foo")),
+				pos(2, 6), // )
+				pos(3, 2), // ;;
 			),
 			case_item(
-				word(lit(5, 1, "1")),
-				word(lit(5, 3, "bar")),
-				pos(5, 6), // )
+				word(lit(4, 1, "1")),
+				word(lit(4, 3, "bar")),
+				pos(4, 6), // )
 				simple_command(
-					word(lit(6, 3, "echo")),
-					word(lit(6, 8, "bar")),
+					word(lit(5, 2, "echo")),
+					word(lit(5, 7, "bar")),
 				),
-				pos(7, 3), // ;;
+				pos(6, 2), // ;;
 			),
 			case_item(
-				pos(8, 1), // (
-				word(lit(8, 2, "2")),
-				word(lit(8, 4, "baz")),
-				pos(8, 7), // )
-				pos(9, 3), // ;;
+				pos(7, 1), // (
+				word(lit(7, 2, "2")),
+				word(lit(7, 4, "baz")),
+				pos(7, 7), // )
+				pos(8, 2), // ;;
 			),
 			case_item(
-				pos(10, 1), // (
-				word(lit(10, 2, "3")),
-				word(lit(10, 4, "qux")),
-				pos(10, 7), // )
+				pos(9, 1), // (
+				word(lit(9, 2, "3")),
+				word(lit(9, 4, "qux")),
+				pos(9, 7), // )
 				simple_command(
-					word(lit(11, 3, "echo")),
-					word(lit(11, 8, "qux")),
+					word(lit(10, 2, "echo")),
+					word(lit(10, 7, "qux")),
 				),
-				pos(12, 3), // ;;
+				pos(11, 2), // ;;
 			),
-			pos(13, 1), // esac
+			pos(12, 1), // esac
 		),
 	},
 	{
@@ -1614,49 +1765,49 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "case word\nin\n0|foo)\n  ;;\n1|bar)\n  echo bar\n  ;;\n(2|baz)\n  ;;\n(3|qux)\n  echo qux\nesac",
+		src: "case word in\n0|foo)\n\t;;\n1|bar)\n\techo bar\n\t;;\n(2|baz)\n\t;;\n(3|qux)\n\techo qux\nesac",
 		cmd: case_clause(
 			pos(1, 1), // case
 			word(lit(1, 6, "word")),
-			pos(2, 1), // in
+			pos(1, 11), // in
 			case_item(
-				word(lit(3, 1, "0")),
-				word(lit(3, 3, "foo")),
-				pos(3, 6), // )
-				pos(4, 3), // ;;
+				word(lit(2, 1, "0")),
+				word(lit(2, 3, "foo")),
+				pos(2, 6), // )
+				pos(3, 2), // ;;
 			),
 			case_item(
-				word(lit(5, 1, "1")),
-				word(lit(5, 3, "bar")),
-				pos(5, 6), // )
+				word(lit(4, 1, "1")),
+				word(lit(4, 3, "bar")),
+				pos(4, 6), // )
 				simple_command(
-					word(lit(6, 3, "echo")),
-					word(lit(6, 8, "bar")),
+					word(lit(5, 2, "echo")),
+					word(lit(5, 7, "bar")),
 				),
-				pos(7, 3), // ;;
+				pos(6, 2), // ;;
 			),
 			case_item(
-				pos(8, 1), // (
-				word(lit(8, 2, "2")),
-				word(lit(8, 4, "baz")),
-				pos(8, 7), // )
-				pos(9, 3), // ;;
+				pos(7, 1), // (
+				word(lit(7, 2, "2")),
+				word(lit(7, 4, "baz")),
+				pos(7, 7), // )
+				pos(8, 2), // ;;
 			),
 			case_item(
-				pos(10, 1), // (
-				word(lit(10, 2, "3")),
-				word(lit(10, 4, "qux")),
-				pos(10, 7), // )
+				pos(9, 1), // (
+				word(lit(9, 2, "3")),
+				word(lit(9, 4, "qux")),
+				pos(9, 7), // )
 				simple_command(
-					word(lit(11, 3, "echo")),
-					word(lit(11, 8, "qux")),
+					word(lit(10, 2, "echo")),
+					word(lit(10, 7, "qux")),
 				),
 			),
-			pos(12, 1), // esac
+			pos(11, 1), // esac
 		),
 	},
 	{
-		src: "case word in\nfoo) ;;\nbar)\n  echo bar ;;\nbaz)\n  echo baz\n  ;;\nesac >/dev/null 2>&1",
+		src: "case word in\nfoo) ;;\nbar)\n\techo bar ;;\nbaz)\n\techo baz\n\t;;\nesac >/dev/null 2>&1",
 		cmd: case_clause(
 			pos(1, 1), // case
 			word(lit(1, 6, "word")),
@@ -1670,19 +1821,19 @@ var parseCommandTests = []struct {
 				word(lit(3, 1, "bar")),
 				pos(3, 4), // )
 				simple_command(
-					word(lit(4, 3, "echo")),
-					word(lit(4, 8, "bar")),
+					word(lit(4, 2, "echo")),
+					word(lit(4, 7, "bar")),
 				),
-				pos(4, 12), // ;;
+				pos(4, 11), // ;;
 			),
 			case_item(
 				word(lit(5, 1, "baz")),
 				pos(5, 4), // )
 				simple_command(
-					word(lit(6, 3, "echo")),
-					word(lit(6, 8, "baz")),
+					word(lit(6, 2, "echo")),
+					word(lit(6, 7, "baz")),
 				),
-				pos(7, 3), // ;;
+				pos(7, 2), // ;;
 			),
 			pos(8, 1), // esac
 			redir(nil, 8, 6, ">", word(lit(8, 7, "/dev/null"))),
@@ -1712,22 +1863,7 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "if true\nthen\n  echo if\nfi",
-		cmd: if_clause(
-			pos(1, 1), // if
-			simple_command(
-				word(lit(1, 4, "true")),
-			),
-			pos(2, 1), // then
-			simple_command(
-				word(lit(3, 3, "echo")),
-				word(lit(3, 8, "if")),
-			),
-			pos(4, 1), // fi
-		),
-	},
-	{
-		src: "if true; then\n  echo if\nfi",
+		src: "if true; then\n\techo if\nfi",
 		cmd: if_clause(
 			pos(1, 1), // if
 			and_or_list(
@@ -1738,14 +1874,29 @@ var parseCommandTests = []struct {
 			),
 			pos(1, 10), // then
 			simple_command(
-				word(lit(2, 3, "echo")),
-				word(lit(2, 8, "if")),
+				word(lit(2, 2, "echo")),
+				word(lit(2, 7, "if")),
 			),
 			pos(3, 1), // fi
 		),
 	},
 	{
-		src: "if false; then\n  echo if\nelif true; then\n  echo elif\nfi",
+		src: "if true\nthen\n\techo if\nfi",
+		cmd: if_clause(
+			pos(1, 1), // if
+			simple_command(
+				word(lit(1, 4, "true")),
+			),
+			pos(2, 1), // then
+			simple_command(
+				word(lit(3, 2, "echo")),
+				word(lit(3, 7, "if")),
+			),
+			pos(4, 1), // fi
+		),
+	},
+	{
+		src: "if false; then\n\techo if\nelif true; then\n\techo elif\nfi",
 		cmd: if_clause(
 			pos(1, 1), // if
 			and_or_list(
@@ -1756,8 +1907,8 @@ var parseCommandTests = []struct {
 			),
 			pos(1, 11), // then
 			simple_command(
-				word(lit(2, 3, "echo")),
-				word(lit(2, 8, "if")),
+				word(lit(2, 2, "echo")),
+				word(lit(2, 7, "if")),
 			),
 			elif_clause(
 				pos(3, 1), // elif
@@ -1769,15 +1920,15 @@ var parseCommandTests = []struct {
 				),
 				pos(3, 12), // then
 				simple_command(
-					word(lit(4, 3, "echo")),
-					word(lit(4, 8, "elif")),
+					word(lit(4, 2, "echo")),
+					word(lit(4, 7, "elif")),
 				),
 			),
 			pos(5, 1), // fi
 		),
 	},
 	{
-		src: "if false; then\n  echo if\nelse\n  echo else\nfi",
+		src: "if false; then\n\techo if\nelse\n\techo else\nfi",
 		cmd: if_clause(
 			pos(1, 1), // if
 			and_or_list(
@@ -1788,21 +1939,21 @@ var parseCommandTests = []struct {
 			),
 			pos(1, 11), // then
 			simple_command(
-				word(lit(2, 3, "echo")),
-				word(lit(2, 8, "if")),
+				word(lit(2, 2, "echo")),
+				word(lit(2, 7, "if")),
 			),
 			else_clause(
 				pos(3, 1), // else
 				simple_command(
-					word(lit(4, 3, "echo")),
-					word(lit(4, 8, "else")),
+					word(lit(4, 2, "echo")),
+					word(lit(4, 7, "else")),
 				),
 			),
 			pos(5, 1), // fi
 		),
 	},
 	{
-		src: "if false; then\n  echo if\nelif false; then\n  echo elif\nelse\n  echo else\nfi >/dev/null 2>&1",
+		src: "if false; then\n\techo if\nelif false; then\n\techo elif\nelse\n\techo else\nfi >/dev/null 2>&1",
 		cmd: if_clause(
 			pos(1, 1), // if
 			and_or_list(
@@ -1813,8 +1964,8 @@ var parseCommandTests = []struct {
 			),
 			pos(1, 11), // then
 			simple_command(
-				word(lit(2, 3, "echo")),
-				word(lit(2, 8, "if")),
+				word(lit(2, 2, "echo")),
+				word(lit(2, 7, "if")),
 			),
 			elif_clause(
 				pos(3, 1), // elif
@@ -1826,15 +1977,15 @@ var parseCommandTests = []struct {
 				),
 				pos(3, 13), // then
 				simple_command(
-					word(lit(4, 3, "echo")),
-					word(lit(4, 8, "elif")),
+					word(lit(4, 2, "echo")),
+					word(lit(4, 7, "elif")),
 				),
 			),
 			else_clause(
 				pos(5, 1), // else
 				simple_command(
-					word(lit(6, 3, "echo")),
-					word(lit(6, 8, "else")),
+					word(lit(6, 2, "echo")),
+					word(lit(6, 7, "else")),
 				),
 			),
 			pos(7, 1), // fi
@@ -1865,7 +2016,7 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "while true\ndo\n  echo while\ndone",
+		src: "while true\ndo\n\techo while\ndone",
 		cmd: while_clause(
 			pos(1, 1), // while
 			simple_command(
@@ -1873,14 +2024,14 @@ var parseCommandTests = []struct {
 			),
 			pos(2, 1), // do
 			simple_command(
-				word(lit(3, 3, "echo")),
-				word(lit(3, 8, "while")),
+				word(lit(3, 2, "echo")),
+				word(lit(3, 7, "while")),
 			),
 			pos(4, 1), // done
 		),
 	},
 	{
-		src: "while true; do\n  echo while\ndone >/dev/null 2>&1",
+		src: "while true; do\n\techo while\ndone >/dev/null 2>&1",
 		cmd: while_clause(
 			pos(1, 1), // while
 			and_or_list(
@@ -1891,8 +2042,8 @@ var parseCommandTests = []struct {
 			),
 			pos(1, 13), // do
 			simple_command(
-				word(lit(2, 3, "echo")),
-				word(lit(2, 8, "while")),
+				word(lit(2, 2, "echo")),
+				word(lit(2, 7, "while")),
 			),
 			pos(3, 1), // done
 			redir(nil, 3, 6, ">", word(lit(3, 7, "/dev/null"))),
@@ -1922,7 +2073,7 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "until false\ndo\n  echo until\ndone",
+		src: "until false\ndo\n\techo until\ndone",
 		cmd: until_clause(
 			pos(1, 1), // until
 			simple_command(
@@ -1930,14 +2081,14 @@ var parseCommandTests = []struct {
 			),
 			pos(2, 1), // do
 			simple_command(
-				word(lit(3, 3, "echo")),
-				word(lit(3, 8, "until")),
+				word(lit(3, 2, "echo")),
+				word(lit(3, 7, "until")),
 			),
 			pos(4, 1), // done
 		),
 	},
 	{
-		src: "until false; do\n  echo until\ndone >/dev/null 2>&1",
+		src: "until false; do\n\techo until\ndone >/dev/null 2>&1",
 		cmd: until_clause(
 			pos(1, 1), // until
 			and_or_list(
@@ -1948,8 +2099,8 @@ var parseCommandTests = []struct {
 			),
 			pos(1, 14), // do
 			simple_command(
-				word(lit(2, 3, "echo")),
-				word(lit(2, 8, "until")),
+				word(lit(2, 2, "echo")),
+				word(lit(2, 7, "until")),
 			),
 			pos(3, 1), // done
 			redir(nil, 3, 6, ">", word(lit(3, 7, "/dev/null"))),
@@ -1977,7 +2128,7 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "foo()\n{\n  echo foo\n}",
+		src: "foo()\n{\n\techo foo\n}",
 		cmd: func_def(
 			lit(1, 1, "foo"),
 			pos(1, 4), // (
@@ -1985,15 +2136,15 @@ var parseCommandTests = []struct {
 			group(
 				pos(2, 1), // {
 				simple_command(
-					word(lit(3, 3, "echo")),
-					word(lit(3, 8, "foo")),
+					word(lit(3, 2, "echo")),
+					word(lit(3, 7, "foo")),
 				),
 				pos(4, 1), // }
 			),
 		),
 	},
 	{
-		src: "foo() {\n  echo foo\n} >/dev/null 2>&1",
+		src: "foo() {\n\techo foo\n} >/dev/null 2>&1",
 		cmd: func_def(
 			lit(1, 1, "foo"),
 			pos(1, 4), // (
@@ -2001,8 +2152,8 @@ var parseCommandTests = []struct {
 			group(
 				pos(1, 7), // {
 				simple_command(
-					word(lit(2, 3, "echo")),
-					word(lit(2, 8, "foo")),
+					word(lit(2, 2, "echo")),
+					word(lit(2, 7, "foo")),
 				),
 				pos(3, 1), // }
 				redir(nil, 3, 3, ">", word(lit(3, 4, "/dev/null"))),
@@ -2420,6 +2571,9 @@ func heredoc(n *ast.Lit, line, col int, op string, word, heredoc, delim ast.Word
 }
 
 func word(w ...ast.WordPart) ast.Word {
+	if len(w) == 0 {
+		return ast.Word{}
+	}
 	return ast.Word(w)
 }
 
@@ -2906,21 +3060,23 @@ func TestOpen(t *testing.T) {
 func TestReadError(t *testing.T) {
 	for _, data := range []string{
 		"",
-		"\\",
+		`\`,
 		"'",
 		`"`,
 		`"\`,
 		"$",
 		"$_",
 		"${",
+		"${#",
+		"${#-",
 		"${_",
 		"${@",
 		"${_-",
-		"cat <<EOF\n\\",
-		"for name;",
-		"for name\n",
-		"for name in;",
-		"for name in\n",
+		"_ <<_\n\\",
+		"for _;",
+		"for _\n",
+		"for _ in;",
+		"for _ in\n",
 	} {
 		src := &reader{
 			data: data,

@@ -582,7 +582,7 @@ func (w *Lit) End() Pos {
 }
 func (w *Quote) End() Pos {
 	end := w.Value.End()
-	if end.IsZero() || w.Tok == "\\" {
+	if end.IsZero() || w.Tok == `\` {
 		return end
 	}
 	return end.shift(1)

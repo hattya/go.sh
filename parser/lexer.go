@@ -51,11 +51,11 @@ var (
 		LAE:      "((",
 		RAE:      "))",
 		BREAK:    ";;",
-		int('|'): "|",
-		int('('): "(",
-		int(')'): ")",
-		int('<'): "<",
-		int('>'): ">",
+		'|':      "|",
+		'(':      "(",
+		')':      ")",
+		'<':      "<",
+		'>':      ">",
 		CLOBBER:  ">|",
 		APPEND:   ">>",
 		HEREDOC:  "<<",
@@ -63,8 +63,8 @@ var (
 		DUPIN:    "<&",
 		DUPOUT:   ">&",
 		RDWR:     "<>",
-		int('&'): "&",
-		int(';'): ";",
+		'&':      "&",
+		';':      ";",
 	}
 	words = map[string]int{
 		"!":     Bang,
@@ -105,8 +105,6 @@ var (
 	errParamExp = errors.New("syntax error: invalid parameter expansion")
 )
 
-type action func() action
-
 type lexer struct {
 	name     string
 	r        io.RuneScanner
@@ -146,8 +144,7 @@ func newLexer(name string, r io.RuneScanner) *lexer {
 }
 
 func (l *lexer) Lex(lval *yySymType) int {
-	tok := <-l.token
-	switch tok := tok.(type) {
+	switch tok := (<-l.token).(type) {
 	case token:
 		lval.token = tok
 		return tok.typ
@@ -337,11 +334,10 @@ func (l *lexer) lexArithEval() action {
 	// push
 	l.stack = append(l.stack, RAE)
 	for {
-		if tok := l.scanArithExpr(); tok == WORD {
-			l.emit(WORD)
-		} else {
+		if tok := l.scanArithExpr(); tok != WORD {
 			return l.lexToken(tok)
 		}
+		l.emit(WORD)
 	}
 }
 
@@ -369,12 +365,10 @@ func (l *lexer) lexFor() action {
 		if !l.linebreak() {
 			return nil
 		}
-		switch tok = l.translate(l.scanToken()); tok {
-		case Do:
+		if tok = l.translate(l.scanToken()); tok == Do {
 			goto Do
-		default:
-			return l.lexToken(tok)
 		}
+		return l.lexToken(tok)
 	case '\n':
 		l.emit('\n')
 		if !l.linebreak() {
@@ -431,20 +425,18 @@ func (l *lexer) isName(s string) bool {
 func (l *lexer) lexCase() action {
 	l.emit(Case)
 	// word
-	if tok := l.scanToken(); tok == WORD {
-		l.emit(WORD)
-	} else {
+	if tok := l.scanToken(); tok != WORD {
 		return l.lexToken(tok)
 	}
+	l.emit(WORD)
 	if !l.linebreak() {
 		return nil
 	}
 	// in
-	if tok := l.scanToken(); l.translate(tok) == In {
-		l.emit(In)
-	} else {
+	if tok := l.scanToken(); l.translate(tok) != In {
 		return l.lexToken(tok)
 	}
+	l.emit(In)
 	if !l.linebreak() {
 		return nil
 	}
@@ -556,13 +548,12 @@ func (l *lexer) lexDo() action {
 
 func (l *lexer) lexFuncDef(_ int) action {
 	l.emit('(')
-	if tok := l.scanToken(); tok == ')' {
-		l.emit(')')
-		if !l.linebreak() {
-			return nil
-		}
-	} else {
+	if tok := l.scanToken(); tok != ')' {
 		return l.lexToken(tok)
+	}
+	l.emit(')')
+	if !l.linebreak() {
+		return nil
 	}
 	return l.lexCmd(l.scanToken())
 }
@@ -697,7 +688,7 @@ func (l *lexer) lexHeredoc() action {
 						}
 					}
 				} else {
-					l.b.WriteRune('\n')
+					l.b.WriteByte('\n')
 					l.lit()
 				}
 				l.mark(0)
@@ -705,8 +696,7 @@ func (l *lexer) lexHeredoc() action {
 				switch r {
 				case '\\':
 					// escape character
-					r, err = l.read()
-					if err != nil {
+					if r, err = l.read(); err != nil {
 						goto Error
 					}
 					l.esc(r)
@@ -760,13 +750,12 @@ func (l *lexer) scanArithExpr() int {
 				l.unread()
 				return WORD
 			}
-			if l.scanOp(r) == RAE {
-				return RAE
-			} else {
-				l.b.WriteRune(r)
+			if l.scanOp(r) != RAE {
+				l.b.WriteByte(byte(r))
 				l.lit()
 				return WORD
 			}
+			return RAE
 		case '\\', '\'', '"':
 			// quoting
 			l.lit()
@@ -1086,8 +1075,7 @@ func (l *lexer) scanQuote(r rune) bool {
 			switch r {
 			case '\\':
 				// escape character
-				r, err = l.read()
-				if err != nil {
+				if r, err = l.read(); err != nil {
 					break QQ
 				}
 				l.esc(r)
@@ -1132,7 +1120,7 @@ func (l *lexer) scanParamExp() bool {
 	r, err := l.read()
 	if err != nil {
 		if err == io.EOF {
-			l.b.WriteRune('$')
+			l.b.WriteByte('$')
 			return true
 		}
 		return false
@@ -1180,7 +1168,7 @@ func (l *lexer) scanParamExp() bool {
 		default:
 			// continue as WORD
 			l.unread()
-			l.b.WriteRune('$')
+			l.b.WriteByte('$')
 			l.mark(-1)
 			return true
 		}
@@ -1203,63 +1191,63 @@ func (l *lexer) scanParamExpInBraces() bool {
 	l.mark(0)
 	// inside braces
 	r, err := l.read()
-	if err == nil {
-		if r == '#' {
-			if r, err = l.read(); err == nil {
-				switch r {
-				case ':', '=', '+', '%', '}':
-					// special parameter
-					pe.Name = &ast.Lit{
-						ValuePos: l.pos,
-						Value:    "#",
-					}
-					l.mark(-1)
-					goto Op
-				case '#', '?', '-':
-					v := r
-					if r, err = l.read(); err == nil {
-						l.unread()
-						if r != '}' {
-							// special parameter
-							pe.Name = &ast.Lit{
-								ValuePos: l.pos,
-								Value:    "#",
-							}
-							l.mark(-1)
-							r = v
-							goto Op
-						} else {
-							// string length
-							pe.OpPos = l.pos
-							pe.Op = "#"
-							l.mark(-1)
-							pe.Name = &ast.Lit{
-								ValuePos: l.pos,
-								Value:    string(v),
-							}
-							goto Rbrace
-						}
-					}
-				default:
-					// string length
-					l.unread()
-					pe.OpPos = l.pos
-					pe.Op = "#"
-					l.mark(0)
-				}
-			}
-		} else {
-			l.unread()
-		}
-	}
-	if err != nil {
+	switch {
+	case err != nil:
 		goto Error
+	case r == '#':
+		if r, err = l.read(); err != nil {
+			goto Error
+		}
+		switch r {
+		case ':', '=', '+', '%', '}':
+			// special parameter
+			pe.Name = &ast.Lit{
+				ValuePos: l.pos,
+				Value:    "#",
+			}
+			l.mark(-1)
+			goto Op
+		case '#', '?', '-':
+			v := r
+			if r, err = l.read(); err != nil {
+				goto Error
+			}
+			l.unread()
+			if r != '}' {
+				// special parameter
+				pe.Name = &ast.Lit{
+					ValuePos: l.pos,
+					Value:    "#",
+				}
+				l.mark(-1)
+				r = v
+				goto Op
+			} else {
+				// string length
+				pe.OpPos = l.pos
+				pe.Op = "#"
+				l.mark(-1)
+				pe.Name = &ast.Lit{
+					ValuePos: l.pos,
+					Value:    string(v),
+				}
+				goto Rbrace
+			}
+		default:
+			// string length
+			l.unread()
+			pe.OpPos = l.pos
+			pe.Op = "#"
+			l.mark(0)
+		}
+	default:
+		l.unread()
 	}
 	// name
 	switch r, _ = l.read(); r {
 	case '@', '*', '?', '-', '$', '!', '0':
 		// special parameter
-		l.b.WriteRune(r)
+		l.b.WriteByte(byte(r))
 	default:
 		// XBD Name
 		for l.isNameRune(r) {
@@ -1281,41 +1269,41 @@ func (l *lexer) scanParamExpInBraces() bool {
 	l.b.Reset()
 	l.mark(0)
 	// op
-	r, err = l.read()
+	if r, err = l.read(); err != nil {
+		goto Error
+	}
 Op:
-	if err == nil {
-		switch r {
-		case ':':
-			if r, err = l.read(); err == nil {
-				switch r {
-				case '-', '=', '?', '+':
-					pe.Op = ":" + string(r)
-				default:
+	switch r {
+	case ':':
+		if r, err = l.read(); err == nil {
+			switch r {
+			case '-', '=', '?', '+':
+				pe.Op = ":" + string(r)
+			default:
+				l.unread()
+				err = errParamExp
+			}
+		}
+	case '-', '=', '?', '+':
+		pe.Op = string(r)
+	case '%', '#':
+		pe.Op = string(r)
+		if r, err = l.read(); err == nil {
+			switch r {
+			case '%', '#':
+				if s := string(r); pe.Op == s {
+					pe.Op += s
+				} else {
 					l.unread()
 					err = errParamExp
 				}
+			default:
+				l.unread()
 			}
-		case '-', '=', '?', '+':
-			pe.Op = string(r)
-		case '%', '#':
-			pe.Op = string(r)
-			if r, err = l.read(); err == nil {
-				switch r {
-				case '%', '#':
-					if s := string(r); pe.Op == s {
-						pe.Op += s
-					} else {
-						l.unread()
-						err = errParamExp
-					}
-				default:
-					l.unread()
-				}
-			}
-		default:
-			l.unread()
-			goto Rbrace
 		}
+	default:
+		l.unread()
+		goto Rbrace
 	}
 	switch {
 	case err != nil:
@@ -1453,7 +1441,8 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 }
 
 func (l *lexer) linebreak() bool {
-	for hash := false; ; {
+	var hash bool
+	for {
 		r, err := l.read()
 		if err != nil {
 			l.comment()
@@ -1507,7 +1496,7 @@ func (l *lexer) esc(r rune) {
 		if r != '\n' {
 			l.word = append(l.word, &ast.Quote{
 				TokPos: ast.NewPos(l.line, l.col-2),
-				Tok:    "\\",
+				Tok:    `\`,
 				Value: ast.Word{
 					&ast.Lit{
 						ValuePos: ast.NewPos(l.line, l.col-1),
@@ -1518,7 +1507,7 @@ func (l *lexer) esc(r rune) {
 		}
 		l.mark(0)
 	default:
-		l.b.WriteRune('\\')
+		l.b.WriteByte('\\')
 		l.b.WriteRune(r)
 	}
 }
@@ -1596,16 +1585,7 @@ func (l *lexer) Error(e string) {
 	}
 }
 
-// Error represents a syntax error
-type Error struct {
-	Name string
-	Pos  ast.Pos
-	Msg  string
-}
-
-func (e Error) Error() string {
-	return fmt.Sprintf("%v:%v:%v: %s", e.Name, e.Pos.Line(), e.Pos.Col(), e.Msg)
-}
+type action func() action
 
 type token struct {
 	typ int
@@ -1672,4 +1652,15 @@ func (h *heredoc) pop() *ast.Redir {
 		<-h.c
 	}
 	return nil
+}
+
+// Error represents a syntax error
+type Error struct {
+	Name string
+	Pos  ast.Pos
+	Msg  string
+}
+
+func (e Error) Error() string {
+	return fmt.Sprintf("%v:%v:%v: %s", e.Name, e.Pos.Line(), e.Pos.Col(), e.Msg)
 }

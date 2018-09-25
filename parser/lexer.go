@@ -333,12 +333,12 @@ func (l *lexer) lexArithEval() action {
 	l.emit(LAE)
 	// push
 	l.stack = append(l.stack, RAE)
-	for {
-		if tok := l.scanArithExpr(); tok != WORD {
-			return l.lexToken(tok)
-		}
+	tok := l.scanArithExpr()
+	if tok == RAE {
 		l.emit(WORD)
+		l.mark(-2)
 	}
+	return l.lexToken(tok)
 }
 
 func (l *lexer) lexFor() action {
@@ -746,16 +746,11 @@ func (l *lexer) scanArithExpr() int {
 		switch r {
 		case '(', ')':
 			// operator
-			if l.lit(); len(l.word) != 0 {
-				l.unread()
-				return WORD
-			}
-			if l.scanOp(r) != RAE {
-				l.b.WriteByte(byte(r))
+			if l.scanOp(r) == RAE {
 				l.lit()
-				return WORD
+				return RAE
 			}
-			return RAE
+			l.b.WriteByte(byte(r))
 		case '\\', '\'', '"':
 			// quoting
 			l.lit()
@@ -782,9 +777,7 @@ func (l *lexer) scanArithExpr() int {
 			fallthrough
 		case '\n':
 			// <newline>
-			if l.lit(); len(l.word) != 0 {
-				return WORD
-			}
+			l.lit()
 			l.mark(0)
 		default:
 			l.b.WriteRune(r)

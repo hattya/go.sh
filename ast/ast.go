@@ -216,9 +216,9 @@ type (
 
 	// ArithEval represents an arithmetic evaluation.
 	ArithEval struct {
-		Left  Pos    // position of "((" operator
-		Expr  []Word // expression
-		Right Pos    // position of "))" operator
+		Left  Pos  // position of "((" operator
+		Expr  Word // expression
+		Right Pos  // position of "))" operator
 	}
 
 	// ForClause represents a for loop.
@@ -550,9 +550,9 @@ type (
 
 	// ArithExp represents an arithmetic expansion.
 	ArithExp struct {
-		Left  Pos    // position of "$(("
-		Expr  []Word // expression
-		Right Pos    // position of "))"
+		Left  Pos  // position of "$(("
+		Expr  Word // expression
+		Right Pos  // position of "))"
 	}
 )
 

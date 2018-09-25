@@ -1137,12 +1137,10 @@ var wordTests = []struct {
 	{
 		&ast.ArithExp{
 			Left: ast.NewPos(1, 1),
-			Expr: []ast.Word{
-				{
-					&ast.Lit{
-						ValuePos: ast.NewPos(1, 4),
-						Value:    "x",
-					},
+			Expr: ast.Word{
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 4),
+					Value:    "x",
 				},
 			},
 			Right: ast.NewPos(1, 5),
@@ -1152,12 +1150,10 @@ var wordTests = []struct {
 	{
 		&ast.ArithExp{
 			Left: ast.NewPos(1, 1),
-			Expr: []ast.Word{
-				{
-					&ast.Lit{
-						ValuePos: ast.NewPos(2, 2),
-						Value:    "x",
-					},
+			Expr: ast.Word{
+				&ast.Lit{
+					ValuePos: ast.NewPos(2, 2),
+					Value:    "x",
 				},
 			},
 			Right: ast.NewPos(3, 1),
@@ -1167,19 +1163,17 @@ var wordTests = []struct {
 	{
 		&ast.ArithExp{
 			Left: ast.NewPos(1, 1),
-			Expr: []ast.Word{
-				{
-					&ast.ParamExp{
-						Dollar: ast.NewPos(1, 4),
-						Name: &ast.Lit{
-							ValuePos: ast.NewPos(1, 5),
-							Value:    "x",
-						},
+			Expr: ast.Word{
+				&ast.ParamExp{
+					Dollar: ast.NewPos(1, 4),
+					Name: &ast.Lit{
+						ValuePos: ast.NewPos(1, 5),
+						Value:    "x",
 					},
-					&ast.Lit{
-						ValuePos: ast.NewPos(1, 6),
-						Value:    "-1",
-					},
+				},
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 6),
+					Value:    "-1",
 				},
 			},
 			Right: ast.NewPos(1, 8),
@@ -1189,27 +1183,21 @@ var wordTests = []struct {
 	{
 		&ast.ArithExp{
 			Left: ast.NewPos(1, 1),
-			Expr: []ast.Word{
-				{
-					&ast.ParamExp{
-						Dollar: ast.NewPos(1, 4),
-						Name: &ast.Lit{
-							ValuePos: ast.NewPos(1, 5),
-							Value:    "x",
-						},
+			Expr: ast.Word{
+				&ast.ParamExp{
+					Dollar: ast.NewPos(1, 4),
+					Name: &ast.Lit{
+						ValuePos: ast.NewPos(1, 5),
+						Value:    "x",
 					},
 				},
-				{
-					&ast.Lit{
-						ValuePos: ast.NewPos(1, 7),
-						Value:    "-",
-					},
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 7),
+					Value:    "-",
 				},
-				{
-					&ast.Lit{
-						ValuePos: ast.NewPos(1, 9),
-						Value:    "1",
-					},
+				&ast.Lit{
+					ValuePos: ast.NewPos(1, 9),
+					Value:    "1",
 				},
 			},
 			Right: ast.NewPos(1, 10),

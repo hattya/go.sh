@@ -204,9 +204,7 @@ var parseCommandTests = []struct {
 				lit(1, 7, "1 + 2 = "),
 				arith_exp(
 					pos(1, 15), // left
-					word(lit(1, 18, "1")),
-					word(lit(1, 20, "+")),
-					word(lit(1, 22, "2")),
+					word(lit(1, 18, "1"), lit(1, 20, "+"), lit(1, 22, "2")),
 					pos(1, 23), // right
 				),
 			))),
@@ -626,33 +624,32 @@ var parseCommandTests = []struct {
 			word(lit(1, 1, "echo")),
 			word(arith_exp(
 				pos(1, 6), // left
-				word(quote(1, 9, `\`, word(lit(1, 10, "x")))),
-				word(lit(1, 12, "=")),
-				word(lit(1, 14, "(")),
-				word(lit(1, 15, "(")),
-				word(lit(1, 16, "1")),
-				word(lit(1, 18, "+")),
-				word(cmd_subst(
-					true,       // dollar
-					pos(1, 21), // left
-					simple_command(
-						word(lit(1, 22, "echo")),
-						word(lit(1, 27, "2")),
+				word(
+					quote(1, 9, `\`, word(lit(1, 10, "x"))),
+					lit(1, 12, "="),
+					lit(1, 14, "((1"),
+					lit(1, 18, "+"),
+					cmd_subst(
+						true,       // dollar
+						pos(1, 21), // left
+						simple_command(
+							word(lit(1, 22, "echo")),
+							word(lit(1, 27, "2")),
+						),
+						pos(1, 28), // right
 					),
-					pos(1, 28), // right
-				)),
-				word(lit(1, 29, ")")),
-				word(lit(1, 30, ")")),
-				word(lit(1, 32, "*")),
-				word(cmd_subst(
-					false,      // dollar
-					pos(1, 34), // left
-					simple_command(
-						word(lit(1, 35, "echo")),
-						word(lit(1, 40, "3")),
+					lit(1, 29, "))"),
+					lit(1, 32, "*"),
+					cmd_subst(
+						false,      // dollar
+						pos(1, 34), // left
+						simple_command(
+							word(lit(1, 35, "echo")),
+							word(lit(1, 40, "3")),
+						),
+						pos(1, 41), // right
 					),
-					pos(1, 41), // right
-				)),
+				),
 				pos(1, 42), // right
 			)),
 		),
@@ -1354,9 +1351,7 @@ var parseCommandTests = []struct {
 		src: "((x -= 1))",
 		cmd: arith_eval(
 			pos(1, 1), // left
-			word(lit(1, 3, "x")),
-			word(lit(1, 5, "-=")),
-			word(lit(1, 8, "1")),
+			word(lit(1, 3, "x"), lit(1, 5, "-="), lit(1, 8, "1")),
 			pos(1, 9), // right
 		),
 	},
@@ -1364,9 +1359,7 @@ var parseCommandTests = []struct {
 		src: "((\n\tx += 1\n))",
 		cmd: arith_eval(
 			pos(1, 1), // left
-			word(lit(2, 2, "x")),
-			word(lit(2, 4, "+=")),
-			word(lit(2, 7, "1")),
+			word(lit(2, 2, "x"), lit(2, 4, "+="), lit(2, 7, "1")),
 			pos(3, 1), // right
 		),
 	},
@@ -1374,9 +1367,7 @@ var parseCommandTests = []struct {
 		src: "((x <<= 1)) >/dev/null 2>&1",
 		cmd: arith_eval(
 			pos(1, 1), // left
-			word(lit(1, 3, "x")),
-			word(lit(1, 5, "<<=")),
-			word(lit(1, 9, "1")),
+			word(lit(1, 3, "x"), lit(1, 5, "<<="), lit(1, 9, "1")),
 			pos(1, 10), // right
 			redir(nil, 1, 13, ">", word(lit(1, 14, "/dev/null"))),
 			redir(lit(1, 24, "2"), 1, 25, ">&", word(lit(1, 27, "1"))),
@@ -2314,7 +2305,7 @@ func arith_eval(args ...interface{}) *ast.Cmd {
 			}
 			pos++
 		case ast.Word:
-			x.Expr = append(x.Expr, a)
+			x.Expr = a
 		case *ast.Redir:
 			cmd.Redirs = append(cmd.Redirs, a)
 		}
@@ -2642,7 +2633,7 @@ func arith_exp(args ...interface{}) *ast.ArithExp {
 			}
 			pos++
 		case ast.Word:
-			x.Expr = append(x.Expr, a)
+			x.Expr = a
 		}
 	}
 	return x
@@ -2755,7 +2746,7 @@ var parseErrorTests = []struct {
 	},
 	{
 		src: "$((x)",
-		err: ":1:5: syntax error: reached EOF while looking for matching '))'",
+		err: ":1:1: syntax error: reached EOF while looking for matching '))'",
 	},
 	{
 		src: "$(('q",

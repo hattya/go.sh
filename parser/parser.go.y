@@ -285,7 +285,7 @@ group:
 		}
 
 arith_eval:
-		LAE word_list RAE
+		LAE WORD RAE
 		{
 			$$ = &ast.ArithEval{
 				Left:  $1.pos,

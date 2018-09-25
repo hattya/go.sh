@@ -679,18 +679,20 @@ func (p *printer) arithExp(w *ast.ArithExp) {
 	p.arithExpr(w.Left.Line() == w.Right.Line(), "$((", w.Expr)
 }
 
-func (p *printer) arithExpr(list bool, left string, x []ast.Word) {
+func (p *printer) arithExpr(list bool, left string, x ast.Word) {
 	p.w.WriteString(left)
 	if !list {
 		p.lv++
 		p.newline()
 		p.indent()
 	}
-	for i, w := range x {
-		if i > 0 {
+	end := x.Pos()
+	for _, w := range x {
+		if pos := w.Pos(); end.Line() != pos.Line() || end.Col() != pos.Col() {
 			p.space()
 		}
-		p.word(w)
+		p.wordPart(w)
+		end = w.End()
 	}
 	if !list {
 		p.lv--

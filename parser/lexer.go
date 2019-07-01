@@ -13,7 +13,6 @@
 package parser
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -103,7 +102,7 @@ type lexer struct {
 	paren     int
 	heredoc   heredoc
 	word      ast.Word
-	b         bytes.Buffer
+	b         strings.Builder
 	line      int
 	col       int
 	prevCol   int
@@ -148,8 +147,8 @@ func (l *lexer) run() {
 }
 
 func (l *lexer) lexPipeline() action {
-	tok := l.translate(l.scanToken())
-	if tok == Bang {
+	tok := l.scanToken()
+	if l.translate(tok) == Bang {
 		l.emit(Bang)
 		tok = l.scanToken()
 	}
@@ -160,9 +159,9 @@ func (l *lexer) lexCmd(tok int) action {
 	tok = l.translate(tok)
 	switch tok {
 	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR, IO_NUMBER:
-		return l.lexSimpleCmd(tok)
+		return l.lexCmdPrefix(tok)
 	case WORD:
-		lex := l.lexSimpleCmd
+		lex := l.lexCmdPrefix
 		if len(l.word) == 1 && !l.isAssign() {
 			if w, ok := l.word[0].(*ast.Lit); ok && l.isName(w.Value) {
 				// lookahead
@@ -222,26 +221,6 @@ func (l *lexer) lexCmd(tok int) action {
 	return l.lexToken(tok)
 }
 
-// translate translates a WORD token to a reserved word token if it is.
-func (l *lexer) translate(tok int) int {
-	if tok == WORD && len(l.word) == 1 {
-		if w, ok := l.word[0].(*ast.Lit); ok {
-			if tok, ok := words[w.Value]; ok {
-				return tok
-			}
-		}
-	}
-	return tok
-}
-
-func (l *lexer) lexSimpleCmd(tok int) action {
-	if tok == WORD && !l.isAssign() {
-		l.emit(WORD)
-		return l.lexCmdSuffix
-	}
-	return l.lexCmdPrefix(tok)
-}
-
 func (l *lexer) lexCmdPrefix(tok int) action {
 	switch tok {
 	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR:
@@ -266,6 +245,16 @@ Prefix:
 	return l.lexCmdPrefix(l.scanToken())
 }
 
+// isAssign reports whether the current word is ASSIGNMENT_WORD.
+func (l *lexer) isAssign() bool {
+	if w, ok := l.word[0].(*ast.Lit); ok {
+		if i := strings.IndexRune(w.Value, '='); i > 0 {
+			return l.isName(w.Value[:i])
+		}
+	}
+	return false
+}
+
 func (l *lexer) lexCmdSuffix() action {
 	tok := l.scanToken()
 	switch tok {
@@ -282,19 +271,6 @@ func (l *lexer) lexCmdSuffix() action {
 Suffix:
 	l.emit(tok)
 	return l.lexCmdSuffix
-}
-
-// isAssign reports whether the current word is ASSIGNMENT_WORD.
-func (l *lexer) isAssign() bool {
-	w, ok := l.word[0].(*ast.Lit)
-	if !ok {
-		return false
-	}
-	i := strings.IndexRune(w.Value, '=')
-	if i < 1 {
-		return false
-	}
-	return l.isName(w.Value[:i])
 }
 
 func (l *lexer) lexSubshell() action {
@@ -467,6 +443,18 @@ func (l *lexer) lexCaseBreak() action {
 	return l.lexCaseItem
 }
 
+// translate translates a WORD token to a reserved word token if it is.
+func (l *lexer) translate(tok int) int {
+	if tok == WORD && len(l.word) == 1 {
+		if w, ok := l.word[0].(*ast.Lit); ok {
+			if tok, ok := words[w.Value]; ok {
+				return tok
+			}
+		}
+	}
+	return tok
+}
+
 func (l *lexer) lexIf() action {
 	l.emit(If)
 	// push
@@ -606,13 +594,10 @@ Redir:
 }
 
 func (l *lexer) lexHeredoc() action {
-	var b bytes.Buffer
 	find := func(r *ast.Redir, delim string) bool {
 		for i := len(l.word) - 1; i >= 0; i-- {
 			if l.word[i].Pos().Col() == 1 {
-				b.Reset()
-				printer.Fprint(&b, l.word[i:])
-				if s := b.String(); strings.ContainsRune(s, '\n') {
+				if s := l.print(l.word[i:]); strings.ContainsRune(s, '\n') {
 					break
 				} else if s == delim {
 					r.Heredoc = l.word[:i]
@@ -638,9 +623,7 @@ func (l *lexer) lexHeredoc() action {
 			}
 		}
 		// token → string
-		b.Reset()
-		printer.Fprint(&b, word)
-		delim := b.String()
+		delim := l.print(word)
 	Heredoc:
 		for {
 			r, err := l.read()
@@ -775,9 +758,7 @@ func (l *lexer) scanRedir(tok int) int {
 	}
 	tok = l.scanToken()
 	if tok == WORD && heredoc {
-		var b bytes.Buffer
-		printer.Fprint(&b, l.word)
-		if strings.ContainsRune(b.String(), '\n') {
+		if strings.ContainsRune(l.print(l.word), '\n') {
 			l.last.Store(l.word.Pos())
 			l.Error(`syntax error: here-document delimiter contains '\n'`)
 			return -1
@@ -785,6 +766,12 @@ func (l *lexer) scanRedir(tok int) int {
 		l.heredoc.inc()
 	}
 	return tok
+}
+
+func (l *lexer) print(w ast.Word) string {
+	defer l.b.Reset()
+	printer.Fprint(&l.b, w)
+	return l.b.String()
 }
 
 func (l *lexer) scanToken() int {
@@ -885,12 +872,12 @@ func (l *lexer) scanToken() int {
 	}
 }
 
-func (l *lexer) scanOp(r rune) int {
-	op := -1
+func (l *lexer) scanOp(r rune) (op int) {
+	var err error
 	switch r {
 	case '&':
 		op = int('&')
-		if r, _ = l.read(); l.err == nil {
+		if r, err = l.read(); err == nil {
 			if r == '&' {
 				op = AND
 			} else {
@@ -901,7 +888,7 @@ func (l *lexer) scanOp(r rune) int {
 		op = int('(')
 		l.paren++
 		if l.paren == 1 {
-			if r, _ = l.read(); l.err == nil {
+			if r, err = l.read(); err == nil {
 				if r == '(' {
 					op = LAE
 					l.paren++
@@ -915,7 +902,7 @@ func (l *lexer) scanOp(r rune) int {
 		op = int(')')
 		l.paren--
 		if l.arithExpr && l.paren == 1 {
-			if r, _ = l.read(); l.err == nil {
+			if r, err = l.read(); err == nil {
 				if r == ')' {
 					op = RAE
 					l.paren--
@@ -927,7 +914,7 @@ func (l *lexer) scanOp(r rune) int {
 		}
 	case ';':
 		op = int(';')
-		if r, _ = l.read(); l.err == nil {
+		if r, err = l.read(); err == nil {
 			if r == ';' {
 				op = BREAK
 			} else {
@@ -936,13 +923,13 @@ func (l *lexer) scanOp(r rune) int {
 		}
 	case '<':
 		op = int('<')
-		if r, _ = l.read(); l.err == nil {
+		if r, err = l.read(); err == nil {
 			switch r {
 			case '&':
 				op = DUPIN
 			case '<':
 				op = HEREDOC
-				if r, _ = l.read(); l.err == nil {
+				if r, err = l.read(); err == nil {
 					if r == '-' {
 						op = HEREDOCI
 					} else {
@@ -957,7 +944,7 @@ func (l *lexer) scanOp(r rune) int {
 		}
 	case '>':
 		op = int('>')
-		if r, _ = l.read(); l.err == nil {
+		if r, err = l.read(); err == nil {
 			switch r {
 			case '&':
 				op = DUPOUT
@@ -971,7 +958,7 @@ func (l *lexer) scanOp(r rune) int {
 		}
 	case '|':
 		op = int('|')
-		if r, _ = l.read(); l.err == nil {
+		if r, err = l.read(); err == nil {
 			if r == '|' {
 				op = OR
 			} else {
@@ -979,7 +966,7 @@ func (l *lexer) scanOp(r rune) int {
 			}
 		}
 	}
-	return op
+	return
 }
 
 func (l *lexer) scanQuote(r rune) bool {

@@ -734,7 +734,7 @@ func init() {
 		case "Bang":
 			s = "'!'"
 		case "Lbrace":
-			s ="'{'"
+			s = "'{'"
 		case "Rbrace":
 			s = "'}'"
 		case "For":
@@ -784,7 +784,7 @@ func extract(cmd *ast.AndOrList) ast.Command {
 	return cmd.Pipeline.Cmd
 }
 
-func assign(w ast.Word) *ast.Assign{
+func assign(w ast.Word) *ast.Assign {
 	k := w[0].(*ast.Lit)
 	i := strings.IndexRune(k.Value, '=')
 	v := w[1:]
@@ -808,7 +808,7 @@ func assign(w ast.Word) *ast.Assign{
 func ParseCommand(name string, src interface{}) (ast.Command, []*ast.Comment, error) {
 	r, err := open(src)
 	if err != nil {
-		return nil, nil,err
+		return nil, nil, err
 	}
 
 	l := newLexer(name, r)

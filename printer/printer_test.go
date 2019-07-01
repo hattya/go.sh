@@ -9,7 +9,7 @@
 package printer_test
 
 import (
-	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/hattya/go.sh/ast"
@@ -36,7 +36,7 @@ var listTests = []struct {
 }
 
 func TestList(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range listTests {
 		b.Reset()
 		if err := printer.Fprint(&b, tt.n); err != nil {
@@ -63,7 +63,7 @@ var andOrListTests = []struct {
 }
 
 func TestAndOrList(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range andOrListTests {
 		b.Reset()
 		if err := printer.Fprint(&b, tt.n); err != nil {
@@ -98,7 +98,7 @@ var pipelineTests = []struct {
 }
 
 func TestPipeline(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range pipelineTests {
 		b.Reset()
 		if err := printer.Fprint(&b, tt.n); err != nil {
@@ -139,7 +139,7 @@ var simpleCmdTests = []struct {
 }
 
 func TestSimpleCmd(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range simpleCmdTests {
 		for i, cfg := range []printer.Config{
 			{
@@ -225,7 +225,7 @@ var subshellTests = []struct {
 }
 
 func TestSubshell(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range subshellTests {
 		for i, cfg := range []printer.Config{
 			{
@@ -296,7 +296,7 @@ var groupTests = []struct {
 }
 
 func TestGroup(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range groupTests {
 		for i, cfg := range []printer.Config{
 			{
@@ -339,7 +339,7 @@ var arithEvalTests = []struct {
 }
 
 func TestArithEval(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range arithEvalTests {
 		for i, cfg := range []printer.Config{
 			{
@@ -459,7 +459,7 @@ var forClauseTests = []struct {
 }
 
 func TestForClause(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range forClauseTests {
 		for i, cfg := range []printer.Config{
 			{
@@ -529,7 +529,7 @@ var caseClauseTests = []struct {
 }
 
 func TestCaseClause(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range caseClauseTests {
 		for i, cfg := range []printer.Config{
 			{
@@ -606,7 +606,7 @@ var ifClauseTests = []struct {
 }
 
 func TestIfClause(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range ifClauseTests {
 		for i, cfg := range []printer.Config{
 			{
@@ -683,7 +683,7 @@ var whileClauseTests = []struct {
 }
 
 func TestWhileClause(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range whileClauseTests {
 		for i, cfg := range []printer.Config{
 			{
@@ -760,7 +760,7 @@ var untilClauseTests = []struct {
 }
 
 func TestUntilClause(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range untilClauseTests {
 		for i, cfg := range []printer.Config{
 			{
@@ -804,7 +804,7 @@ var funcDefTests = []struct {
 }
 
 func TestFuncDef(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range funcDefTests {
 		b.Reset()
 		if err := printer.Fprint(&b, tt.n); err != nil {
@@ -1189,7 +1189,7 @@ var wordTests = []struct {
 }
 
 func TestWord(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	for _, tt := range wordTests {
 		b.Reset()
 		if err := printer.Fprint(&b, tt.n); err != nil {
@@ -1202,7 +1202,7 @@ func TestWord(t *testing.T) {
 }
 
 func TestComment(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	n := &ast.Comment{
 		Hash: ast.NewPos(1, 1),
 		Text: " comment",

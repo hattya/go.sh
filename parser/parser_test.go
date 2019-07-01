@@ -1361,7 +1361,7 @@ var parseCommandTests = []struct {
 		cmd: for_clause(
 			pos(1, 1), // for
 			lit(1, 5, "name"),
-			sep(0, 0, "\n"),
+			sep(0, 0, ""),
 			pos(1, 10), // do
 			and_or_list(
 				simple_command(
@@ -1395,7 +1395,7 @@ var parseCommandTests = []struct {
 		cmd: for_clause(
 			pos(1, 1), // for
 			lit(1, 5, "name"),
-			sep(0, 0, "\n"),
+			sep(0, 0, ""),
 			pos(1, 10), // do
 			simple_command(
 				word(lit(2, 2, "echo")),
@@ -1423,7 +1423,7 @@ var parseCommandTests = []struct {
 		cmd: for_clause(
 			pos(1, 1), // for
 			lit(1, 5, "name"),
-			sep(0, 0, "\n"),
+			sep(0, 0, ""),
 			pos(2, 1), // do
 			simple_command(
 				word(lit(3, 2, "echo")),
@@ -1471,7 +1471,7 @@ var parseCommandTests = []struct {
 			pos(1, 1), // for
 			lit(1, 5, "name"),
 			pos(1, 10), // in
-			sep(0, 0, "\n"),
+			sep(0, 0, ""),
 			pos(2, 1), // do
 			simple_command(
 				word(lit(3, 2, "echo")),
@@ -1486,7 +1486,7 @@ var parseCommandTests = []struct {
 			pos(1, 1), // for
 			lit(1, 5, "name"),
 			pos(2, 1), // in
-			sep(0, 0, "\n"),
+			sep(0, 0, ""),
 			pos(3, 1), // do
 			simple_command(
 				word(lit(4, 2, "echo")),
@@ -1547,7 +1547,7 @@ var parseCommandTests = []struct {
 			word(lit(1, 13, "foo")),
 			word(lit(1, 17, "bar")),
 			word(lit(1, 21, "baz")),
-			sep(0, 0, "\n"),
+			sep(0, 0, ""),
 			pos(2, 1), // do
 			simple_command(
 				word(lit(3, 2, "echo")),
@@ -1567,7 +1567,7 @@ var parseCommandTests = []struct {
 			word(lit(2, 4, "foo")),
 			word(lit(2, 8, "bar")),
 			word(lit(2, 12, "baz")),
-			sep(0, 0, "\n"),
+			sep(0, 0, ""),
 			pos(3, 1), // do
 			simple_command(
 				word(lit(4, 2, "echo")),
@@ -2689,7 +2689,11 @@ var parseErrorTests = []struct {
 		err: ":1:8: syntax error: invalid parameter expansion",
 	},
 	{
-		src: "${LANG.",
+		src: "${LANG",
+		err: ":1:1: syntax error: reached EOF while looking for matching '}'",
+	},
+	{
+		src: "${LANG ",
 		err: ":1:1: syntax error: reached EOF while looking for matching '}'",
 	},
 	// command substitution
@@ -2728,6 +2732,10 @@ var parseErrorTests = []struct {
 	},
 	{
 		src: "$((x)",
+		err: ":1:1: syntax error: reached EOF while looking for matching '))'",
+	},
+	{
+		src: "$((x) ",
 		err: ":1:1: syntax error: reached EOF while looking for matching '))'",
 	},
 	{

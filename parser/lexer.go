@@ -115,7 +115,7 @@ func newLexer(name string, r io.RuneScanner) *lexer {
 		name:    name,
 		r:       r,
 		token:   make(chan ast.Node),
-		heredoc: heredoc{c: make(chan struct{})},
+		heredoc: heredoc{c: make(chan struct{}, 1)},
 		line:    1,
 		col:     1,
 	}
@@ -1355,7 +1355,7 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 			cmdSubst: r,
 			token:    make(chan ast.Node),
 			done:     make(chan struct{}),
-			heredoc:  heredoc{c: make(chan struct{})},
+			heredoc:  heredoc{c: make(chan struct{}, 1)},
 			line:     l.line,
 			col:      l.col,
 		}
@@ -1600,13 +1600,6 @@ func (h *heredoc) pop() *ast.Redir {
 			h.stack = h.stack[1:]
 			h.mu.Unlock()
 			atomic.AddUint32(&h.n, ^uint32(0))
-			if n > 1 {
-				// not empty
-				select {
-				case h.c <- struct{}{}:
-				default:
-				}
-			}
 			return r
 		}
 		h.mu.Unlock()

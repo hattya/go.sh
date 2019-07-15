@@ -155,42 +155,24 @@ func (l *lexer) lexPipeline() action {
 	return l.lexCmd(tok)
 }
 
+func (l *lexer) lexNextCmd() action {
+	return l.lexCmd(l.scanToken())
+}
+
 func (l *lexer) lexCmd(tok int) action {
 	tok = l.translate(tok)
 	switch tok {
-	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR, IO_NUMBER:
-		return l.lexCmdPrefix(tok)
-	case WORD:
-		lex := l.lexCmdPrefix
-		if len(l.word) == 1 && !l.isAssign() {
-			if w, ok := l.word[0].(*ast.Lit); ok && l.isName(w.Value) {
-				// lookahead
-				l.word = nil
-				l.mark(0)
-				la := l.scanToken()
-				if la == '(' {
-					if _, ok := builtins[w.Value]; ok {
-						l.last.Store(w.ValuePos)
-						l.Error("syntax error: invalid function name")
-						return nil
-					}
-					tok = NAME
-					lex = l.lexFuncDef
-				}
-				// save lookahead token
-				word := l.word
-				pos := l.pos
-				// emit current token
-				l.word = ast.Word{w}
-				l.pos = w.ValuePos
-				l.emit(tok)
-				// restore lookahead token
-				l.word = word
-				l.pos = pos
-				tok = la
-			}
+	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR:
+		l.emit(tok)
+		if tok = l.scanRedir(tok); tok == WORD {
+			l.emit(tok)
+			return l.lexCmdPrefix
 		}
-		return lex(tok)
+	case IO_NUMBER:
+		l.emit(tok)
+		return l.lexCmdPrefix
+	case WORD:
+		return l.lexSimpleCmd
 	case '(':
 		return l.lexSubshell
 	case Lbrace:
@@ -221,10 +203,48 @@ func (l *lexer) lexCmd(tok int) action {
 	return l.lexToken(tok)
 }
 
-func (l *lexer) lexCmdPrefix(tok int) action {
+func (l *lexer) lexSimpleCmd() action {
+	switch {
+	case l.isAssign():
+		l.emit(ASSIGNMENT_WORD)
+		return l.lexCmdPrefix
+	case len(l.word) == 1:
+		if w, ok := l.word[0].(*ast.Lit); ok && l.isName(w.Value) {
+			// lookahead
+			l.word = nil
+			l.mark(0)
+			tok := l.scanToken()
+			// save lookahead token
+			word := l.word
+			pos := l.pos
+			// emit current token
+			l.word = ast.Word{w}
+			l.pos = w.ValuePos
+			if tok == '(' {
+				if _, ok := builtins[w.Value]; ok {
+					l.last.Store(w.ValuePos)
+					l.Error("syntax error: invalid function name")
+					return nil
+				}
+				l.emit(NAME)
+				l.pos = pos
+				return l.lexFuncDef
+			}
+			l.emit(WORD)
+			// restore lookahead token
+			l.word = word
+			l.pos = pos
+			return l.onCmdSuffix(tok)
+		}
+	}
+	l.emit(WORD)
+	return l.lexCmdSuffix
+}
+
+func (l *lexer) lexCmdPrefix() action {
+	tok := l.scanToken()
 	switch tok {
 	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR:
-		// redirection operator
 		l.emit(tok)
 		if tok = l.scanRedir(tok); tok == WORD {
 			goto Prefix
@@ -232,17 +252,17 @@ func (l *lexer) lexCmdPrefix(tok int) action {
 	case IO_NUMBER:
 		goto Prefix
 	case WORD:
-		if !l.isAssign() {
-			l.emit(WORD)
-			return l.lexCmdSuffix
+		if l.isAssign() {
+			tok = ASSIGNMENT_WORD
+			goto Prefix
 		}
-		tok = ASSIGNMENT_WORD
-		goto Prefix
+		l.emit(WORD)
+		return l.lexCmdSuffix
 	}
 	return l.lexToken(tok)
 Prefix:
 	l.emit(tok)
-	return l.lexCmdPrefix(l.scanToken())
+	return l.lexCmdPrefix
 }
 
 // isAssign reports whether the current word is ASSIGNMENT_WORD.
@@ -256,10 +276,12 @@ func (l *lexer) isAssign() bool {
 }
 
 func (l *lexer) lexCmdSuffix() action {
-	tok := l.scanToken()
+	return l.onCmdSuffix(l.scanToken())
+}
+
+func (l *lexer) onCmdSuffix(tok int) action {
 	switch tok {
 	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR:
-		// redirection operator
 		l.emit(tok)
 		if tok = l.scanRedir(tok); tok == WORD {
 			goto Suffix
@@ -516,7 +538,7 @@ func (l *lexer) lexDo() action {
 	return nil
 }
 
-func (l *lexer) lexFuncDef(_ int) action {
+func (l *lexer) lexFuncDef() action {
 	l.emit('(')
 	if tok := l.scanToken(); tok != ')' {
 		return l.lexToken(tok)
@@ -525,7 +547,7 @@ func (l *lexer) lexFuncDef(_ int) action {
 	if !l.linebreak() {
 		return nil
 	}
-	return l.lexCmd(l.scanToken())
+	return l.lexNextCmd
 }
 
 func (l *lexer) lexToken(tok int) action {
@@ -540,7 +562,7 @@ func (l *lexer) lexToken(tok int) action {
 	case '|':
 		l.emit('|')
 		if l.linebreak() {
-			return l.lexCmd(l.scanToken())
+			return l.lexNextCmd
 		}
 	case '&', ';':
 		l.emit(tok)
@@ -579,7 +601,6 @@ func (l *lexer) lexRedir() action {
 	tok := l.scanToken()
 	switch tok {
 	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR:
-		// redirection operator
 		l.emit(tok)
 		if tok = l.scanRedir(tok); tok == WORD {
 			goto Redir

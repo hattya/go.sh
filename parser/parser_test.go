@@ -931,6 +931,22 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
+		src: "1>&2 echo foo",
+		cmd: simple_command(
+			redir(lit(1, 1, "1"), 1, 2, ">&", word(lit(1, 4, "2"))),
+			word(lit(1, 6, "echo")),
+			word(lit(1, 11, "foo")),
+		),
+	},
+	{
+		src: "echo foo 1>&2",
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(lit(1, 6, "foo")),
+			redir(lit(1, 10, "1"), 1, 11, ">&", word(lit(1, 13, "2"))),
+		),
+	},
+	{
 		src: ">/dev/null 2>&1 echo foo",
 		cmd: simple_command(
 			redir(nil, 1, 1, ">", word(lit(1, 2, "/dev/null"))),

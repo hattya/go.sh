@@ -92,10 +92,12 @@ type lexer struct {
 	cmd      ast.Command
 	comments []*ast.Comment
 	cmdSubst rune
-	eof      bool
-	err      error
 	token    chan ast.Node
 	done     chan struct{}
+
+	mu  sync.Mutex
+	eof bool
+	err error
 
 	stack     []int
 	arithExpr bool
@@ -1386,6 +1388,7 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 		yyParse(ll)
 		<-ll.done
 		if ll.err != nil {
+			l.mu.Lock()
 			l.err = ll.err
 			if len(ll.stack) == 0 && r == '`' {
 				err := l.err.(Error)
@@ -1395,6 +1398,7 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 					Msg:  "syntax error: unexpected '`'",
 				}
 			}
+			l.mu.Unlock()
 			break
 		}
 		// apply changes
@@ -1532,11 +1536,14 @@ func (l *lexer) read() (rune, error) {
 	r, _, err := l.r.ReadRune()
 	switch {
 	case err != nil:
-		if err == io.EOF {
+		l.mu.Lock()
+		switch {
+		case err == io.EOF:
 			l.eof = true
-		} else {
+		case l.err == nil:
 			l.err = err
 		}
+		l.mu.Unlock()
 	case r == '\n':
 		l.prevCol = l.col
 		l.line++
@@ -1558,6 +1565,9 @@ func (l *lexer) unread() {
 }
 
 func (l *lexer) Error(e string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if l.err != nil && strings.Contains(e, ": unexpected EOF") {
 		return // lexing was interrupted
 	}

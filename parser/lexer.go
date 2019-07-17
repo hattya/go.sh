@@ -95,9 +95,10 @@ type lexer struct {
 	token    chan ast.Node
 	done     chan struct{}
 
-	mu  sync.Mutex
-	eof bool
-	err error
+	mu     sync.Mutex
+	eof    bool
+	err    error
+	cancel chan struct{}
 
 	stack     []int
 	arithExpr bool
@@ -117,6 +118,7 @@ func newLexer(name string, r io.RuneScanner) *lexer {
 		name:    name,
 		r:       r,
 		token:   make(chan ast.Node),
+		cancel:  make(chan struct{}),
 		heredoc: heredoc{c: make(chan struct{}, 1)},
 		line:    1,
 		col:     1,
@@ -129,9 +131,11 @@ func newLexer(name string, r io.RuneScanner) *lexer {
 func (l *lexer) Lex(lval *yySymType) int {
 	switch tok := (<-l.token).(type) {
 	case token:
+		l.last.Store(tok.Pos())
 		lval.token = tok
 		return tok.typ
 	case word:
+		l.last.Store(tok.Pos())
 		lval.word = tok.val
 		return tok.typ
 	}
@@ -139,12 +143,20 @@ func (l *lexer) Lex(lval *yySymType) int {
 }
 
 func (l *lexer) run() {
+	defer func() {
+		close(l.token)
+		if l.done != nil {
+			close(l.done)
+		}
+
+		if e := recover(); e != nil {
+			// re-panic
+			panic(e)
+		}
+	}()
+
 	for action := l.lexPipeline; action != nil; {
 		action = action()
-	}
-	close(l.token)
-	if l.done != nil {
-		close(l.done)
 	}
 }
 
@@ -224,8 +236,7 @@ func (l *lexer) lexSimpleCmd() action {
 			l.pos = w.ValuePos
 			if tok == '(' {
 				if _, ok := builtins[w.Value]; ok {
-					l.last.Store(w.ValuePos)
-					l.Error("syntax error: invalid function name")
+					l.error(w.ValuePos, "syntax error: invalid function name")
 					return nil
 				}
 				l.emit(NAME)
@@ -312,10 +323,11 @@ func (l *lexer) lexGroup() action {
 }
 
 func (l *lexer) lexArithEval() action {
+	pos := l.pos
 	l.emit(LAE)
 	// push
 	l.stack = append(l.stack, RAE)
-	tok := l.scanArithExpr()
+	tok := l.scanArithExpr(pos)
 	if tok == RAE {
 		l.emit(WORD)
 		l.mark(-2)
@@ -334,8 +346,7 @@ func (l *lexer) lexFor() action {
 				break
 			}
 		}
-		l.last.Store(l.word.Pos())
-		l.Error("syntax error: invalid for loop variable")
+		l.error(l.word.Pos(), "syntax error: invalid for loop variable")
 		return nil
 	default:
 		return l.lexToken(tok)
@@ -712,8 +723,7 @@ func (l *lexer) lexHeredoc() action {
 			continue
 		Error:
 			if err == io.EOF {
-				l.last.Store(h.OpPos)
-				l.Error("syntax error: here-document delimited by EOF")
+				l.error(h.OpPos, "syntax error: here-document delimited by EOF")
 			}
 			return nil
 		}
@@ -721,12 +731,12 @@ func (l *lexer) lexHeredoc() action {
 	return l.lexToken('\n')
 }
 
-func (l *lexer) scanArithExpr() int {
+func (l *lexer) scanArithExpr(pos ast.Pos) int {
 	for {
 		r, err := l.read()
 		if err != nil {
 			if err == io.EOF {
-				l.Error("syntax error: reached EOF while looking for matching '))'")
+				l.error(pos, "syntax error: reached EOF while looking for matching '))'")
 			}
 			return -1
 		}
@@ -782,8 +792,7 @@ func (l *lexer) scanRedir(tok int) int {
 	tok = l.scanToken()
 	if tok == WORD && heredoc {
 		if strings.ContainsRune(l.print(l.word), '\n') {
-			l.last.Store(l.word.Pos())
-			l.Error(`syntax error: here-document delimiter contains '\n'`)
+			l.error(l.word.Pos(), `syntax error: here-document delimiter contains '\n'`)
 			return -1
 		}
 		l.heredoc.inc()
@@ -1025,8 +1034,7 @@ func (l *lexer) scanQuote(r rune) bool {
 			r, err := l.read()
 			if err != nil {
 				if err == io.EOF {
-					l.last.Store(q.TokPos)
-					l.Error("syntax error: reached EOF while parsing single-quotes")
+					l.error(q.TokPos, "syntax error: reached EOF while parsing single-quotes")
 				}
 				return false
 			}
@@ -1088,8 +1096,7 @@ func (l *lexer) scanQuote(r rune) bool {
 		}
 		if err != nil {
 			if err == io.EOF {
-				l.last.Store(q.TokPos)
-				l.Error("syntax error: reached EOF while parsing double-quotes")
+				l.error(q.TokPos, "syntax error: reached EOF while parsing double-quotes")
 			}
 			return false
 		}
@@ -1347,11 +1354,9 @@ Rbrace:
 Error:
 	switch err {
 	case nil, io.EOF:
-		l.last.Store(pe.Dollar)
-		l.Error("syntax error: reached EOF while looking for matching '}'")
+		l.error(pe.Dollar, "syntax error: reached EOF while looking for matching '}'")
 	case errParamExp:
-		l.last.Store(pe.Dollar)
-		l.Error(err.Error())
+		l.error(pe.Dollar, err.Error())
 	}
 	return false
 }
@@ -1378,6 +1383,7 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 			cmdSubst: r,
 			token:    make(chan ast.Node),
 			done:     make(chan struct{}),
+			cancel:   make(chan struct{}),
 			heredoc:  heredoc{c: make(chan struct{}, 1)},
 			line:     l.line,
 			col:      l.col,
@@ -1499,31 +1505,36 @@ func (l *lexer) esc(r rune) {
 	}
 }
 
-func (l *lexer) emit(tok int) {
-	l.last.Store(l.pos)
-	switch tok {
+func (l *lexer) emit(typ int) {
+	var tok ast.Node
+	switch typ {
 	case IO_NUMBER, WORD, NAME, ASSIGNMENT_WORD:
-		l.token <- word{
-			typ: tok,
+		tok = word{
+			typ: typ,
 			val: l.word,
 		}
-		l.word = nil
 	default:
 		if len(l.word) != 0 {
 			w := l.word[0].(*ast.Lit)
-			l.token <- token{
-				typ: tok,
+			tok = token{
+				typ: typ,
 				pos: w.ValuePos,
 				val: w.Value,
 			}
-			l.word = nil
 		} else {
-			l.token <- token{
-				typ: tok,
+			tok = token{
+				typ: typ,
 				pos: l.pos,
-				val: ops[tok],
+				val: ops[typ],
 			}
 		}
+	}
+	l.word = nil
+	select {
+	case l.token <- tok:
+	case <-l.cancel:
+		// bailout
+		panic(nil)
 	}
 	l.mark(0)
 }
@@ -1565,16 +1576,26 @@ func (l *lexer) unread() {
 }
 
 func (l *lexer) Error(e string) {
+	l.error(l.last.Load().(ast.Pos), e)
+}
+
+func (l *lexer) error(pos ast.Pos, msg string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if l.err != nil && strings.Contains(e, ": unexpected EOF") {
+	if l.err != nil && strings.Contains(msg, ": unexpected EOF") {
 		return // lexing was interrupted
 	}
 	l.err = Error{
 		Name: l.name,
-		Pos:  l.last.Load().(ast.Pos),
-		Msg:  e,
+		Pos:  pos,
+		Msg:  msg,
+	}
+
+	select {
+	case <-l.cancel:
+	default:
+		close(l.cancel)
 	}
 }
 

@@ -2730,6 +2730,10 @@ var parseErrorTests = []struct {
 		err: ":1:10: syntax error: unexpected '`'",
 	},
 	{
+		src: "$(; ;)",
+		err: ":1:3: syntax error: unexpected ';'",
+	},
+	{
 		src: "`!",
 		err: ":1:2: syntax error: unexpected EOF",
 	},
@@ -2740,6 +2744,10 @@ var parseErrorTests = []struct {
 	{
 		src: "`echo $(!)`",
 		err: ":1:10: syntax error: unexpected ')'",
+	},
+	{
+		src: "`; ;`",
+		err: ":1:2: syntax error: unexpected ';'",
 	},
 	// arithmetic expansion
 	{

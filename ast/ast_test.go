@@ -411,7 +411,7 @@ func TestSimpleCmd(t *testing.T) {
 	x = &ast.SimpleCmd{
 		Assigns: []*ast.Assign{
 			{
-				Symbol: &ast.Lit{
+				Name: &ast.Lit{
 					ValuePos: ast.NewPos(1, 1),
 					Value:    "lit",
 				},
@@ -435,7 +435,7 @@ func TestSimpleCmd(t *testing.T) {
 	x = &ast.SimpleCmd{
 		Assigns: []*ast.Assign{
 			{
-				Symbol: &ast.Lit{
+				Name: &ast.Lit{
 					ValuePos: ast.NewPos(1, 1),
 					Value:    "lit",
 				},
@@ -491,7 +491,7 @@ func TestAssign(t *testing.T) {
 	}
 
 	n = &ast.Assign{
-		Symbol: &ast.Lit{
+		Name: &ast.Lit{
 			ValuePos: ast.NewPos(1, 1),
 			Value:    "lit",
 		},
@@ -505,7 +505,7 @@ func TestAssign(t *testing.T) {
 	}
 
 	n = &ast.Assign{
-		Symbol: &ast.Lit{
+		Name: &ast.Lit{
 			ValuePos: ast.NewPos(1, 1),
 			Value:    "lit",
 		},

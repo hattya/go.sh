@@ -2637,11 +2637,11 @@ func arith_exp(args ...interface{}) *ast.ArithExp {
 	return x
 }
 
-func assignment_word(line, col int, k string, v ast.Word) *ast.Assign {
+func assignment_word(line, col int, n string, v ast.Word) *ast.Assign {
 	return &ast.Assign{
-		Symbol: &ast.Lit{
+		Name: &ast.Lit{
 			ValuePos: ast.NewPos(line, col),
-			Value:    k,
+			Value:    n,
 		},
 		Op:    "=",
 		Value: v,

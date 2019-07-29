@@ -231,7 +231,7 @@ func (p *printer) simpleCmd(x *ast.SimpleCmd, redirs []*ast.Redir) (err error) {
 				if sp {
 					p.space()
 				}
-				p.w.WriteString(a.Symbol.Value + a.Op)
+				p.w.WriteString(a.Name.Value + a.Op)
 				p.word(a.Value)
 				sp = true
 			}

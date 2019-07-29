@@ -362,23 +362,23 @@ func (x *FuncDef) cmdExprNode()     {}
 
 // Assign represents a variable assignment.
 type Assign struct {
-	Symbol *Lit
-	Op     string
-	Value  Word
+	Name  *Lit
+	Op    string
+	Value Word
 }
 
 func (a *Assign) Pos() Pos {
-	if a.Symbol == nil {
+	if a.Name == nil {
 		return Pos{}
 	}
-	return a.Symbol.Pos()
+	return a.Name.Pos()
 }
 func (a *Assign) End() Pos {
 	if len(a.Value) == 0 {
-		if a.Symbol == nil {
+		if a.Name == nil {
 			return Pos{}
 		}
-		return a.Symbol.End().shift(len(a.Op))
+		return a.Name.End().shift(len(a.Op))
 	}
 	return a.Value.End()
 }

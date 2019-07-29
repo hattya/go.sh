@@ -209,22 +209,22 @@ func extract(cmd *ast.AndOrList) ast.Command {
 }
 
 func assign(w ast.Word) *ast.Assign {
-	k := w[0].(*ast.Lit)
-	i := strings.IndexRune(k.Value, '=')
+	n := w[0].(*ast.Lit)
+	i := strings.IndexRune(n.Value, '=')
 	v := w[1:]
-	if i < len(k.Value)-1 {
+	if i < len(n.Value)-1 {
 		v = append(ast.Word{
 			&ast.Lit{
-				ValuePos: ast.NewPos(k.ValuePos.Line(), k.ValuePos.Col()+i+1),
-				Value:    k.Value[i+1:],
+				ValuePos: ast.NewPos(n.ValuePos.Line(), n.ValuePos.Col()+i+1),
+				Value:    n.Value[i+1:],
 			},
 		}, v...)
-		k.Value = k.Value[:i]
+		n.Value = n.Value[:i]
 	}
 	return &ast.Assign{
-		Symbol: k,
-		Op:     "=",
-		Value:  v,
+		Name:  n,
+		Op:    "=",
+		Value: v,
 	}
 }
 

@@ -644,22 +644,22 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "FOO=foo BAR=bar env",
+		src: `FOO=foo BAR="bar" env`,
 		cmd: simple_command(
 			assignment_word(1, 1, "FOO", word(lit(1, 5, "foo"))),
-			assignment_word(1, 9, "BAR", word(lit(1, 13, "bar"))),
-			word(lit(1, 17, "env")),
+			assignment_word(1, 9, "BAR", word(quote(1, 13, `"`, word(lit(1, 14, "bar"))))),
+			word(lit(1, 19, "env")),
 		),
 	},
 	{
-		src: "FOO=foo BAR=bar env -u BAR BAZ=baz",
+		src: `FOO=foo BAR="bar" env -u BAR BAZ=baz`,
 		cmd: simple_command(
 			assignment_word(1, 1, "FOO", word(lit(1, 5, "foo"))),
-			assignment_word(1, 9, "BAR", word(lit(1, 13, "bar"))),
-			word(lit(1, 17, "env")),
-			word(lit(1, 21, "-u")),
-			word(lit(1, 24, "BAR")),
-			word(lit(1, 28, "BAZ=baz")),
+			assignment_word(1, 9, "BAR", word(quote(1, 13, `"`, word(lit(1, 14, "bar"))))),
+			word(lit(1, 19, "env")),
+			word(lit(1, 23, "-u")),
+			word(lit(1, 26, "BAR")),
+			word(lit(1, 30, "BAZ=baz")),
 		),
 	},
 	{

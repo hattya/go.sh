@@ -472,10 +472,14 @@ Pattern:
 
 func (l *lexer) lexCaseBreak() action {
 	l.emit(BREAK)
-	if !l.linebreak() {
-		return nil
+	// check
+	if len(l.stack) != 0 && l.stack[len(l.stack)-1] == Esac {
+		if !l.linebreak() {
+			return nil
+		}
+		return l.lexCaseItem
 	}
-	return l.lexCaseItem
+	return nil
 }
 
 // translate translates a WORD token to a reserved word token if it is.

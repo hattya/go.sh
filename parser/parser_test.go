@@ -2920,6 +2920,10 @@ var parseErrorTests = []struct {
 		src: "case word in *) ;;",
 		err: ":1:17: syntax error: unexpected EOF, expecting '(' or WORD or 'esac'",
 	},
+	{
+		src: ";;",
+		err: ":1:1: syntax error: unexpected ';;'",
+	},
 	// if conditional construct
 	{
 		src: "if",

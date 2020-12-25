@@ -1,7 +1,7 @@
 //
 // go.sh/parser :: lexer_test.go
 //
-//   Copyright (c) 2018-2019 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2020 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -16,10 +16,10 @@ import (
 
 func TestToken(t *testing.T) {
 	var n ast.Node = token{}
-	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := n.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("token.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+	if g, e := n.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("token.End() = %v, expected %v", g, e)
 	}
 
@@ -28,20 +28,20 @@ func TestToken(t *testing.T) {
 		pos: ast.NewPos(1, 1),
 		val: "&",
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("token.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 2); e != g {
+	if g, e := n.End(), ast.NewPos(1, 2); g != e {
 		t.Errorf("token.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestWord(t *testing.T) {
 	var n ast.Node = word{}
-	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := n.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("word.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+	if g, e := n.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("word.End() = %v, expected %v", g, e)
 	}
 
@@ -54,10 +54,10 @@ func TestWord(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("word.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 4); e != g {
+	if g, e := n.End(), ast.NewPos(1, 4); g != e {
 		t.Errorf("word.End() = %v, expected %v", g, e)
 	}
 }

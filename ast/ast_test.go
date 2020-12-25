@@ -1,7 +1,7 @@
 //
 // go.sh/ast :: ast_test.go
 //
-//   Copyright (c) 2018-2019 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2020 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -16,10 +16,10 @@ import (
 
 func TestList(t *testing.T) {
 	var c ast.Command = new(ast.List)
-	if g, e := c.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := c.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("List.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(0, 0); e != g {
+	if g, e := c.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("List.End() = %v, expected %v", g, e)
 	}
 
@@ -41,20 +41,20 @@ func TestList(t *testing.T) {
 			},
 		},
 	}
-	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := c.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("List.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 4); e != g {
+	if g, e := c.End(), ast.NewPos(1, 4); g != e {
 		t.Errorf("List.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestAndOrList(t *testing.T) {
 	var c ast.Command = new(ast.AndOrList)
-	if g, e := c.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := c.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("AndOrList.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(0, 0); e != g {
+	if g, e := c.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("AndOrList.End() = %v, expected %v", g, e)
 	}
 
@@ -74,10 +74,10 @@ func TestAndOrList(t *testing.T) {
 			},
 		},
 	}
-	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := c.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("AndOrList.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 4); e != g {
+	if g, e := c.End(), ast.NewPos(1, 4); g != e {
 		t.Errorf("AndOrList.End() = %v, expected %v", g, e)
 	}
 
@@ -117,20 +117,20 @@ func TestAndOrList(t *testing.T) {
 			},
 		},
 	}
-	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := c.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("AndOrList.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 11); e != g {
+	if g, e := c.End(), ast.NewPos(1, 11); g != e {
 		t.Errorf("AndOrList.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestAndOr(t *testing.T) {
 	var n ast.Node = new(ast.AndOr)
-	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := n.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("AndOr.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+	if g, e := n.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("AndOr.End() = %v, expected %v", g, e)
 	}
 
@@ -152,10 +152,10 @@ func TestAndOr(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("AndOr.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 7); e != g {
+	if g, e := n.End(), ast.NewPos(1, 7); g != e {
 		t.Errorf("AndOr.End() = %v, expected %v", g, e)
 	}
 
@@ -177,20 +177,20 @@ func TestAndOr(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("AndOr.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 7); e != g {
+	if g, e := n.End(), ast.NewPos(1, 7); g != e {
 		t.Errorf("AndOr.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestPipeline(t *testing.T) {
 	var c ast.Command = new(ast.Pipeline)
-	if g, e := c.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := c.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Pipeline.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(0, 0); e != g {
+	if g, e := c.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Pipeline.End() = %v, expected %v", g, e)
 	}
 
@@ -209,10 +209,10 @@ func TestPipeline(t *testing.T) {
 			},
 		},
 	}
-	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := c.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Pipeline.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 5); e != g {
+	if g, e := c.End(), ast.NewPos(1, 5); g != e {
 		t.Errorf("Pipeline.End() = %v, expected %v", g, e)
 	}
 
@@ -248,20 +248,20 @@ func TestPipeline(t *testing.T) {
 			},
 		},
 	}
-	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := c.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Pipeline.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 10); e != g {
+	if g, e := c.End(), ast.NewPos(1, 10); g != e {
 		t.Errorf("Pipeline.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestPipe(t *testing.T) {
 	var n ast.Node = new(ast.Pipe)
-	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := n.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Pipe.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+	if g, e := n.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Pipe.End() = %v, expected %v", g, e)
 	}
 
@@ -281,20 +281,20 @@ func TestPipe(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Pipe.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 6); e != g {
+	if g, e := n.End(), ast.NewPos(1, 6); g != e {
 		t.Errorf("Pipe.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestCmd(t *testing.T) {
 	var c ast.Command = new(ast.Cmd)
-	if g, e := c.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := c.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(0, 0); e != g {
+	if g, e := c.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Cmd.End() = %v, expected %v", g, e)
 	}
 
@@ -312,10 +312,10 @@ func TestCmd(t *testing.T) {
 			},
 		},
 	}
-	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := c.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 5); e != g {
+	if g, e := c.End(), ast.NewPos(1, 5); g != e {
 		t.Errorf("Cmd.End() = %v, expected %v", g, e)
 	}
 
@@ -343,10 +343,10 @@ func TestCmd(t *testing.T) {
 			},
 		},
 	}
-	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := c.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 9); e != g {
+	if g, e := c.End(), ast.NewPos(1, 9); g != e {
 		t.Errorf("Cmd.End() = %v, expected %v", g, e)
 	}
 
@@ -374,20 +374,20 @@ func TestCmd(t *testing.T) {
 			},
 		},
 	}
-	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := c.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 9); e != g {
+	if g, e := c.End(), ast.NewPos(1, 9); g != e {
 		t.Errorf("Cmd.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestSimpleCmd(t *testing.T) {
 	var x ast.CmdExpr = new(ast.SimpleCmd)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("SimpleCmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("SimpleCmd.End() = %v, expected %v", g, e)
 	}
 
@@ -401,10 +401,10 @@ func TestSimpleCmd(t *testing.T) {
 			},
 		},
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("SimpleCmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(1, 4); e != g {
+	if g, e := x.End(), ast.NewPos(1, 4); g != e {
 		t.Errorf("SimpleCmd.End() = %v, expected %v", g, e)
 	}
 
@@ -425,10 +425,10 @@ func TestSimpleCmd(t *testing.T) {
 			},
 		},
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("SimpleCmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(1, 8); e != g {
+	if g, e := x.End(), ast.NewPos(1, 8); g != e {
 		t.Errorf("SimpleCmd.End() = %v, expected %v", g, e)
 	}
 
@@ -457,36 +457,36 @@ func TestSimpleCmd(t *testing.T) {
 			},
 		},
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("SimpleCmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(1, 12); e != g {
+	if g, e := x.End(), ast.NewPos(1, 12); g != e {
 		t.Errorf("SimpleCmd.End() = %v, expected %v", g, e)
 	}
 
 	var c ast.Command = &ast.Cmd{Expr: new(ast.SimpleCmd)}
-	if g, e := c.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := c.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(0, 0); e != g {
+	if g, e := c.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Cmd.End() = %v, expected %v", g, e)
 	}
 
 	c = &ast.Cmd{Expr: x}
-	if g, e := c.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := c.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Cmd.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := c.End(), ast.NewPos(1, 12); e != g {
+	if g, e := c.End(), ast.NewPos(1, 12); g != e {
 		t.Errorf("Cmd.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestAssign(t *testing.T) {
 	var n ast.Node = new(ast.Assign)
-	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := n.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Assign.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+	if g, e := n.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Assign.End() = %v, expected %v", g, e)
 	}
 
@@ -497,10 +497,10 @@ func TestAssign(t *testing.T) {
 		},
 		Op: "=",
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Assign.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 5); e != g {
+	if g, e := n.End(), ast.NewPos(1, 5); g != e {
 		t.Errorf("Assign.End() = %v, expected %v", g, e)
 	}
 
@@ -517,20 +517,20 @@ func TestAssign(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Assign.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 8); e != g {
+	if g, e := n.End(), ast.NewPos(1, 8); g != e {
 		t.Errorf("Assign.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestSubshell(t *testing.T) {
 	var x ast.CmdExpr = new(ast.Subshell)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Subshell.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Subshell.End() = %v, expected %v", g, e)
 	}
 
@@ -538,20 +538,20 @@ func TestSubshell(t *testing.T) {
 		Lparen: ast.NewPos(1, 1),
 		Rparen: ast.NewPos(1, 3),
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Subshell.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(1, 4); e != g {
+	if g, e := x.End(), ast.NewPos(1, 4); g != e {
 		t.Errorf("Subshell.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestGroup(t *testing.T) {
 	var x ast.CmdExpr = new(ast.Group)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Group.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Group.End() = %v, expected %v", g, e)
 	}
 
@@ -559,20 +559,20 @@ func TestGroup(t *testing.T) {
 		Lbrace: ast.NewPos(1, 1),
 		Rbrace: ast.NewPos(1, 3),
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Group.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(1, 4); e != g {
+	if g, e := x.End(), ast.NewPos(1, 4); g != e {
 		t.Errorf("Group.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestArithEval(t *testing.T) {
 	var x ast.CmdExpr = new(ast.ArithEval)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ArithEval.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ArithEval.End() = %v, expected %v", g, e)
 	}
 
@@ -580,20 +580,20 @@ func TestArithEval(t *testing.T) {
 		Left:  ast.NewPos(1, 1),
 		Right: ast.NewPos(1, 4),
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("ArithEval.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(1, 6); e != g {
+	if g, e := x.End(), ast.NewPos(1, 6); g != e {
 		t.Errorf("ArithEval.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestForClause(t *testing.T) {
 	var x ast.CmdExpr = new(ast.ForClause)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ForClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ForClause.End() = %v, expected %v", g, e)
 	}
 
@@ -601,20 +601,20 @@ func TestForClause(t *testing.T) {
 		For:  ast.NewPos(1, 1),
 		Done: ast.NewPos(4, 1),
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("ForClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(4, 5); e != g {
+	if g, e := x.End(), ast.NewPos(4, 5); g != e {
 		t.Errorf("ForClause.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestCaseClause(t *testing.T) {
 	var x ast.CmdExpr = new(ast.CaseClause)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("CaseClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("CaseClause.End() = %v, expected %v", g, e)
 	}
 
@@ -622,20 +622,20 @@ func TestCaseClause(t *testing.T) {
 		Case: ast.NewPos(1, 1),
 		Esac: ast.NewPos(3, 1),
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("CaseClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(3, 5); e != g {
+	if g, e := x.End(), ast.NewPos(3, 5); g != e {
 		t.Errorf("CaseClause.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestCaseItem(t *testing.T) {
 	var n ast.Node = new(ast.CaseItem)
-	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := n.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+	if g, e := n.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
 	}
 
@@ -650,10 +650,10 @@ func TestCaseItem(t *testing.T) {
 		},
 		Break: ast.NewPos(2, 6),
 	}
-	if g, e := n.Pos(), ast.NewPos(2, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(2, 1); g != e {
 		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(2, 8); e != g {
+	if g, e := n.End(), ast.NewPos(2, 8); g != e {
 		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
 	}
 
@@ -669,10 +669,10 @@ func TestCaseItem(t *testing.T) {
 		},
 		Break: ast.NewPos(2, 7),
 	}
-	if g, e := n.Pos(), ast.NewPos(2, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(2, 1); g != e {
 		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(2, 9); e != g {
+	if g, e := n.End(), ast.NewPos(2, 9); g != e {
 		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
 	}
 
@@ -700,10 +700,10 @@ func TestCaseItem(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(2, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(2, 1); g != e {
 		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(2, 9); e != g {
+	if g, e := n.End(), ast.NewPos(2, 9); g != e {
 		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
 	}
 
@@ -732,20 +732,20 @@ func TestCaseItem(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(2, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(2, 1); g != e {
 		t.Errorf("CaseItem.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(2, 10); e != g {
+	if g, e := n.End(), ast.NewPos(2, 10); g != e {
 		t.Errorf("CaseItem.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestIfClause(t *testing.T) {
 	var x ast.CmdExpr = new(ast.IfClause)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("IfClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("IfClause.End() = %v, expected %v", g, e)
 	}
 
@@ -753,20 +753,20 @@ func TestIfClause(t *testing.T) {
 		If: ast.NewPos(1, 1),
 		Fi: ast.NewPos(4, 1),
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("IfClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(4, 3); e != g {
+	if g, e := x.End(), ast.NewPos(4, 3); g != e {
 		t.Errorf("IfClause.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestElifClause(t *testing.T) {
 	var e ast.ElsePart = new(ast.ElifClause)
-	if g, e := e.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := e.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ElifClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := e.End(), ast.NewPos(0, 0); e != g {
+	if g, e := e.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ElifClause.End() = %v, expected %v", g, e)
 	}
 
@@ -787,20 +787,20 @@ func TestElifClause(t *testing.T) {
 			},
 		},
 	}
-	if g, e := e.Pos(), ast.NewPos(4, 1); e != g {
+	if g, e := e.Pos(), ast.NewPos(4, 1); g != e {
 		t.Errorf("ElifClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := e.End(), ast.NewPos(6, 6); e != g {
+	if g, e := e.End(), ast.NewPos(6, 6); g != e {
 		t.Errorf("ElifClause.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestElseClause(t *testing.T) {
 	var e ast.ElsePart = new(ast.ElseClause)
-	if g, e := e.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := e.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ElseClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := e.End(), ast.NewPos(0, 0); e != g {
+	if g, e := e.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ElseClause.End() = %v, expected %v", g, e)
 	}
 
@@ -821,20 +821,20 @@ func TestElseClause(t *testing.T) {
 			},
 		},
 	}
-	if g, e := e.Pos(), ast.NewPos(4, 1); e != g {
+	if g, e := e.Pos(), ast.NewPos(4, 1); g != e {
 		t.Errorf("ElseClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := e.End(), ast.NewPos(5, 6); e != g {
+	if g, e := e.End(), ast.NewPos(5, 6); g != e {
 		t.Errorf("ElseClause.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestWhileClause(t *testing.T) {
 	var x ast.CmdExpr = new(ast.WhileClause)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("WhileClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("WhileClause.End() = %v, expected %v", g, e)
 	}
 
@@ -842,20 +842,20 @@ func TestWhileClause(t *testing.T) {
 		While: ast.NewPos(1, 1),
 		Done:  ast.NewPos(4, 1),
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("WhileClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(4, 5); e != g {
+	if g, e := x.End(), ast.NewPos(4, 5); g != e {
 		t.Errorf("WhileClause.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestUntilClause(t *testing.T) {
 	var x ast.CmdExpr = new(ast.UntilClause)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("UntilClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("UntilClause.End() = %v, expected %v", g, e)
 	}
 
@@ -863,20 +863,20 @@ func TestUntilClause(t *testing.T) {
 		Until: ast.NewPos(1, 1),
 		Done:  ast.NewPos(4, 1),
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("UntilClause.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(4, 5); e != g {
+	if g, e := x.End(), ast.NewPos(4, 5); g != e {
 		t.Errorf("UntilClause.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestFuncDef(t *testing.T) {
 	var x ast.CmdExpr = new(ast.FuncDef)
-	if g, e := x.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := x.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("FuncDef.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(0, 0); e != g {
+	if g, e := x.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("FuncDef.End() = %v, expected %v", g, e)
 	}
 
@@ -892,20 +892,20 @@ func TestFuncDef(t *testing.T) {
 			},
 		},
 	}
-	if g, e := x.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := x.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("FuncDef.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := x.End(), ast.NewPos(1, 11); e != g {
+	if g, e := x.End(), ast.NewPos(1, 11); g != e {
 		t.Errorf("FuncDef.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestRedir(t *testing.T) {
 	var n ast.Node = new(ast.Redir)
-	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := n.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Redir.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+	if g, e := n.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Redir.End() = %v, expected %v", g, e)
 	}
 
@@ -919,10 +919,10 @@ func TestRedir(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Redir.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 6); e != g {
+	if g, e := n.End(), ast.NewPos(1, 6); g != e {
 		t.Errorf("Redir.End() = %v, expected %v", g, e)
 	}
 
@@ -940,10 +940,10 @@ func TestRedir(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Redir.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 7); e != g {
+	if g, e := n.End(), ast.NewPos(1, 7); g != e {
 		t.Errorf("Redir.End() = %v, expected %v", g, e)
 	}
 
@@ -957,23 +957,23 @@ func TestRedir(t *testing.T) {
 			},
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Redir.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(3, 4); e != g {
+	if g, e := n.End(), ast.NewPos(3, 4); g != e {
 		t.Errorf("Redir.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestWord(t *testing.T) {
 	var n ast.Node = ast.Word{}
-	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := n.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Word.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+	if g, e := n.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Word.End() = %v, expected %v", g, e)
 	}
-	if g, e := len(n.(ast.Word)), 0; e != g {
+	if g, e := len(n.(ast.Word)), 0; g != e {
 		t.Errorf("len(Word) = %v, expected %v", g, e)
 	}
 
@@ -983,23 +983,23 @@ func TestWord(t *testing.T) {
 			Value:    "lit",
 		},
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Word.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 4); e != g {
+	if g, e := n.End(), ast.NewPos(1, 4); g != e {
 		t.Errorf("Word.End() = %v, expected %v", g, e)
 	}
-	if g, e := len(n.(ast.Word)), 1; e != g {
+	if g, e := len(n.(ast.Word)), 1; g != e {
 		t.Errorf("len(Word) = %v, expected %v", g, e)
 	}
 }
 
 func TestLit(t *testing.T) {
 	var w ast.WordPart = new(ast.Lit)
-	if g, e := w.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := w.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Lit.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(0, 0); e != g {
+	if g, e := w.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Lit.End() = %v, expected %v", g, e)
 	}
 
@@ -1007,10 +1007,10 @@ func TestLit(t *testing.T) {
 		ValuePos: ast.NewPos(1, 1),
 		Value:    "lit",
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Lit.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 4); e != g {
+	if g, e := w.End(), ast.NewPos(1, 4); g != e {
 		t.Errorf("Lit.End() = %v, expected %v", g, e)
 	}
 
@@ -1018,20 +1018,20 @@ func TestLit(t *testing.T) {
 		ValuePos: ast.NewPos(1, 1),
 		Value:    "1\n2",
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Lit.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(2, 2); e != g {
+	if g, e := w.End(), ast.NewPos(2, 2); g != e {
 		t.Errorf("Lit.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestQuote(t *testing.T) {
 	var w ast.WordPart = new(ast.Quote)
-	if g, e := w.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := w.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Quote.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(0, 0); e != g {
+	if g, e := w.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Quote.End() = %v, expected %v", g, e)
 	}
 
@@ -1045,10 +1045,10 @@ func TestQuote(t *testing.T) {
 			},
 		},
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Quote.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 3); e != g {
+	if g, e := w.End(), ast.NewPos(1, 3); g != e {
 		t.Errorf("Quote.End() = %v, expected %v", g, e)
 	}
 
@@ -1062,10 +1062,10 @@ func TestQuote(t *testing.T) {
 			},
 		},
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Quote.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 8); e != g {
+	if g, e := w.End(), ast.NewPos(1, 8); g != e {
 		t.Errorf("Quote.End() = %v, expected %v", g, e)
 	}
 
@@ -1079,10 +1079,10 @@ func TestQuote(t *testing.T) {
 			},
 		},
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Quote.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(2, 7); e != g {
+	if g, e := w.End(), ast.NewPos(2, 7); g != e {
 		t.Errorf("Quote.End() = %v, expected %v", g, e)
 	}
 
@@ -1096,10 +1096,10 @@ func TestQuote(t *testing.T) {
 			},
 		},
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Quote.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 8); e != g {
+	if g, e := w.End(), ast.NewPos(1, 8); g != e {
 		t.Errorf("Quote.End() = %v, expected %v", g, e)
 	}
 
@@ -1113,20 +1113,20 @@ func TestQuote(t *testing.T) {
 			},
 		},
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Quote.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(2, 7); e != g {
+	if g, e := w.End(), ast.NewPos(2, 7); g != e {
 		t.Errorf("Quote.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestParamExp(t *testing.T) {
 	var w ast.WordPart = new(ast.ParamExp)
-	if g, e := w.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := w.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(0, 0); e != g {
+	if g, e := w.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
 	}
 
@@ -1137,10 +1137,10 @@ func TestParamExp(t *testing.T) {
 			Value:    "lit",
 		},
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 5); e != g {
+	if g, e := w.End(), ast.NewPos(1, 5); g != e {
 		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
 	}
 
@@ -1152,10 +1152,10 @@ func TestParamExp(t *testing.T) {
 			Value:    "lit",
 		},
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 6); e != g {
+	if g, e := w.End(), ast.NewPos(1, 6); g != e {
 		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
 	}
 
@@ -1169,10 +1169,10 @@ func TestParamExp(t *testing.T) {
 		OpPos: ast.NewPos(1, 6),
 		Op:    ":-",
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 9); e != g {
+	if g, e := w.End(), ast.NewPos(1, 9); g != e {
 		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
 	}
 
@@ -1192,10 +1192,10 @@ func TestParamExp(t *testing.T) {
 			},
 		},
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 12); e != g {
+	if g, e := w.End(), ast.NewPos(1, 12); g != e {
 		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
 	}
 
@@ -1209,20 +1209,20 @@ func TestParamExp(t *testing.T) {
 		OpPos: ast.NewPos(1, 3),
 		Op:    "#",
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("ParamExp.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 8); e != g {
+	if g, e := w.End(), ast.NewPos(1, 8); g != e {
 		t.Errorf("ParamExp.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestCmdSubst(t *testing.T) {
 	var w ast.WordPart = new(ast.CmdSubst)
-	if g, e := w.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := w.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("CmdSubst.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(0, 0); e != g {
+	if g, e := w.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("CmdSubst.End() = %v, expected %v", g, e)
 	}
 
@@ -1231,10 +1231,10 @@ func TestCmdSubst(t *testing.T) {
 		Left:   ast.NewPos(1, 2),
 		Right:  ast.NewPos(1, 4),
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("CmdSubst.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 5); e != g {
+	if g, e := w.End(), ast.NewPos(1, 5); g != e {
 		t.Errorf("CmdSubst.End() = %v, expected %v", g, e)
 	}
 
@@ -1242,20 +1242,20 @@ func TestCmdSubst(t *testing.T) {
 		Left:  ast.NewPos(1, 1),
 		Right: ast.NewPos(1, 3),
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("CmdSubst.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 4); e != g {
+	if g, e := w.End(), ast.NewPos(1, 4); g != e {
 		t.Errorf("CmdSubst.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestArithExp(t *testing.T) {
 	var w ast.WordPart = new(ast.ArithExp)
-	if g, e := w.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := w.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ArithExp.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(0, 0); e != g {
+	if g, e := w.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("ArithExp.End() = %v, expected %v", g, e)
 	}
 
@@ -1263,20 +1263,20 @@ func TestArithExp(t *testing.T) {
 		Left:  ast.NewPos(1, 1),
 		Right: ast.NewPos(1, 5),
 	}
-	if g, e := w.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := w.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("ArithExp.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := w.End(), ast.NewPos(1, 7); e != g {
+	if g, e := w.End(), ast.NewPos(1, 7); g != e {
 		t.Errorf("ArithExp.End() = %v, expected %v", g, e)
 	}
 }
 
 func TestComment(t *testing.T) {
 	var n ast.Node = new(ast.Comment)
-	if g, e := n.Pos(), ast.NewPos(0, 0); e != g {
+	if g, e := n.Pos(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Comment.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(0, 0); e != g {
+	if g, e := n.End(), ast.NewPos(0, 0); g != e {
 		t.Errorf("Comment.End() = %v, expected %v", g, e)
 	}
 
@@ -1284,10 +1284,10 @@ func TestComment(t *testing.T) {
 		Hash: ast.NewPos(1, 1),
 		Text: " comment",
 	}
-	if g, e := n.Pos(), ast.NewPos(1, 1); e != g {
+	if g, e := n.Pos(), ast.NewPos(1, 1); g != e {
 		t.Errorf("Comment.Pos() = %v, expected %v", g, e)
 	}
-	if g, e := n.End(), ast.NewPos(1, 9); e != g {
+	if g, e := n.End(), ast.NewPos(1, 9); g != e {
 		t.Errorf("Comment.End() = %v, expected %v", g, e)
 	}
 }

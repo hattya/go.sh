@@ -1,7 +1,7 @@
 //
 // go.sh/parser :: parser_test.go
 //
-//   Copyright (c) 2018-2019 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2020 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -2905,6 +2905,10 @@ var parseErrorTests = []struct {
 		err: ":1:11: syntax error: unexpected '>', expecting 'in'",
 	},
 	{
+		src: "case word _",
+		err: ":1:11: syntax error: unexpected WORD, expecting 'in'",
+	},
+	{
 		src: "case word in",
 		err: ":1:11: syntax error: unexpected EOF, expecting '(' or WORD or 'esac'",
 	},
@@ -2923,6 +2927,10 @@ var parseErrorTests = []struct {
 	{
 		src: ";;",
 		err: ":1:1: syntax error: unexpected ';;'",
+	},
+	{
+		src: "esac",
+		err: ":1:1: syntax error: unexpected 'esac'",
 	},
 	// if conditional construct
 	{

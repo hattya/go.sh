@@ -6,6 +6,9 @@ A parser of the `Shell Command Language`_.
 .. image:: https://godoc.org/github.com/hattya/go.sh?status.svg
    :target: https://godoc.org/github.com/hattya/go.sh
 
+.. image:: https://github.com/hattya/go.sh/workflows/CI/badge.svg
+   :target: https://github.com/hattya/go.sh/actions?query=workflow:CI
+
 .. image:: https://semaphoreci.com/api/v1/hattya/go-sh/branches/master/badge.svg
    :target: https://semaphoreci.com/hattya/go-sh
 

@@ -1,7 +1,7 @@
 //
 // go.sh/printer :: printer.go
 //
-//   Copyright (c) 2018-2019 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -398,7 +398,7 @@ func (p *printer) caseClause(x *ast.CaseClause) {
 
 func (p *printer) ifClause(x *ast.IfClause) {
 	list := x.If.Line() == x.Fi.Line()
-	ifPart := func(word string, cond []ast.Command, cmds []ast.Command) {
+	ifPart := func(word string, cond, cmds []ast.Command) {
 		p.w.WriteString(word)
 		sep := "_"
 		if !list {
@@ -477,7 +477,7 @@ func (p *printer) untilClause(x *ast.UntilClause) {
 	p.loop(x.Until.Line() == x.Done.Line(), "until", x.Cond, x.List)
 }
 
-func (p *printer) loop(list bool, word string, cond []ast.Command, cmds []ast.Command) {
+func (p *printer) loop(list bool, word string, cond, cmds []ast.Command) {
 	p.w.WriteString(word)
 	sep := "_"
 	if !list {

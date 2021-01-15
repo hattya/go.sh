@@ -1,7 +1,7 @@
 //
 // go.sh/parser :: parser_test.go
 //
-//   Copyright (c) 2018-2020 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -858,7 +858,7 @@ var parseCommandTests = []struct {
 			word(lit(1, 1, "echo")),
 			word(
 				cmd_subst(
-					true,      //dollar
+					true,      // dollar
 					pos(1, 7), // left
 					simple_command(
 						word(lit(1, 8, "cat")),

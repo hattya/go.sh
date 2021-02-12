@@ -2,7 +2,7 @@
 //
 // go.sh/parser :: parser.go
 //
-//   Copyright (c) 2018-2019 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -21,21 +21,11 @@ import (
 %}
 
 %union {
-	list     ast.List
-	and_or   *ast.AndOrList
-	pipeline *ast.Pipeline
-	cmd      *ast.Cmd
-	expr     ast.CmdExpr
-	token    token
-	elt      *element
-	item     *ast.CaseItem
-	items    []*ast.CaseItem
-	else_    []ast.ElsePart
-	cmds     []ast.Command
-	redir    *ast.Redir
-	redirs   []*ast.Redir
-	word     ast.Word
-	words    []ast.Word
+	list  interface{}
+	node  ast.Node
+	elt   *element
+	word  ast.Word
+	token token
 }
 
 %token<token> AND OR '|' '(' ')' LAE RAE BREAK '&' ';'
@@ -44,20 +34,20 @@ import (
 %token<word>  WORD NAME ASSIGNMENT_WORD
 %token<token> Bang Lbrace Rbrace For Case Esac In If Elif Then Else Fi While Until Do Done
 
-%type<list>     list
-%type<and_or>   and_or
-%type<pipeline> pipeline pipe_seq
-%type<cmd>      cmd func_def
-%type<elt>      simple_cmd cmd_prefix cmd_suffix
-%type<expr>     compound_cmd subshell group arith_eval for_clause case_clause if_clause while_clause until_clause func_body
-%type<words>    word_list pattern_list
-%type<item>     case_item case_item_ns
-%type<items>    case_list case_list_ns
-%type<else_>    else_part
-%type<cmds>     compound_list term
-%type<redir>    io_redir io_file io_here
-%type<redirs>   redir_list
-%type<token>    redir_op here_op sep seq_sep sep_op
+%type<list>  list
+%type<node>  and_or
+%type<node>  pipeline pipe_seq
+%type<node>  cmd func_def
+%type<elt>   simple_cmd cmd_prefix cmd_suffix
+%type<node>  compound_cmd subshell group arith_eval for_clause case_clause if_clause while_clause until_clause func_body
+%type<list>  word_list pattern_list
+%type<list>  case_list case_list_ns
+%type<node>  case_item case_item_ns
+%type<list>  else_part
+%type<list>  compound_list term
+%type<list>  redir_list
+%type<node>  io_redir io_file io_here
+%type<token> redir_op here_op sep seq_sep sep_op
 
 %left  '&' ';'
 %left  AND OR
@@ -68,21 +58,23 @@ import (
 cmdline:
 		list sep_op
 		{
-			ao := $1[len($1)-1]
+			l := $1.(ast.List)
+			ao := l[len(l)-1]
 			ao.SepPos = $2.pos
 			ao.Sep = $2.val
-			if len($1) > 1 {
-				yylex.(*lexer).cmd = $1
+			if len(l) > 1 {
+				yylex.(*lexer).cmd = l
 			} else {
-				yylex.(*lexer).cmd = extract($1[0])
+				yylex.(*lexer).cmd = extract(l[0])
 			}
 		}
 	|	list
 		{
-			if len($1) > 1 {
-				yylex.(*lexer).cmd = $1
+			l := $1.(ast.List)
+			if len(l) > 1 {
+				yylex.(*lexer).cmd = l
 			} else {
-				yylex.(*lexer).cmd = extract($1[0])
+				yylex.(*lexer).cmd = extract(l[0])
 			}
 		}
 	|	/* empty */
@@ -90,35 +82,36 @@ cmdline:
 list:
 		            and_or
 		{
-			$$ = append($$, $1)
+			$$ = ast.List{$1.(*ast.AndOrList)}
 		}
 	|	list sep_op and_or
 		{
-			ao := $$[len($$)-1]
+			l := $$.(ast.List)
+			ao := l[len(l)-1]
 			ao.SepPos = $2.pos
 			ao.Sep = $2.val
-			$$ = append($$, $3)
+			$$ = append(l, $3.(*ast.AndOrList))
 		}
 
 and_or:
 		           pipeline
 		{
-			$$ = &ast.AndOrList{Pipeline: $1}
+			$$ = &ast.AndOrList{Pipeline: $1.(*ast.Pipeline)}
 		}
 	|	and_or AND pipeline
 		{
-			$$.List = append($$.List, &ast.AndOr{
+			$$.(*ast.AndOrList).List = append($$.(*ast.AndOrList).List, &ast.AndOr{
 				OpPos:    $2.pos,
 				Op:       $2.val,
-				Pipeline: $3,
+				Pipeline: $3.(*ast.Pipeline),
 			})
 		}
 	|	and_or OR  pipeline
 		{
-			$$.List = append($$.List, &ast.AndOr{
+			$$.(*ast.AndOrList).List = append($$.(*ast.AndOrList).List, &ast.AndOr{
 				OpPos:    $2.pos,
 				Op:       $2.val,
-				Pipeline: $3,
+				Pipeline: $3.(*ast.Pipeline),
 			})
 		}
 
@@ -127,20 +120,20 @@ pipeline:
 	|	Bang pipe_seq
 		{
 			$$ = $2
-			$$.Bang = $1.pos
+			$$.(*ast.Pipeline).Bang = $1.pos
 		}
 
 pipe_seq:
 		             cmd
 		{
-			$$ = &ast.Pipeline{Cmd: $1}
+			$$ = &ast.Pipeline{Cmd: $1.(*ast.Cmd)}
 		}
 	|	pipe_seq '|' cmd
 		{
-			$$.List = append($$.List, &ast.Pipe{
+			$$.(*ast.Pipeline).List = append($$.(*ast.Pipeline).List, &ast.Pipe{
 				OpPos: $2.pos,
 				Op:    $2.val,
-				Cmd:   $3,
+				Cmd:   $3.(*ast.Cmd),
 			})
 		}
 
@@ -157,13 +150,13 @@ cmd:
 		}
 	|	compound_cmd
 		{
-			$$ = &ast.Cmd{Expr: $1}
+			$$ = &ast.Cmd{Expr: $1.(ast.CmdExpr)}
 		}
 	|	compound_cmd redir_list
 		{
 			$$ = &ast.Cmd{
-				Expr:   $1,
-				Redirs: $2,
+				Expr:   $1.(ast.CmdExpr),
+				Redirs: $2.([]*ast.Redir),
 			}
 		}
 	|	func_def
@@ -174,9 +167,8 @@ simple_cmd:
 			$$ = &element{
 				redirs:  append($1.redirs, $3.redirs...),
 				assigns: $1.assigns,
+				args:    append([]ast.Word{$2}, $3.args...),
 			}
-			$$.args = append($$.args, $2)
-			$$.args = append($$.args, $3.args...)
 		}
 	|	cmd_prefix WORD
 		{
@@ -186,30 +178,28 @@ simple_cmd:
 	|	cmd_prefix
 	|	           WORD cmd_suffix
 		{
-			$$ = &element{redirs: $2.redirs}
-			$$.args = append($$.args, $1)
-			$$.args = append($$.args, $2.args...)
+			$$ = &element{
+				redirs: $2.redirs,
+				args:   append([]ast.Word{$1}, $2.args...),
+			}
 		}
 	|	           WORD
 		{
-			$$ = new(element)
-			$$.args = append($$.args, $1)
+			$$ = &element{args: []ast.Word{$1}}
 		}
 
 cmd_prefix:
 		           io_redir
 		{
-			$$ = new(element)
-			$$.redirs = append($$.redirs, $1)
+			$$ = &element{redirs: []*ast.Redir{$1.(*ast.Redir)}}
 		}
 	|	cmd_prefix io_redir
 		{
-			$$.redirs = append($$.redirs, $2)
+			$$.redirs = append($$.redirs, $2.(*ast.Redir))
 		}
 	|	           ASSIGNMENT_WORD
 		{
-			$$ = new(element)
-			$$.assigns = append($$.assigns, assign($1))
+			$$ = &element{assigns: []*ast.Assign{assign($1)}}
 		}
 	|	cmd_prefix ASSIGNMENT_WORD
 		{
@@ -219,17 +209,15 @@ cmd_prefix:
 cmd_suffix:
 		           io_redir
 		{
-			$$ = new(element)
-			$$.redirs = append($$.redirs, $1)
+			$$ = &element{redirs: []*ast.Redir{$1.(*ast.Redir)}}
 		}
 	|	cmd_suffix io_redir
 		{
-			$$.redirs = append($$.redirs, $2)
+			$$.redirs = append($$.redirs, $2.(*ast.Redir))
 		}
 	|	           WORD
 		{
-			$$ = new(element)
-			$$.args = append($$.args, $1)
+			$$ = &element{args: []ast.Word{$1}}
 		}
 	|	cmd_suffix WORD
 		{
@@ -251,7 +239,7 @@ subshell:
 		{
 			$$ = &ast.Subshell{
 				Lparen: $1.pos,
-				List:   $2,
+				List:   $2.([]ast.Command),
 				Rparen: $3.pos,
 			}
 		}
@@ -261,7 +249,7 @@ group:
 		{
 			$$ = &ast.Group{
 				Lbrace: $1.pos,
-				List:   $2,
+				List:   $2.([]ast.Command),
 				Rbrace: $3.pos,
 			}
 		}
@@ -283,7 +271,7 @@ for_clause:
 				For:  $1.pos,
 				Name: $2[0].(*ast.Lit),
 				Do:   $3.pos,
-				List: $4,
+				List: $4.([]ast.Command),
 				Done: $5.pos,
 			}
 		}
@@ -294,7 +282,7 @@ for_clause:
 				Name:      $2[0].(*ast.Lit),
 				Semicolon: $3.pos,
 				Do:        $4.pos,
-				List:      $5,
+				List:      $5.([]ast.Command),
 				Done:      $6.pos,
 			}
 		}
@@ -306,7 +294,7 @@ for_clause:
 				In:        $4.pos,
 				Semicolon: $5.pos,
 				Do:        $6.pos,
-				List:      $7,
+				List:      $7.([]ast.Command),
 				Done:      $8.pos,
 			}
 		}
@@ -316,10 +304,10 @@ for_clause:
 				For:       $1.pos,
 				Name:      $2[0].(*ast.Lit),
 				In:        $4.pos,
-				Items:     $5,
+				Items:     $5.([]ast.Word),
 				Semicolon: $6.pos,
 				Do:        $7.pos,
-				List:      $8,
+				List:      $8.([]ast.Command),
 				Done:      $9.pos,
 			}
 		}
@@ -327,11 +315,11 @@ for_clause:
 word_list:
 		          WORD
 		{
-			$$ = append($$, $1)
+			$$ = []ast.Word{$1}
 		}
 	|	word_list WORD
 		{
-			$$ = append($$, $2)
+			$$ = append($$.([]ast.Word), $2)
 		}
 
 case_clause:
@@ -350,7 +338,7 @@ case_clause:
 				Case:  $1.pos,
 				Word:  $2,
 				In:    $4.pos,
-				Items: $6,
+				Items: $6.([]*ast.CaseItem),
 				Esac:  $7.pos,
 			}
 		}
@@ -360,7 +348,7 @@ case_clause:
 				Case:  $1.pos,
 				Word:  $2,
 				In:    $4.pos,
-				Items: $6,
+				Items: $6.([]*ast.CaseItem),
 				Esac:  $7.pos,
 			}
 		}
@@ -368,18 +356,18 @@ case_clause:
 case_list:
 		          case_item
 		{
-			$$ = append($$, $1)
+			$$ = []*ast.CaseItem{$1.(*ast.CaseItem)}
 		}
 	|	case_list case_item
 		{
-			$$ = append($$, $2)
+			$$ = append($$.([]*ast.CaseItem), $2.(*ast.CaseItem))
 		}
 
 case_item:
 		    pattern_list ')' linebreak     BREAK linebreak
 		{
 			$$ = &ast.CaseItem{
-				Patterns: $1,
+				Patterns: $1.([]ast.Word),
 				Rparen:   $2.pos,
 				Break:    $4.pos,
 			}
@@ -387,9 +375,9 @@ case_item:
 	|	    pattern_list ')' compound_list BREAK linebreak
 		{
 			$$ = &ast.CaseItem{
-				Patterns: $1,
+				Patterns: $1.([]ast.Word),
 				Rparen:   $2.pos,
-				List:     $3,
+				List:     $3.([]ast.Command),
 				Break:    $4.pos,
 			}
 		}
@@ -397,7 +385,7 @@ case_item:
 		{
 			$$ = &ast.CaseItem{
 				Lparen:   $1.pos,
-				Patterns: $2,
+				Patterns: $2.([]ast.Word),
 				Rparen:   $3.pos,
 				Break:    $5.pos,
 			}
@@ -406,9 +394,9 @@ case_item:
 		{
 			$$ = &ast.CaseItem{
 				Lparen:   $1.pos,
-				Patterns: $2,
+				Patterns: $2.([]ast.Word),
 				Rparen:   $3.pos,
-				List:     $4,
+				List:     $4.([]ast.Command),
 				Break:    $5.pos,
 			}
 		}
@@ -416,34 +404,34 @@ case_item:
 case_list_ns:
 		          case_item_ns
 		{
-			$$ = append($$, $1)
+			$$ = []*ast.CaseItem{$1.(*ast.CaseItem)}
 		}
 	|	case_list case_item_ns
 		{
-			$$ = append($$, $2)
+			$$ = append($$.([]*ast.CaseItem), $2.(*ast.CaseItem))
 		}
 
 case_item_ns:
 		    pattern_list ')' linebreak
 		{
 			$$ = &ast.CaseItem{
-				Patterns: $1,
+				Patterns: $1.([]ast.Word),
 				Rparen:   $2.pos,
 			}
 		}
 	|	    pattern_list ')' compound_list
 		{
 			$$ = &ast.CaseItem{
-				Patterns: $1,
+				Patterns: $1.([]ast.Word),
 				Rparen:   $2.pos,
-				List:     $3,
+				List:     $3.([]ast.Command),
 			}
 		}
 	|	'(' pattern_list ')' linebreak
 		{
 			$$ = &ast.CaseItem{
 				Lparen:   $1.pos,
-				Patterns: $2,
+				Patterns: $2.([]ast.Word),
 				Rparen:   $3.pos,
 			}
 		}
@@ -451,20 +439,20 @@ case_item_ns:
 		{
 			$$ = &ast.CaseItem{
 				Lparen:   $1.pos,
-				Patterns: $2,
+				Patterns: $2.([]ast.Word),
 				Rparen:   $3.pos,
-				List:     $4,
+				List:     $4.([]ast.Command),
 			}
 		}
 
 pattern_list:
 		                 WORD
 		{
-			$$ = append($$, $1)
+			$$ = []ast.Word{$1}
 		}
 	|	pattern_list '|' WORD
 		{
-			$$ = append($$, $3)
+			$$ = append($$.([]ast.Word), $3)
 		}
 
 if_clause:
@@ -472,9 +460,9 @@ if_clause:
 		{
 			$$ = &ast.IfClause{
 				If:   $1.pos,
-				Cond: $2,
+				Cond: $2.([]ast.Command),
 				Then: $3.pos,
-				List: $4,
+				List: $4.([]ast.Command),
 				Fi:   $5.pos,
 			}
 		}
@@ -482,10 +470,10 @@ if_clause:
 		{
 			$$ = &ast.IfClause{
 				If:   $1.pos,
-				Cond: $2,
+				Cond: $2.([]ast.Command),
 				Then: $3.pos,
-				List: $4,
-				Else: $5,
+				List: $4.([]ast.Command),
+				Else: $5.([]ast.ElsePart),
 				Fi:   $6.pos,
 			}
 		}
@@ -493,29 +481,28 @@ if_clause:
 else_part:
 		Elif compound_list Then compound_list
 		{
-			$$ = append($$, &ast.ElifClause{
+			$$ = []ast.ElsePart{&ast.ElifClause{
 				Elif: $1.pos,
-				Cond: $2,
+				Cond: $2.([]ast.Command),
 				Then: $3.pos,
-				List: $4,
-			})
+				List: $4.([]ast.Command),
+			}}
 		}
 	|	Elif compound_list Then compound_list else_part
 		{
-			$$ = append($$, &ast.ElifClause{
+			$$ = append([]ast.ElsePart{&ast.ElifClause{
 				Elif: $1.pos,
-				Cond: $2,
+				Cond: $2.([]ast.Command),
 				Then: $3.pos,
-				List: $4,
-			})
-			$$ = append($$, $5...)
+				List: $4.([]ast.Command),
+			}}, $5.([]ast.ElsePart)...)
 		}
 	|	Else compound_list
 		{
-			$$ = append($$, &ast.ElseClause{
+			$$ = []ast.ElsePart{&ast.ElseClause{
 				Else: $1.pos,
-				List: $2,
-			})
+				List: $2.([]ast.Command),
+			}}
 		}
 
 while_clause:
@@ -523,9 +510,9 @@ while_clause:
 		{
 			$$ = &ast.WhileClause{
 				While: $1.pos,
-				Cond:  $2,
+				Cond:  $2.([]ast.Command),
 				Do:    $3.pos,
-				List:  $4,
+				List:  $4.([]ast.Command),
 				Done:  $5.pos,
 			}
 		}
@@ -535,9 +522,9 @@ until_clause:
 		{
 			$$ = &ast.UntilClause{
 				Until: $1.pos,
-				Cond:  $2,
+				Cond:  $2.([]ast.Command),
 				Do:    $3.pos,
-				List:  $4,
+				List:  $4.([]ast.Command),
 				Done:  $5.pos,
 			}
 		}
@@ -549,7 +536,7 @@ func_def:
 			x.Name = $1[0].(*ast.Lit)
 			x.Lparen = $2.pos
 			x.Rparen = $3.pos
-			$$ = &ast.Cmd{Expr: $5}
+			$$ = &ast.Cmd{Expr: $5.(ast.CmdExpr)}
 		}
 
 func_body:
@@ -557,7 +544,7 @@ func_body:
 		{
 			$$ = &ast.FuncDef{
 				Body: &ast.Cmd{
-					Expr: $1,
+					Expr: $1.(ast.CmdExpr),
 				},
 			}
 		}
@@ -565,8 +552,8 @@ func_body:
 		{
 			$$ = &ast.FuncDef{
 				Body: &ast.Cmd{
-					Expr:   $1,
-					Redirs: $2,
+					Expr:   $1.(ast.CmdExpr),
+					Redirs: $2.([]*ast.Redir),
 				},
 			}
 		}
@@ -574,22 +561,24 @@ func_body:
 compound_list:
 		linebreak term sep
 		{
-			l := $2[len($2)-1].(ast.List)
+			cmds := $2.([]ast.Command)
+			l := cmds[len(cmds)-1].(ast.List)
 			if $3.typ != '\n' {
 				ao := l[len(l)-1]
 				ao.SepPos = $3.pos
 				ao.Sep = $3.val
 			}
 			if len(l) == 1 {
-				$2[len($2)-1] = extract(l[0])
+				cmds[len(cmds)-1] = extract(l[0])
 			}
 			$$ = $2
 		}
 	|	linebreak term
 		{
-			l := $2[len($2)-1].(ast.List)
+			cmds := $2.([]ast.Command)
+			l := cmds[len(cmds)-1].(ast.List)
 			if len(l) == 1 {
-				$2[len($2)-1] = extract(l[0])
+				cmds[len(cmds)-1] = extract(l[0])
 			}
 			$$ = $2
 		}
@@ -597,32 +586,33 @@ compound_list:
 term:
 		         and_or
 		{
-			$$ = append($$, ast.List{$1})
+			$$ = []ast.Command{ast.List{$1.(*ast.AndOrList)}}
 		}
 	|	term sep and_or
 		{
-			l := $$[len($$)-1].(ast.List)
+			cmds := $$.([]ast.Command)
+			l := cmds[len(cmds)-1].(ast.List)
 			if $2.typ != '\n' {
 				ao := l[len(l)-1]
 				ao.SepPos = $2.pos
 				ao.Sep = $2.val
-				$$[len($$)-1] = append(l, $3)
+				cmds[len(cmds)-1] = append(l, $3.(*ast.AndOrList))
 			} else {
 				if len(l) == 1 {
-					$$[len($$)-1] = extract(l[0])
+					cmds[len(cmds)-1] = extract(l[0])
 				}
-				$$ = append($$, ast.List{$3})
+				$$ = append(cmds, ast.List{$3.(*ast.AndOrList)})
 			}
 		}
 
 redir_list:
 		           io_redir
 		{
-			$$ = append($$, $1)
+			$$ = []*ast.Redir{$1.(*ast.Redir)}
 		}
 	|	redir_list io_redir
 		{
-			$$ = append($$, $2)
+			$$ = append($$.([]*ast.Redir), $2.(*ast.Redir))
 		}
 
 io_redir:
@@ -630,13 +620,13 @@ io_redir:
 	|	IO_NUMBER io_file
 		{
 			$$ = $2
-			$$.N = $1[0].(*ast.Lit)
+			$$.(*ast.Redir).N = $1[0].(*ast.Lit)
 		}
 	|	          io_here
 	|	IO_NUMBER io_here
 		{
 			$$ = $2
-			$$.N = $1[0].(*ast.Lit)
+			$$.(*ast.Redir).N = $1[0].(*ast.Lit)
 		}
 
 io_file:
@@ -666,7 +656,7 @@ io_here:
 				Op:      $1.val,
 				Word:    $2,
 			}
-			yylex.(*lexer).heredoc.push($$)
+			yylex.(*lexer).heredoc.push($$.(*ast.Redir))
 		}
 
 here_op:

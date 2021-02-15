@@ -1,7 +1,7 @@
 //
 // go.sh/parser :: lexer.go
 //
-//   Copyright (c) 2018-2019 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -1312,7 +1312,7 @@ Op:
 	{
 		// save current word
 		word := l.word
-		l.word = nil
+		l.word = ast.Word{}
 	Word:
 		for {
 			r, err = l.read()

@@ -372,7 +372,7 @@ var parseCommandTests = []struct {
 		src: "echo ${LANG:-}",
 		cmd: simple_command(
 			word(lit(1, 1, "echo")),
-			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, ":-"), nil)),
+			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, ":-"), word())),
 		),
 	},
 	{
@@ -392,7 +392,7 @@ var parseCommandTests = []struct {
 		src: "echo ${LANG-}",
 		cmd: simple_command(
 			word(lit(1, 1, "echo")),
-			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, "-"), nil)),
+			word(param_exp(1, 6, true, lit(1, 8, "LANG"), lit(1, 12, "-"), word())),
 		),
 	},
 	{
@@ -412,7 +412,7 @@ var parseCommandTests = []struct {
 		src: "echo ${#=}",
 		cmd: simple_command(
 			word(lit(1, 1, "echo")),
-			word(param_exp(1, 6, true, lit(1, 8, "#"), lit(1, 9, "="), nil)),
+			word(param_exp(1, 6, true, lit(1, 8, "#"), lit(1, 9, "="), word())),
 		),
 	},
 	{

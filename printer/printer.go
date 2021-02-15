@@ -612,7 +612,7 @@ func (p *printer) paramExp(w *ast.ParamExp) {
 		switch {
 		case w.Op == "":
 			p.w.WriteString("${" + w.Name.Value + "}")
-		case w.Op == "#" && w.OpPos.Before(w.Name.ValuePos):
+		case w.Op == "#" && w.Word == nil:
 			// string length
 			p.w.WriteString("${#" + w.Name.Value + "}")
 		default:

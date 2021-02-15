@@ -1,7 +1,7 @@
 //
 // go.sh/ast :: ast.go
 //
-//   Copyright (c) 2018-2019 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -514,12 +514,12 @@ type (
 
 	// ParamExp represents a parameter expansion.
 	ParamExp struct {
-		Dollar Pos  // position of "$"
-		Braces bool // whether this is enclosed in braces
-		Name   *Lit // parameter name
-		OpPos  Pos  // position of Op
-		Op     string
-		Word   Word
+		Dollar Pos    // position of "$"
+		Braces bool   // whether this is enclosed in braces
+		Name   *Lit   // parameter name
+		OpPos  Pos    // position of Op
+		Op     string // operator
+		Word   Word   // nil means string length
 	}
 
 	// CmdSubst represents a command substisution.

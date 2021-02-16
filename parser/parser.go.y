@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/hattya/go.sh/ast"
+	"github.com/hattya/go.sh/interp"
 )
 %}
 
@@ -34,7 +35,7 @@ import (
 %token<word>  WORD NAME ASSIGNMENT_WORD
 %token<token> Bang Lbrace Rbrace For Case Esac In If Elif Then Else Fi While Until Do Done
 
-%type<list>  list
+%type<list>  complete_cmd list
 %type<node>  and_or
 %type<node>  pipeline pipe_seq
 %type<node>  cmd func_def
@@ -56,28 +57,38 @@ import (
 %%
 
 cmdline:
+		complete_cmds linebreak
+	|	/* empty */
+
+complete_cmds:
+		                           complete_cmd
+		{
+			l := $1.(ast.List)
+			if len(l) > 1 {
+				yylex.(*lexer).cmds = append(yylex.(*lexer).cmds, l)
+			} else {
+				yylex.(*lexer).cmds = append(yylex.(*lexer).cmds, extract(l[0]))
+			}
+		}
+	|	complete_cmds newline_list complete_cmd
+		{
+			l := $3.(ast.List)
+			if len(l) > 1 {
+				yylex.(*lexer).cmds = append(yylex.(*lexer).cmds, l)
+			} else {
+				yylex.(*lexer).cmds = append(yylex.(*lexer).cmds, extract(l[0]))
+			}
+		}
+
+complete_cmd:
 		list sep_op
 		{
 			l := $1.(ast.List)
 			ao := l[len(l)-1]
 			ao.SepPos = $2.pos
 			ao.Sep = $2.val
-			if len(l) > 1 {
-				yylex.(*lexer).cmd = l
-			} else {
-				yylex.(*lexer).cmd = extract(l[0])
-			}
 		}
 	|	list
-		{
-			l := $1.(ast.List)
-			if len(l) > 1 {
-				yylex.(*lexer).cmd = l
-			} else {
-				yylex.(*lexer).cmd = extract(l[0])
-			}
-		}
-	|	/* empty */
 
 list:
 		            and_or
@@ -793,16 +804,26 @@ func assign(w ast.Word) *ast.Assign {
 	}
 }
 
-// ParseCommand parses src and returns a command.
-func ParseCommand(name string, src interface{}) (ast.Command, []*ast.Comment, error) {
+// ParseCommands parses src, including alias substitution, and returns
+// commands.
+func ParseCommands(env *interp.ExecEnv, name string, src interface{}) ([]ast.Command, []*ast.Comment, error) {
 	r, err := open(src)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	l := newLexer(name, r)
+	l := newLexer(env, name, r)
 	yyParse(l)
-	return l.cmd, l.comments, l.err
+	return l.cmds, l.comments, l.err
+}
+
+// ParseCommand parses src and returns a command.
+func ParseCommand(name string, src interface{}) (ast.Command, []*ast.Comment, error) {
+	cmds, comments, err := ParseCommands(nil, name, src)
+	if len(cmds) == 0 {
+		return nil, comments, err
+	}
+	return cmds[0], comments, err
 }
 
 func open(src interface{}) (r io.RuneScanner, err error) {

@@ -22,6 +22,7 @@ import (
 	"unicode"
 
 	"github.com/hattya/go.sh/ast"
+	"github.com/hattya/go.sh/interp"
 	"github.com/hattya/go.sh/printer"
 )
 
@@ -87,9 +88,10 @@ var (
 )
 
 type lexer struct {
+	env      *interp.ExecEnv
 	name     string
 	r        io.RuneScanner
-	cmd      ast.Command
+	cmds     []ast.Command
 	comments []*ast.Comment
 	cmdSubst rune
 	token    chan ast.Node
@@ -100,6 +102,7 @@ type lexer struct {
 	err    error
 	cancel chan struct{}
 
+	aliases   []*alias
 	stack     []int
 	arithExpr bool
 	paren     int
@@ -113,8 +116,9 @@ type lexer struct {
 	last      atomic.Value
 }
 
-func newLexer(name string, r io.RuneScanner) *lexer {
+func newLexer(env *interp.ExecEnv, name string, r io.RuneScanner) *lexer {
 	l := &lexer{
+		env:     env,
 		name:    name,
 		r:       r,
 		token:   make(chan ast.Node),
@@ -161,20 +165,20 @@ func (l *lexer) run() {
 }
 
 func (l *lexer) lexPipeline() action {
-	tok := l.scanToken()
-	if l.translate(tok) == Bang {
+	tok := l.scanRawToken()
+	if l.tr(tok) == Bang {
 		l.emit(Bang)
-		tok = l.scanToken()
+		tok = l.scanRawToken()
 	}
 	return l.lexCmd(tok)
 }
 
 func (l *lexer) lexNextCmd() action {
-	return l.lexCmd(l.scanToken())
+	return l.lexCmd(l.scanRawToken())
 }
 
 func (l *lexer) lexCmd(tok int) action {
-	tok = l.translate(tok)
+	tok = l.tr(tok)
 	switch tok {
 	case '<', '>', CLOBBER, APPEND, HEREDOC, HEREDOCI, DUPIN, DUPOUT, RDWR:
 		l.emit(tok)
@@ -222,6 +226,8 @@ func (l *lexer) lexSimpleCmd() action {
 	case l.isAssign():
 		l.emit(ASSIGNMENT_WORD)
 		return l.lexCmdPrefix
+	case l.subst():
+		return l.lexPipeline
 	case len(l.word) == 1:
 		if w, ok := l.word[0].(*ast.Lit); ok && l.isName(w.Value) {
 			// lookahead
@@ -265,9 +271,12 @@ func (l *lexer) lexCmdPrefix() action {
 	case IO_NUMBER:
 		goto Prefix
 	case WORD:
-		if l.isAssign() {
+		switch {
+		case l.isAssign():
 			tok = ASSIGNMENT_WORD
 			goto Prefix
+		case l.subst():
+			return l.lexCmdPrefix
 		}
 		l.emit(WORD)
 		return l.lexCmdSuffix
@@ -351,31 +360,38 @@ func (l *lexer) lexFor() action {
 	default:
 		return l.lexToken(tok)
 	}
-
-	switch tok := l.scanToken(); tok {
+Third:
+	switch tok := l.scanRawToken(); tok {
 	case ';':
 		l.emit(';')
 		if !l.linebreak() {
 			return nil
 		}
-		if tok = l.translate(l.scanToken()); tok == Do {
-			goto Do
+		for {
+			switch tok = l.tr(l.scanRawToken()); {
+			case tok == Do:
+				goto Do
+			case !l.subst():
+				return l.lexToken(tok)
+			}
 		}
-		return l.lexToken(tok)
 	case '\n':
 		l.emit('\n')
 		if !l.linebreak() {
 			return nil
 		}
-		tok = l.scanToken()
+		tok = l.scanRawToken()
 		fallthrough
 	default:
-		switch tok = l.translate(tok); tok {
+		switch tok = l.tr(tok); tok {
 		case In:
 			goto In
 		case Do:
 			goto Do
 		default:
+			if l.subst() {
+				goto Third
+			}
 			return l.lexToken(tok)
 		}
 	}
@@ -390,10 +406,14 @@ In:
 			if !l.linebreak() {
 				return nil
 			}
-			if tok = l.translate(l.scanToken()); tok == Do {
-				goto Do
+			for {
+				switch tok = l.tr(l.scanRawToken()); {
+				case tok == Do:
+					goto Do
+				case !l.subst():
+					return l.lexToken(tok)
+				}
 			}
-			fallthrough
 		default:
 			return l.lexToken(tok)
 		}
@@ -425,8 +445,12 @@ func (l *lexer) lexCase() action {
 	if !l.linebreak() {
 		return nil
 	}
+Third:
 	// in
-	if tok := l.scanToken(); l.translate(tok) != In {
+	if tok := l.scanRawToken(); l.tr(tok) != In {
+		if l.subst() {
+			goto Third
+		}
 		return l.lexToken(tok)
 	}
 	l.emit(In)
@@ -441,7 +465,7 @@ func (l *lexer) lexCase() action {
 func (l *lexer) lexCaseItem() action {
 	tok := l.scanToken()
 	// check for esac
-	if l.translate(tok) == Esac {
+	if l.tr(tok) == Esac {
 		return l.lexToken(Esac)
 	}
 	// patterns
@@ -482,8 +506,8 @@ func (l *lexer) lexCaseBreak() action {
 	return nil
 }
 
-// translate translates a WORD token to a reserved word token if it is.
-func (l *lexer) translate(tok int) int {
+// tr translates a WORD token to a reserved word token if it is.
+func (l *lexer) tr(tok int) int {
 	if tok == WORD && len(l.word) == 1 {
 		if w, ok := l.word[0].(*ast.Lit); ok {
 			if tok, ok := words[w.Value]; ok {
@@ -492,6 +516,33 @@ func (l *lexer) translate(tok int) int {
 		}
 	}
 	return tok
+}
+
+// subst performs alias substitution at the current word. It returns
+// false when it was not performed.
+func (l *lexer) subst() bool {
+	if l.env != nil && len(l.word) == 1 {
+		if w, ok := l.word[0].(*ast.Lit); ok {
+			if v, ok := l.env.Aliases[w.Value]; ok {
+				// avoid infinite loop
+				for _, a := range l.aliases {
+					if a.name == w.Value {
+						return false
+					}
+				}
+
+				r := strings.NewReader(strings.TrimRight(v, "\t ") + " ")
+				l.aliases = append(l.aliases, &alias{
+					name:  w.Value,
+					value: r,
+					blank: len(v) > r.Len()-1,
+				})
+				l.word = nil
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (l *lexer) lexIf() action {
@@ -588,7 +639,7 @@ func (l *lexer) lexToken(tok int) action {
 		switch {
 		case l.heredoc.exists():
 			return l.lexHeredoc
-		case len(l.stack) != 0:
+		case len(l.aliases) != 0 || len(l.stack) != 0:
 			l.emit('\n')
 			return l.lexPipeline
 		}
@@ -811,6 +862,21 @@ func (l *lexer) print(w ast.Word) string {
 }
 
 func (l *lexer) scanToken() int {
+	var blank bool
+	if len(l.aliases) != 0 {
+		if a := l.aliases[len(l.aliases)-1]; a.value.Len() == 0 {
+			blank = a.blank
+		}
+	}
+Scan:
+	tok := l.scanRawToken()
+	if tok == WORD && blank && l.subst() {
+		goto Scan
+	}
+	return tok
+}
+
+func (l *lexer) scanRawToken() int {
 	for {
 		r, err := l.read()
 		if err != nil {
@@ -1417,7 +1483,7 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 		l.col = ll.col
 		l.pos = ll.pos
 		// append to current word
-		switch x := ll.cmd.(*ast.Cmd).Expr.(type) {
+		switch x := ll.cmds[0].(*ast.Cmd).Expr.(type) {
 		case *ast.Subshell:
 			l.word = append(l.word, &ast.CmdSubst{
 				Dollar: r == '$',
@@ -1544,10 +1610,24 @@ func (l *lexer) emit(typ int) {
 }
 
 func (l *lexer) mark(off int) {
-	l.pos = ast.NewPos(l.line, l.col+off)
+	if len(l.aliases) == 0 {
+		l.pos = ast.NewPos(l.line, l.col+off)
+	}
 }
 
 func (l *lexer) read() (rune, error) {
+	if len(l.aliases) != 0 {
+		for i := len(l.aliases) - 1; i >= 0; i-- {
+			if l.aliases[i].value.Len() > 0 {
+				r, _, err := l.aliases[i].value.ReadRune()
+				l.aliases = l.aliases[:i+1]
+				return r, err
+			}
+		}
+		l.aliases = l.aliases[:0]
+		l.mark(0)
+	}
+
 	r, _, err := l.r.ReadRune()
 	switch {
 	case err != nil:
@@ -1570,6 +1650,11 @@ func (l *lexer) read() (rune, error) {
 }
 
 func (l *lexer) unread() {
+	if len(l.aliases) != 0 {
+		l.aliases[len(l.aliases)-1].value.UnreadRune()
+		return
+	}
+
 	l.r.UnreadRune()
 	if l.col == 1 {
 		l.line--
@@ -1621,6 +1706,12 @@ type word struct {
 
 func (w word) Pos() ast.Pos { return w.val.Pos() }
 func (w word) End() ast.Pos { return w.val.End() }
+
+type alias struct {
+	name  string
+	value *strings.Reader
+	blank bool
+}
 
 type heredoc struct {
 	c     chan struct{}

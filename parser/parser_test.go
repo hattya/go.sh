@@ -17,8 +17,180 @@ import (
 	"testing"
 
 	"github.com/hattya/go.sh/ast"
+	"github.com/hattya/go.sh/interp"
 	"github.com/hattya/go.sh/parser"
 )
+
+var parseCommandsTests = []struct {
+	src      string
+	cmds     []ast.Command
+	comments []*ast.Comment
+	aliases  map[string]string
+}{
+	// simple command
+	{
+		src: "echo foo",
+		cmds: complete_commands(
+			simple_command(
+				word(lit(1, 1, "echo")),
+				word(lit(1, 6, "bar")),
+			),
+		),
+		aliases: map[string]string{
+			"echo": "echo ",
+			"foo":  "bar ",
+			"bar":  "baz ",
+			"baz":  "bar ",
+		},
+	},
+	{
+		src: "foo",
+		cmds: complete_commands(
+			simple_command(
+				word(lit(1, 1, "echo")),
+				word(lit(1, 1, "foo")),
+			),
+		),
+		aliases: map[string]string{
+			"foo": "bar baz ",
+			"bar": "echo ",
+			"baz": "foo ",
+		},
+	},
+	{
+		src: "foo",
+		cmds: complete_commands(
+			simple_command(
+				word(lit(1, 1, "echo")),
+				word(lit(1, 1, "bar")),
+			),
+			simple_command(
+				word(lit(1, 1, "echo")),
+				word(lit(1, 1, "baz")),
+			),
+		),
+		aliases: map[string]string{
+			"foo": "echo bar\necho baz",
+		},
+	},
+	{
+		src: "FOO BAR",
+		cmds: complete_commands(
+			simple_command(
+				assignment_word(1, 1, "FOO", word(lit(1, 5, "foo"))),
+				assignment_word(1, 5, "BAR", word(lit(1, 9, "bar"))),
+				word(lit(1, 5, "env")),
+			),
+		),
+		aliases: map[string]string{
+			"FOO": "FOO=foo ",
+			"BAR": "BAR=bar baz",
+			"baz": "env ",
+		},
+	},
+	// for loop
+	{
+		src: "For Third",
+		cmds: complete_commands(
+			for_clause(
+				pos(1, 1), // for
+				lit(1, 1, "name"),
+				sep(0, 0, ""),
+				pos(1, 5), // do
+				and_or_list(
+					simple_command(
+						word(lit(1, 5, "echo")),
+						word(param_exp(1, 5, false, lit(1, 5, "name"), nil, nil)),
+					),
+					sep(1, 5, ";"),
+				),
+				pos(1, 5), // done
+			),
+		),
+		aliases: map[string]string{
+			"For":   "for name ",
+			"Third": "do echo $name; done ",
+		},
+	},
+	{
+		src: "for name do echo $name; done",
+		cmds: complete_commands(
+			for_clause(
+				pos(1, 1), // for
+				lit(1, 5, "name"),
+				sep(0, 0, ""),
+				pos(1, 10), // do
+				and_or_list(
+					simple_command(
+						word(lit(1, 13, "echo")),
+						word(param_exp(1, 18, false, lit(1, 19, "name"), nil, nil)),
+					),
+					sep(1, 23, ";"),
+				),
+				pos(1, 25), // done
+			),
+		),
+		aliases: map[string]string{
+			"for": ":\nfor ",
+		},
+	},
+	// case conditional construct
+	{
+		src: "Case Third",
+		cmds: complete_commands(
+			case_clause(
+				pos(1, 1), // case
+				word(lit(1, 1, "word")),
+				pos(1, 6), // in
+				pos(1, 6), // esac
+			),
+		),
+		aliases: map[string]string{
+			"Case":  "case word ",
+			"Third": "in esac ",
+		},
+	},
+	// parameter expansion
+	{
+		src: "foo",
+		cmds: complete_commands(
+			simple_command(
+				word(param_exp(1, 1, true, lit(1, 1, "FOO"), lit(1, 1, "#"), nil)),
+			),
+		),
+		aliases: map[string]string{
+			"foo": "${#FOO}",
+		},
+	},
+	{
+		src: "foo",
+		cmds: complete_commands(
+			simple_command(
+				word(param_exp(1, 1, true, lit(1, 1, "FOO"), lit(1, 1, "#"), word())),
+			),
+		),
+		aliases: map[string]string{
+			"foo": "${FOO#}",
+		},
+	},
+}
+
+func TestParseCommands(t *testing.T) {
+	for i, tt := range parseCommandsTests {
+		env := interp.NewExecEnv()
+		for n, v := range tt.aliases {
+			env.Aliases[n] = v
+		}
+		switch cmds, comments, err := parser.ParseCommands(env, fmt.Sprintf("%v.sh", i), tt.src); {
+		case err != nil:
+			t.Error(err)
+		case !reflect.DeepEqual(cmds, tt.cmds):
+			t.Errorf("unexpected commands for %q", tt.src)
+		case !reflect.DeepEqual(comments, tt.comments):
+			t.Errorf("unexpected comments for %q", tt.src)
+		}
+	}
+}
 
 var parseCommandTests = []struct {
 	src      string
@@ -2154,8 +2326,7 @@ var parseCommandTests = []struct {
 
 func TestParseCommand(t *testing.T) {
 	for i, tt := range parseCommandTests {
-		cmd, comments, err := parser.ParseCommand(fmt.Sprintf("%v.sh", i), tt.src)
-		switch {
+		switch cmd, comments, err := parser.ParseCommand(fmt.Sprintf("%v.sh", i), tt.src); {
 		case err != nil:
 			t.Error(err)
 		case !reflect.DeepEqual(cmd, tt.cmd):
@@ -2167,6 +2338,10 @@ func TestParseCommand(t *testing.T) {
 }
 
 var pos = ast.NewPos
+
+func complete_commands(cmd ...ast.Command) []ast.Command {
+	return []ast.Command(cmd)
+}
 
 func list(list ...*ast.AndOrList) ast.List {
 	return ast.List(list)
@@ -2878,6 +3053,10 @@ var parseErrorTests = []struct {
 	{
 		src: "for name in\ndone",
 		err: ":2:1: syntax error: unexpected 'done', expecting 'do'",
+	},
+	{
+		src: "for name in &",
+		err: ":1:13: syntax error: unexpected '&', expecting ';' or WORD or '\\n'",
 	},
 	{
 		src: "done",

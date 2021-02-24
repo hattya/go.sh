@@ -27,6 +27,29 @@ var parseCommandsTests = []struct {
 	comments []*ast.Comment
 	aliases  map[string]string
 }{
+	// parameter expansion
+	{
+		src: "foo",
+		cmds: complete_commands(
+			simple_command(
+				word(param_exp(1, 1, true, lit(1, 1, "FOO"), lit(1, 1, "#"), nil)),
+			),
+		),
+		aliases: map[string]string{
+			"foo": "${#FOO}",
+		},
+	},
+	{
+		src: "foo",
+		cmds: complete_commands(
+			simple_command(
+				word(param_exp(1, 1, true, lit(1, 1, "FOO"), lit(1, 1, "#"), word())),
+			),
+		),
+		aliases: map[string]string{
+			"foo": "${FOO#}",
+		},
+	},
 	// simple command
 	{
 		src: "echo foo",
@@ -86,6 +109,46 @@ var parseCommandsTests = []struct {
 			"FOO": "FOO=foo ",
 			"BAR": "BAR=bar baz",
 			"baz": "env ",
+		},
+	},
+	// list
+	{
+		src: "FOO BAR",
+		cmds: complete_commands(
+			list(
+				and_or_list(
+					simple_command(
+						word(lit(1, 1, "echo")),
+						word(lit(1, 1, "foo")),
+					),
+					sep(1, 1, ";"),
+				),
+				and_or_list(
+					simple_command(
+						word(lit(1, 1, "make")),
+						word(lit(1, 1, "foo")),
+					),
+				),
+			),
+			list(
+				and_or_list(
+					simple_command(
+						word(lit(1, 5, "echo")),
+						word(lit(1, 5, "bar")),
+					),
+					sep(1, 5, ";"),
+				),
+				and_or_list(
+					simple_command(
+						word(lit(1, 5, "make")),
+						word(lit(1, 5, "bar")),
+					),
+				),
+			),
+		),
+		aliases: map[string]string{
+			"FOO": "echo foo; make foo\n ",
+			"BAR": "echo bar; make bar\n ",
 		},
 	},
 	// for loop
@@ -148,29 +211,6 @@ var parseCommandsTests = []struct {
 		aliases: map[string]string{
 			"Case":  "case word ",
 			"Third": "in esac ",
-		},
-	},
-	// parameter expansion
-	{
-		src: "foo",
-		cmds: complete_commands(
-			simple_command(
-				word(param_exp(1, 1, true, lit(1, 1, "FOO"), lit(1, 1, "#"), nil)),
-			),
-		),
-		aliases: map[string]string{
-			"foo": "${#FOO}",
-		},
-	},
-	{
-		src: "foo",
-		cmds: complete_commands(
-			simple_command(
-				word(param_exp(1, 1, true, lit(1, 1, "FOO"), lit(1, 1, "#"), word())),
-			),
-		),
-		aliases: map[string]string{
-			"foo": "${FOO#}",
 		},
 	},
 }
@@ -1058,6 +1098,17 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
+		src: "cat 0<<EOF\nEOF\n",
+		cmd: simple_command(
+			word(lit(1, 1, "cat")),
+			heredoc(
+				lit(1, 5, "0"), 1, 6, "<<", word(lit(1, 8, "EOF")),
+				word(),
+				word(lit(2, 1, "EOF")),
+			),
+		),
+	},
+	{
 		src: "exec 3<&-",
 		cmd: simple_command(
 			word(lit(1, 1, "exec")),
@@ -1881,7 +1932,7 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "case word in 0|foo) ;; 1|bar) echo bar ;; (2|baz) ;; (3|qux) echo qux; esac",
+		src: "case word in 0|foo) ;; 1|bar) echo bar; esac",
 		cmd: case_clause(
 			pos(1, 1), // case
 			word(lit(1, 6, "word")),
@@ -1896,37 +1947,19 @@ var parseCommandTests = []struct {
 				word(lit(1, 24, "1")),
 				word(lit(1, 26, "bar")),
 				pos(1, 29), // )
-				simple_command(
-					word(lit(1, 31, "echo")),
-					word(lit(1, 36, "bar")),
-				),
-				pos(1, 40), // ;;
-			),
-			case_item(
-				pos(1, 43), // (
-				word(lit(1, 44, "2")),
-				word(lit(1, 46, "baz")),
-				pos(1, 49), // )
-				pos(1, 51), // ;;
-			),
-			case_item(
-				pos(1, 54), // (
-				word(lit(1, 55, "3")),
-				word(lit(1, 57, "qux")),
-				pos(1, 60), // )
 				and_or_list(
 					simple_command(
-						word(lit(1, 62, "echo")),
-						word(lit(1, 67, "qux")),
+						word(lit(1, 31, "echo")),
+						word(lit(1, 36, "bar")),
 					),
-					sep(1, 70, ";"),
+					sep(1, 39, ";"),
 				),
 			),
-			pos(1, 72), // esac
+			pos(1, 41), // esac
 		),
 	},
 	{
-		src: "case word in\n0|foo)\n\t;;\n1|bar)\n\techo bar\n\t;;\n(2|baz)\n\t;;\n(3|qux)\n\techo qux\nesac",
+		src: "case word in\n0|foo)\n\t;;\n1|bar)\nesac",
 		cmd: case_clause(
 			pos(1, 1), // case
 			word(lit(1, 6, "word")),
@@ -1941,30 +1974,57 @@ var parseCommandTests = []struct {
 				word(lit(4, 1, "1")),
 				word(lit(4, 3, "bar")),
 				pos(4, 6), // )
-				simple_command(
-					word(lit(5, 2, "echo")),
-					word(lit(5, 7, "bar")),
-				),
-				pos(6, 2), // ;;
+			),
+			pos(5, 1), // esac
+		),
+	},
+	{
+		src: "case word in 0|foo) ;; (1|bar) echo bar; esac",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			case_item(
+				word(lit(1, 14, "0")),
+				word(lit(1, 16, "foo")),
+				pos(1, 19), // )
+				pos(1, 21), // ;;
 			),
 			case_item(
-				pos(7, 1), // (
-				word(lit(7, 2, "2")),
-				word(lit(7, 4, "baz")),
-				pos(7, 7), // )
-				pos(8, 2), // ;;
-			),
-			case_item(
-				pos(9, 1), // (
-				word(lit(9, 2, "3")),
-				word(lit(9, 4, "qux")),
-				pos(9, 7), // )
-				simple_command(
-					word(lit(10, 2, "echo")),
-					word(lit(10, 7, "qux")),
+				pos(1, 24), // (
+				word(lit(1, 25, "1")),
+				word(lit(1, 27, "bar")),
+				pos(1, 30), // )
+				and_or_list(
+					simple_command(
+						word(lit(1, 32, "echo")),
+						word(lit(1, 37, "bar")),
+					),
+					sep(1, 40, ";"),
 				),
 			),
-			pos(11, 1), // esac
+			pos(1, 42), // esac
+		),
+	},
+	{
+		src: "case word in\n0|foo)\n\t;;\n(1|bar)\nesac",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			case_item(
+				word(lit(2, 1, "0")),
+				word(lit(2, 3, "foo")),
+				pos(2, 6), // )
+				pos(3, 2), // ;;
+			),
+			case_item(
+				pos(4, 1), // (
+				word(lit(4, 2, "1")),
+				word(lit(4, 4, "bar")),
+				pos(4, 7), // )
+			),
+			pos(5, 1), // esac
 		),
 	},
 	{

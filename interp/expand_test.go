@@ -19,7 +19,10 @@ import (
 	"github.com/hattya/go.sh/interp"
 )
 
-const sep = string(os.PathListSeparator)
+const (
+	sep = string(os.PathListSeparator)
+	V   = "value"
+)
 
 var expandTests = []struct {
 	word ast.Word
@@ -52,7 +55,15 @@ var tildeExpTests = []struct {
 	{word(lit("~/foo"), lit(sep), lit("~/bar")), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
 	{word(lit("~"), lit("/foo"), lit(sep), lit("~"), lit("/bar")), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
 
-	{word(lit("~"), &ast.ParamExp{}, lit("/")), false, "~/"},
+	{word(lit("~"), paramExp(lit("_"), "", nil), lit("/")), false, "~/"},
+}
+
+var paramExpTests = []struct {
+	word ast.Word
+	s    string
+}{
+	// simplest form
+	{word(paramExp(lit("V"), "", nil)), V},
 }
 
 func TestExpand(t *testing.T) {
@@ -64,8 +75,18 @@ func TestExpand(t *testing.T) {
 	}
 	t.Run("TildeExp", func(t *testing.T) {
 		env := interp.NewExecEnv()
+		env.Unset("_")
 		for _, tt := range tildeExpTests {
 			if g, e := env.Expand(tt.word, tt.assign), tt.s; g != e {
+				t.Errorf("expected %q, got %q", e, g)
+			}
+		}
+	})
+	t.Run("ParamExp", func(t *testing.T) {
+		for _, tt := range paramExpTests {
+			env := interp.NewExecEnv()
+			env.Set("V", V)
+			if g, e := env.Expand(tt.word, false), tt.s; g != e {
 				t.Errorf("expected %q, got %q", e, g)
 			}
 		}
@@ -82,6 +103,14 @@ func lit(s string) *ast.Lit {
 
 func litf(format string, a ...interface{}) *ast.Lit {
 	return &ast.Lit{Value: fmt.Sprintf(format, a...)}
+}
+
+func paramExp(name *ast.Lit, op string, word ast.Word) *ast.ParamExp {
+	return &ast.ParamExp{
+		Name: name,
+		Op:   op,
+		Word: word,
+	}
 }
 
 func username() string {

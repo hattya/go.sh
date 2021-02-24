@@ -10,14 +10,67 @@
 // (POSIX.1-2017).
 package interp
 
+import (
+	"os"
+	"strings"
+)
+
 // ExecEnv represents a shell execution environment.
 type ExecEnv struct {
 	Aliases map[string]string
+
+	vars map[string]Var
 }
 
 // NewExecEnv returns a new ExecEnv.
 func NewExecEnv() *ExecEnv {
-	return &ExecEnv{
+	env := &ExecEnv{
 		Aliases: make(map[string]string),
+		vars:    make(map[string]Var),
 	}
+	for _, s := range os.Environ() {
+		if i := strings.IndexByte(s[1:], '='); i != -1 {
+			env.vars[env.keyFor(s[:i+1])] = Var{
+				Name:   s[:i+1],
+				Value:  s[i+2:],
+				Export: true,
+			}
+		}
+	}
+	return env
+}
+
+// Get retrieves the variable named by the name.
+func (env *ExecEnv) Get(name string) (v Var, set bool) {
+	v, set = env.vars[env.keyFor(name)]
+	return
+}
+
+// Set sets the value of the variable named by the name.
+func (env *ExecEnv) Set(name, value string) {
+	env.vars[env.keyFor(name)] = Var{
+		Name:  name,
+		Value: value,
+	}
+}
+
+// Unset unsets the variable named by the name.
+func (env *ExecEnv) Unset(name string) {
+	delete(env.vars, env.keyFor(name))
+}
+
+// Walk walks the variables, calling fn for each.
+func (env *ExecEnv) Walk(fn func(Var)) {
+	for _, v := range env.vars {
+		fn(v)
+	}
+}
+
+// Var represents a variable.
+type Var struct {
+	Name  string
+	Value string
+
+	Export   bool
+	ReadOnly bool
 }

@@ -60,6 +60,8 @@ func (env *ExecEnv) Expand(word ast.Word, assign bool) string {
 			}
 			// remaining
 			b.WriteString(s)
+		case *ast.ParamExp:
+			env.expandParam(&b, w)
 		}
 	}
 	return b.String()
@@ -113,13 +115,26 @@ Fail:
 func (env *ExecEnv) homeDir(name string) string {
 	var dir string
 	if name == "" {
-		if s := os.Getenv("HOME"); s != "" {
-			dir = s
+		if v, set := env.Get("HOME"); set {
+			dir = v.Value
 		} else if runtime.GOOS == "windows" {
-			dir = os.Getenv("USERPROFILE")
+			if v, set := env.Get("USERPROFILE"); set {
+				dir = v.Value
+			}
 		}
 	} else if u, err := user.Lookup(name); err == nil {
 		dir = u.HomeDir
 	}
 	return filepath.ToSlash(dir)
+}
+
+// expandParam performs parameter expansion.
+func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) {
+	switch v, set := env.Get(pe.Name.Value); {
+	case pe.Op == "":
+		// simplest form
+		if set && v.Value != "" {
+			b.WriteString(v.Value)
+		}
+	}
 }

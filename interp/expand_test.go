@@ -22,6 +22,7 @@ import (
 const (
 	sep = string(os.PathListSeparator)
 	V   = "value"
+	E   = ""
 )
 
 var expandTests = []struct {
@@ -56,6 +57,8 @@ var tildeExpTests = []struct {
 	{word(lit("~"), lit("/foo"), lit(sep), lit("~"), lit("/bar")), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
 
 	{word(lit("~"), paramExp(lit("_"), "", nil), lit("/")), false, "~/"},
+
+	{word(paramExp(lit("_"), ":-", word(litf("~/foo%v~/bar", sep)))), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
 }
 
 var paramExpTests = []struct {
@@ -64,6 +67,16 @@ var paramExpTests = []struct {
 }{
 	// simplest form
 	{word(paramExp(lit("V"), "", nil)), V},
+	// use default values
+	{word(paramExp(lit("V"), ":-", word(lit("...")))), V},
+	{word(paramExp(lit("V"), "-", word(lit("...")))), V},
+	{word(paramExp(lit("E"), ":-", word(lit("...")))), "..."},
+	{word(paramExp(lit("E"), "-", word(lit("...")))), ""},
+	{word(paramExp(lit("E"), ":-", word())), ""},
+	{word(paramExp(lit("_"), ":-", word(lit("...")))), "..."},
+	{word(paramExp(lit("_"), "-", word(lit("...")))), "..."},
+	{word(paramExp(lit("_"), ":-", word())), ""},
+	{word(paramExp(lit("_"), "-", word())), ""},
 }
 
 func TestExpand(t *testing.T) {
@@ -86,6 +99,8 @@ func TestExpand(t *testing.T) {
 		for _, tt := range paramExpTests {
 			env := interp.NewExecEnv()
 			env.Set("V", V)
+			env.Set("E", E)
+			env.Unset("_")
 			if g, e := env.Expand(tt.word, false), tt.s; g != e {
 				t.Errorf("expected %q, got %q", e, g)
 			}
@@ -94,6 +109,9 @@ func TestExpand(t *testing.T) {
 }
 
 func word(w ...ast.WordPart) ast.Word {
+	if len(w) == 0 {
+		return ast.Word{}
+	}
 	return ast.Word(w)
 }
 

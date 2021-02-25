@@ -136,5 +136,16 @@ func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) {
 		if set && v.Value != "" {
 			b.WriteString(v.Value)
 		}
+	case pe.Word != nil:
+		switch pe.Op {
+		case ":-", "-":
+			// use default values
+			switch {
+			case set && v.Value != "":
+				b.WriteString(v.Value)
+			case !set || pe.Op == ":-":
+				b.WriteString(env.Expand(pe.Word, true))
+			}
+		}
 	}
 }

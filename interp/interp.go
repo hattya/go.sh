@@ -66,6 +66,26 @@ func (env *ExecEnv) Walk(fn func(Var)) {
 	}
 }
 
+// isSpParam reports whether s matches the name of a special parameter.
+func (env *ExecEnv) isSpParam(s string) bool {
+	switch s {
+	case "@", "*", "#", "?", "-", "$", "!", "0":
+		return true
+	}
+	return false
+}
+
+// isPosParam reports whether s matches the name of a positional
+// parameter.
+func (env *ExecEnv) isPosParam(s string) bool {
+	for _, r := range s {
+		if r < '0' || '9' < r {
+			return false
+		}
+	}
+	return s != "" && s != "0"
+}
+
 // Var represents a variable.
 type Var struct {
 	Name  string

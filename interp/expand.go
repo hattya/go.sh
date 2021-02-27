@@ -9,6 +9,7 @@
 package interp
 
 import (
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -22,7 +23,7 @@ import (
 //
 // If assign is true, it expands multiple tilde-prefixes in a word as if
 // it is in an assignment.
-func (env *ExecEnv) Expand(word ast.Word, assign bool) string {
+func (env *ExecEnv) Expand(word ast.Word, assign bool) (string, error) {
 	var b strings.Builder
 	for i := 0; i < len(word); i++ {
 		switch w := word[i].(type) {
@@ -61,10 +62,12 @@ func (env *ExecEnv) Expand(word ast.Word, assign bool) string {
 			// remaining
 			b.WriteString(s)
 		case *ast.ParamExp:
-			env.expandParam(&b, w)
+			if err := env.expandParam(&b, w); err != nil {
+				return "", err
+			}
 		}
 	}
-	return b.String()
+	return b.String(), nil
 }
 
 // expandTilde performs tilde expansion.
@@ -129,7 +132,7 @@ func (env *ExecEnv) homeDir(name string) string {
 }
 
 // expandParam performs parameter expansion.
-func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) {
+func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) error {
 	switch v, set := env.Get(pe.Name.Value); {
 	case pe.Op == "":
 		// simplest form
@@ -144,8 +147,42 @@ func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) {
 			case set && v.Value != "":
 				b.WriteString(v.Value)
 			case !set || pe.Op == ":-":
-				b.WriteString(env.Expand(pe.Word, true))
+				s, err := env.Expand(pe.Word, true)
+				if err != nil {
+					return err
+				}
+				b.WriteString(s)
+			}
+		case ":=", "=":
+			// assign default values
+			switch {
+			case set && v.Value != "":
+				b.WriteString(v.Value)
+			case !set || pe.Op == ":=":
+				if env.isSpParam(pe.Name.Value) || env.isPosParam(pe.Name.Value) {
+					return ParamExpError{
+						ParamExp: pe,
+						Msg:      "cannot assign in this way",
+					}
+				}
+				s, err := env.Expand(pe.Word, false)
+				if err != nil {
+					return err
+				}
+				env.Set(pe.Name.Value, s)
+				b.WriteString(s)
 			}
 		}
 	}
+	return nil
+}
+
+// ParamExpError represents an error in parameter expansion.
+type ParamExpError struct {
+	ParamExp *ast.ParamExp
+	Msg      string
+}
+
+func (e ParamExpError) Error() string {
+	return fmt.Sprintf("$%s: %s", e.ParamExp.Name.Value, e.Msg)
 }

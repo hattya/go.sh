@@ -13,10 +13,12 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/hattya/go.sh/ast"
 	"github.com/hattya/go.sh/interp"
+	"github.com/hattya/go.sh/printer"
 )
 
 const (
@@ -62,27 +64,50 @@ var tildeExpTests = []struct {
 }
 
 var paramExpTests = []struct {
-	word ast.Word
-	s    string
+	word   ast.Word
+	s      string
+	err    string
+	assign bool
 }{
 	// simplest form
-	{word(paramExp(lit("V"), "", nil)), V},
+	{word(paramExp(lit("V"), "", nil)), V, "", false},
 	// use default values
-	{word(paramExp(lit("V"), ":-", word(lit("...")))), V},
-	{word(paramExp(lit("V"), "-", word(lit("...")))), V},
-	{word(paramExp(lit("E"), ":-", word(lit("...")))), "..."},
-	{word(paramExp(lit("E"), "-", word(lit("...")))), ""},
-	{word(paramExp(lit("E"), ":-", word())), ""},
-	{word(paramExp(lit("_"), ":-", word(lit("...")))), "..."},
-	{word(paramExp(lit("_"), "-", word(lit("...")))), "..."},
-	{word(paramExp(lit("_"), ":-", word())), ""},
-	{word(paramExp(lit("_"), "-", word())), ""},
+	{word(paramExp(lit("V"), ":-", word(lit("...")))), V, "", false},
+	{word(paramExp(lit("V"), "-", word(lit("...")))), V, "", false},
+	{word(paramExp(lit("E"), ":-", word(lit("...")))), "...", "", false},
+	{word(paramExp(lit("E"), "-", word(lit("...")))), "", "", false},
+	{word(paramExp(lit("E"), ":-", word())), "", "", false},
+	{word(paramExp(lit("_"), ":-", word(lit("...")))), "...", "", false},
+	{word(paramExp(lit("_"), "-", word(lit("...")))), "...", "", false},
+	{word(paramExp(lit("_"), ":-", word())), "", "", false},
+	{word(paramExp(lit("_"), "-", word())), "", "", false},
+
+	{word(paramExp(lit("_"), ":-", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), "-", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	// assign default values
+	{word(paramExp(lit("V"), ":=", word(lit("...")))), V, "", false},
+	{word(paramExp(lit("V"), "=", word(lit("...")))), V, "", false},
+	{word(paramExp(lit("E"), ":=", word(lit("...")))), "...", "", true},
+	{word(paramExp(lit("E"), "=", word(lit("...")))), "", "", false},
+	{word(paramExp(lit("E"), ":=", word())), "", "", true},
+	{word(paramExp(lit("_"), ":=", word(lit("...")))), "...", "", true},
+	{word(paramExp(lit("_"), "=", word(lit("...")))), "...", "", true},
+	{word(paramExp(lit("_"), ":=", word())), "", "", true},
+	{word(paramExp(lit("_"), "=", word())), "", "", true},
+
+	{word(paramExp(lit("1"), ":=", word(lit("...")))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("1"), "=", word(lit("...")))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("@"), ":=", word(lit("...")))), "", "$@: cannot assign ", false},
+	{word(paramExp(lit("@"), "=", word(lit("...")))), "", "$@: cannot assign ", false},
+	{word(paramExp(lit("_"), ":=", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), "=", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
 }
 
 func TestExpand(t *testing.T) {
 	env := interp.NewExecEnv()
 	for _, tt := range expandTests {
-		if g, e := env.Expand(tt.word, false), tt.s; g != e {
+		g, _ := env.Expand(tt.word, false)
+		if e := tt.s; g != e {
 			t.Errorf("expected %q, got %q", e, g)
 		}
 	}
@@ -90,7 +115,8 @@ func TestExpand(t *testing.T) {
 		env := interp.NewExecEnv()
 		env.Unset("_")
 		for _, tt := range tildeExpTests {
-			if g, e := env.Expand(tt.word, tt.assign), tt.s; g != e {
+			g, _ := env.Expand(tt.word, tt.assign)
+			if e := tt.s; g != e {
 				t.Errorf("expected %q, got %q", e, g)
 			}
 		}
@@ -101,8 +127,28 @@ func TestExpand(t *testing.T) {
 			env.Set("V", V)
 			env.Set("E", E)
 			env.Unset("_")
-			if g, e := env.Expand(tt.word, false), tt.s; g != e {
-				t.Errorf("expected %q, got %q", e, g)
+			g, err := env.Expand(tt.word, false)
+			switch {
+			case err == nil && tt.err != "":
+				t.Error("expected error")
+			case err != nil && (tt.err == "" || !strings.Contains(err.Error(), tt.err)):
+				t.Error("unexpected error:", err)
+			default:
+				if e := tt.s; g != e {
+					t.Errorf("expected %q, got %q", e, g)
+				}
+				if tt.assign {
+					pe := tt.word[0].(*ast.ParamExp)
+					if v, set := env.Get(pe.Name.Value); !set {
+						t.Errorf("%v is unset", pe.Name.Value)
+					} else {
+						var b strings.Builder
+						printer.Fprint(&b, pe.Word)
+						if g, e := v.Value, b.String(); g != e {
+							t.Errorf("expected %q, got %q", e, g)
+						}
+					}
+				}
 			}
 		}
 	})

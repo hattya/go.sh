@@ -172,6 +172,27 @@ func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) error {
 				env.Set(pe.Name.Value, s)
 				b.WriteString(s)
 			}
+		case ":?", "?":
+			// indicate error if unset or null
+			switch {
+			case set && v.Value != "":
+				b.WriteString(v.Value)
+			case !set || pe.Op == ":?":
+				var msg string
+				if len(pe.Word) == 0 {
+					msg = "parameter is unset or null"
+				} else {
+					s, err := env.Expand(pe.Word, false)
+					if err != nil {
+						return err
+					}
+					msg = s
+				}
+				return ParamExpError{
+					ParamExp: pe,
+					Msg:      msg,
+				}
+			}
 		}
 	}
 	return nil

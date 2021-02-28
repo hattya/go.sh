@@ -101,6 +101,18 @@ var paramExpTests = []struct {
 	{word(paramExp(lit("@"), "=", word(lit("...")))), "", "$@: cannot assign ", false},
 	{word(paramExp(lit("_"), ":=", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
 	{word(paramExp(lit("_"), "=", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	// indicate error if unset or null
+	{word(paramExp(lit("V"), ":?", word(lit("...")))), V, "", false},
+	{word(paramExp(lit("V"), "?", word(lit("...")))), V, "", false},
+	{word(paramExp(lit("E"), ":?", word(lit("...")))), "", "$E: ...", false},
+	{word(paramExp(lit("E"), "?", word(lit("...")))), "", "", false},
+	{word(paramExp(lit("_"), ":?", word(lit("...")))), "", "$_: ...", false},
+	{word(paramExp(lit("_"), "?", word(lit("...")))), "", "$_: ...", false},
+	{word(paramExp(lit("_"), ":?", word())), "", "$_: parameter is unset or null", false},
+	{word(paramExp(lit("_"), "?", word())), "", "$_: parameter is unset or null", false},
+
+	{word(paramExp(lit("_"), ":?", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), "?", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
 }
 
 func TestExpand(t *testing.T) {

@@ -8,7 +8,7 @@
 
 //go:generate goyacc -l -o parser.go parser.go.y
 
-// Package parser implemnets a parser for the Shell Command Language
+// Package parser implements a parser for the Shell Command Language
 // (POSIX.1-2017).
 package parser
 
@@ -65,23 +65,6 @@ var (
 		"until": Until,
 		"do":    Do,
 		"done":  Done,
-	}
-	builtins = map[string]struct{}{
-		"break":    {},
-		":":        {},
-		"continue": {},
-		".":        {},
-		"eval":     {},
-		"exec":     {},
-		"exit":     {},
-		"export":   {},
-		"readonly": {},
-		"return":   {},
-		"set":      {},
-		"shift":    {},
-		"times":    {},
-		"trap":     {},
-		"unset":    {},
 	}
 
 	errParamExp = errors.New("syntax error: invalid parameter expansion")
@@ -241,7 +224,7 @@ func (l *lexer) lexSimpleCmd() action {
 			l.word = ast.Word{w}
 			l.pos = w.ValuePos
 			if tok == '(' {
-				if _, ok := builtins[w.Value]; ok {
+				if l.isSpBuiltin(w.Value) {
 					l.error(w.ValuePos, "syntax error: invalid function name")
 					return nil
 				}
@@ -258,6 +241,17 @@ func (l *lexer) lexSimpleCmd() action {
 	}
 	l.emit(WORD)
 	return l.lexCmdSuffix
+}
+
+// isSpBuiltin reports whether s matches the name of a special built-in
+// utility.
+func (l *lexer) isSpBuiltin(s string) bool {
+	switch s {
+	case "break", ":", "continue", ".", "eval", "exec", "exit", "export",
+		"readonly", "return", "set", "shift", "times", "trap", "unset":
+		return true
+	}
+	return false
 }
 
 func (l *lexer) lexCmdPrefix() action {
@@ -1764,5 +1758,5 @@ type Error struct {
 }
 
 func (e Error) Error() string {
-	return fmt.Sprintf("%v:%v:%v: %s", e.Name, e.Pos.Line(), e.Pos.Col(), e.Msg)
+	return fmt.Sprintf("%v:%v:%v: %v", e.Name, e.Pos.Line(), e.Pos.Col(), e.Msg)
 }

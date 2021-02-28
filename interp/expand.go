@@ -46,7 +46,7 @@ func (env *ExecEnv) Expand(word ast.Word, assign bool) (string, error) {
 				b.WriteString(s[:j+1])
 				s = s[j+1:]
 				// expansion
-				if len(s) == 0 && i+1 < len(word) {
+				if s == "" && i+1 < len(word) {
 					if w, ok := word[i+1].(*ast.Lit); ok {
 						i++
 						s = w.Value

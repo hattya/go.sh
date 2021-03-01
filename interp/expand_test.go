@@ -61,6 +61,7 @@ var tildeExpTests = []struct {
 	{word(lit("~"), paramExp(lit("_"), "", nil), lit("/")), false, "~/"},
 
 	{word(paramExp(lit("_"), ":-", word(litf("~/foo%v~/bar", sep)))), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
+	{word(paramExp(lit("E"), "+", word(litf("~/foo%v~/bar", sep)))), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
 }
 
 var paramExpTests = []struct {
@@ -113,6 +114,19 @@ var paramExpTests = []struct {
 
 	{word(paramExp(lit("_"), ":?", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
 	{word(paramExp(lit("_"), "?", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	// use alternative values
+	{word(paramExp(lit("V"), ":+", word(lit("...")))), "...", "", false},
+	{word(paramExp(lit("V"), "+", word(lit("...")))), "...", "", false},
+	{word(paramExp(lit("E"), ":+", word(lit("...")))), "", "", false},
+	{word(paramExp(lit("E"), "+", word(lit("...")))), "...", "", false},
+	{word(paramExp(lit("E"), "+", word())), "", "", false},
+	{word(paramExp(lit("_"), ":+", word(lit("...")))), "", "", false},
+	{word(paramExp(lit("_"), "+", word(lit("...")))), "", "", false},
+	{word(paramExp(lit("_"), ":+", word())), "", "", false},
+	{word(paramExp(lit("_"), "+", word())), "", "", false},
+
+	{word(paramExp(lit("V"), ":+", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "+", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
 }
 
 func TestExpand(t *testing.T) {
@@ -125,6 +139,7 @@ func TestExpand(t *testing.T) {
 	}
 	t.Run("TildeExp", func(t *testing.T) {
 		env := interp.NewExecEnv()
+		env.Set("E", E)
 		env.Unset("_")
 		for _, tt := range tildeExpTests {
 			g, _ := env.Expand(tt.word, tt.assign)

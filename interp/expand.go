@@ -193,6 +193,15 @@ func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) error {
 					Msg:      msg,
 				}
 			}
+		case ":+", "+":
+			// use alternative values
+			if set && (v.Value != "" || pe.Op == "+") {
+				s, err := env.Expand(pe.Word, true)
+				if err != nil {
+					return err
+				}
+				b.WriteString(s)
+			}
 		}
 	}
 	return nil

@@ -17,6 +17,7 @@ import (
 
 // ExecEnv represents a shell execution environment.
 type ExecEnv struct {
+	Opts    Option
 	Aliases map[string]string
 
 	vars map[string]Var
@@ -85,6 +86,25 @@ func (env *ExecEnv) isPosParam(s string) bool {
 	}
 	return s != "" && s != "0"
 }
+
+// Option represents a shell option.
+type Option uint
+
+const (
+	AllExport Option = 1 << iota
+	ErrExit
+	IgnoreEOF
+	Monitor
+	NoClobber
+	NoGlob
+	NoExec
+	NoLog
+	Notify
+	NoUnset
+	Verbose
+	Vi
+	XTrace
+)
 
 // Var represents a variable.
 type Var struct {

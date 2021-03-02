@@ -14,7 +14,9 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hattya/go.sh/ast"
 )
@@ -139,7 +141,20 @@ func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) error {
 		if set && v.Value != "" {
 			b.WriteString(v.Value)
 		}
-	case pe.Word != nil:
+	case pe.Word == nil:
+		// string length
+		if pe.Op == "#" {
+			switch {
+			case set:
+				b.WriteString(strconv.Itoa(utf8.RuneCountInString(v.Value)))
+			case !set && env.Opts&NoUnset != 0:
+				return ParamExpError{
+					ParamExp: pe,
+					Msg:      "parameter is unset",
+				}
+			}
+		}
+	default:
 		switch pe.Op {
 		case ":-", "-":
 			// use default values

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -127,6 +128,10 @@ var paramExpTests = []struct {
 
 	{word(paramExp(lit("V"), ":+", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
 	{word(paramExp(lit("V"), "+", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	// string length
+	{word(paramExp(lit("V"), "#", nil)), strconv.Itoa(len(V)), "", false},
+	{word(paramExp(lit("E"), "#", nil)), "0", "", false},
+	{word(paramExp(lit("_"), "#", nil)), "", "$_: parameter is unset", false},
 }
 
 func TestExpand(t *testing.T) {
@@ -151,6 +156,7 @@ func TestExpand(t *testing.T) {
 	t.Run("ParamExp", func(t *testing.T) {
 		for _, tt := range paramExpTests {
 			env := interp.NewExecEnv()
+			env.Opts |= interp.NoUnset
 			env.Set("V", V)
 			env.Set("E", E)
 			env.Unset("_")

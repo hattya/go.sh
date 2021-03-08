@@ -26,6 +26,7 @@ const (
 	sep = string(os.PathListSeparator)
 	V   = "value"
 	E   = ""
+	P   = "foo/bar/baz"
 )
 
 var expandTests = []struct {
@@ -132,6 +133,18 @@ var paramExpTests = []struct {
 	{word(paramExp(lit("V"), "#", nil)), strconv.Itoa(len(V)), "", false},
 	{word(paramExp(lit("E"), "#", nil)), "0", "", false},
 	{word(paramExp(lit("_"), "#", nil)), "", "$_: parameter is unset", false},
+	// remove suffix pattern
+	{word(paramExp(lit("P"), "%", word(lit("/*")))), "foo/bar", "", false},
+	{word(paramExp(lit("P"), "%%", word(lit("/*")))), "foo", "", false},
+	{word(paramExp(lit("P"), "%", word())), "foo/bar/baz", "", false},
+	{word(paramExp(lit("P"), "%%", word())), "foo/bar/baz", "", false},
+	{word(paramExp(lit("_"), "%", word())), "", "$_: parameter is unset", false},
+	{word(paramExp(lit("_"), "%%", word())), "", "$_: parameter is unset", false},
+
+	{word(paramExp(lit("V"), "%", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "%%", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "%", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
+	{word(paramExp(lit("V"), "%%", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
 }
 
 func TestExpand(t *testing.T) {
@@ -159,6 +172,7 @@ func TestExpand(t *testing.T) {
 			env.Opts |= interp.NoUnset
 			env.Set("V", V)
 			env.Set("E", E)
+			env.Set("P", P)
 			env.Unset("_")
 			g, err := env.Expand(tt.word, false)
 			switch {

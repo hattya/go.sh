@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/hattya/go.sh/ast"
+	"github.com/hattya/go.sh/pattern"
 )
 
 // Expand expands a word and returns a string.
@@ -148,10 +149,7 @@ func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) error {
 			case set:
 				b.WriteString(strconv.Itoa(utf8.RuneCountInString(v.Value)))
 			case !set && env.Opts&NoUnset != 0:
-				return ParamExpError{
-					ParamExp: pe,
-					Msg:      "parameter is unset",
-				}
+				goto Unset
 			}
 		}
 	default:
@@ -217,9 +215,36 @@ func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) error {
 				}
 				b.WriteString(s)
 			}
+		case "%", "%%":
+			// remove suffix pattern
+			switch {
+			case set && v.Value != "":
+				pat, err := env.Expand(pe.Word, false)
+				if err != nil {
+					return err
+				}
+				mode := pattern.Suffix
+				if pe.Op == "%" {
+					mode |= pattern.Smallest
+				} else {
+					mode |= pattern.Largest
+				}
+				m, err := pattern.Match([]string{pat}, mode, v.Value)
+				if err != nil && err != pattern.NoMatch {
+					return err
+				}
+				b.WriteString(v.Value[:len(v.Value)-len(m)])
+			case !set && env.Opts&NoUnset != 0:
+				goto Unset
+			}
 		}
 	}
 	return nil
+Unset:
+	return ParamExpError{
+		ParamExp: pe,
+		Msg:      "parameter is unset",
+	}
 }
 
 // ParamExpError represents an error in parameter expansion.

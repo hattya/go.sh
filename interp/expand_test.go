@@ -145,6 +145,18 @@ var paramExpTests = []struct {
 	{word(paramExp(lit("V"), "%%", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
 	{word(paramExp(lit("V"), "%", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
 	{word(paramExp(lit("V"), "%%", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
+	// remove prefix pattern
+	{word(paramExp(lit("P"), "#", word(lit("*/")))), "bar/baz", "", false},
+	{word(paramExp(lit("P"), "##", word(lit("*/")))), "baz", "", false},
+	{word(paramExp(lit("P"), "#", word())), "foo/bar/baz", "", false},
+	{word(paramExp(lit("P"), "##", word())), "foo/bar/baz", "", false},
+	{word(paramExp(lit("_"), "#", word())), "", "$_: parameter is unset", false},
+	{word(paramExp(lit("_"), "##", word())), "", "$_: parameter is unset", false},
+
+	{word(paramExp(lit("V"), "#", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "##", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "#", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
+	{word(paramExp(lit("V"), "##", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
 }
 
 func TestExpand(t *testing.T) {

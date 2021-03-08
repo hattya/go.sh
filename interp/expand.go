@@ -237,6 +237,28 @@ func (env *ExecEnv) expandParam(b *strings.Builder, pe *ast.ParamExp) error {
 			case !set && env.Opts&NoUnset != 0:
 				goto Unset
 			}
+		case "#", "##":
+			// remove prefix pattern
+			switch {
+			case set && v.Value != "":
+				pat, err := env.Expand(pe.Word, false)
+				if err != nil {
+					return err
+				}
+				mode := pattern.Prefix
+				if pe.Op == "#" {
+					mode |= pattern.Smallest
+				} else {
+					mode |= pattern.Largest
+				}
+				m, err := pattern.Match([]string{pat}, mode, v.Value)
+				if err != nil && err != pattern.NoMatch {
+					return err
+				}
+				b.WriteString(v.Value[len(m):])
+			case !set && env.Opts&NoUnset != 0:
+				goto Unset
+			}
 		}
 	}
 	return nil

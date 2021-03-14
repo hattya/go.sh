@@ -217,11 +217,12 @@ var parseCommandsTests = []struct {
 
 func TestParseCommands(t *testing.T) {
 	for i, tt := range parseCommandsTests {
-		env := interp.NewExecEnv()
+		name := fmt.Sprintf("%v.sh", i)
+		env := interp.NewExecEnv(name)
 		for n, v := range tt.aliases {
 			env.Aliases[n] = v
 		}
-		switch cmds, comments, err := parser.ParseCommands(env, fmt.Sprintf("%v.sh", i), tt.src); {
+		switch cmds, comments, err := parser.ParseCommands(env, name, tt.src); {
 		case err != nil:
 			t.Error(err)
 		case !reflect.DeepEqual(cmds, tt.cmds):

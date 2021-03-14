@@ -15,8 +15,10 @@ import (
 	"github.com/hattya/go.sh/interp"
 )
 
+const name = "go.sh"
+
 func TestVar(t *testing.T) {
-	env := interp.NewExecEnv()
+	env := interp.NewExecEnv(name)
 	if _, set := env.Get("FOO"); set {
 		t.Fatal("expected unset")
 	}
@@ -60,5 +62,32 @@ func TestVar(t *testing.T) {
 	})
 	if export != n {
 		t.Errorf("expected export == n; got export = %d, n = %d", export, n)
+	}
+}
+
+func TestPosParam(t *testing.T) {
+	env := interp.NewExecEnv(name, "1")
+	// get
+	e := interp.Var{
+		Name:  "1",
+		Value: "1",
+	}
+	switch g, set := env.Get("1"); {
+	case !set:
+		t.Errorf("expected set")
+	case !reflect.DeepEqual(g, e):
+		t.Errorf("expected %#v, got %#v", e, g)
+	}
+	// set
+	env.Set("1", "01")
+	switch g, set := env.Get("1"); {
+	case !set:
+		t.Errorf("expected set")
+	case !reflect.DeepEqual(g, e):
+		t.Errorf("expected %#v, got %#v", e, g)
+	}
+	env.Set("2", "2")
+	if _, set := env.Get("2"); set {
+		t.Errorf("expected unset")
 	}
 }

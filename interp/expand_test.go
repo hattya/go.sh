@@ -159,8 +159,34 @@ var paramExpTests = []struct {
 	{word(paramExp(lit("V"), "##", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
 }
 
+var posParamTests = []struct {
+	word ast.Word
+	args []string
+	s    string
+}{
+	{word(paramExp(lit("1"), "", nil)), []string{}, ""},
+	{word(paramExp(lit("1"), "", nil)), []string{""}, ""},
+	{word(paramExp(lit("1"), "", nil)), []string{"1"}, "1"},
+	{word(paramExp(lit("1"), "", nil)), []string{"1", "2"}, "1"},
+
+	{word(paramExp(lit("01"), "", nil)), []string{}, ""},
+	{word(paramExp(lit("01"), "", nil)), []string{""}, ""},
+	{word(paramExp(lit("01"), "", nil)), []string{"1"}, "1"},
+	{word(paramExp(lit("01"), "", nil)), []string{"1", "2"}, "1"},
+
+	{word(paramExp(lit("2"), "", nil)), []string{}, ""},
+	{word(paramExp(lit("2"), "", nil)), []string{"1"}, ""},
+	{word(paramExp(lit("2"), "", nil)), []string{"1", "2"}, "2"},
+	{word(paramExp(lit("2"), "", nil)), []string{"1", "2", "3"}, "2"},
+
+	{word(paramExp(lit("02"), "", nil)), []string{}, ""},
+	{word(paramExp(lit("02"), "", nil)), []string{"1"}, ""},
+	{word(paramExp(lit("02"), "", nil)), []string{"1", "2"}, "2"},
+	{word(paramExp(lit("02"), "", nil)), []string{"1", "2", "3"}, "2"},
+}
+
 func TestExpand(t *testing.T) {
-	env := interp.NewExecEnv()
+	env := interp.NewExecEnv(name)
 	for _, tt := range expandTests {
 		g, _ := env.Expand(tt.word, false)
 		if e := tt.s; g != e {
@@ -168,7 +194,7 @@ func TestExpand(t *testing.T) {
 		}
 	}
 	t.Run("TildeExp", func(t *testing.T) {
-		env := interp.NewExecEnv()
+		env := interp.NewExecEnv(name)
 		env.Set("E", E)
 		env.Unset("_")
 		for _, tt := range tildeExpTests {
@@ -180,7 +206,7 @@ func TestExpand(t *testing.T) {
 	})
 	t.Run("ParamExp", func(t *testing.T) {
 		for _, tt := range paramExpTests {
-			env := interp.NewExecEnv()
+			env := interp.NewExecEnv(name)
 			env.Opts |= interp.NoUnset
 			env.Set("V", V)
 			env.Set("E", E)
@@ -208,6 +234,15 @@ func TestExpand(t *testing.T) {
 						}
 					}
 				}
+			}
+		}
+	})
+	t.Run("PosParam", func(t *testing.T) {
+		for _, tt := range posParamTests {
+			env := interp.NewExecEnv(name, tt.args...)
+			g, _ := env.Expand(tt.word, false)
+			if e := tt.s; g != e {
+				t.Errorf("expected %q, got %q", e, g)
 			}
 		}
 	})

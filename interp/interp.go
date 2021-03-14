@@ -12,11 +12,13 @@ package interp
 
 import (
 	"os"
+	"strconv"
 	"strings"
 )
 
 // ExecEnv represents a shell execution environment.
 type ExecEnv struct {
+	Args    []string
 	Opts    Option
 	Aliases map[string]string
 
@@ -24,8 +26,9 @@ type ExecEnv struct {
 }
 
 // NewExecEnv returns a new ExecEnv.
-func NewExecEnv() *ExecEnv {
+func NewExecEnv(name string, args ...string) *ExecEnv {
 	env := &ExecEnv{
+		Args:    append([]string{name}, args...),
 		Aliases: make(map[string]string),
 		vars:    make(map[string]Var),
 	}
@@ -43,12 +46,25 @@ func NewExecEnv() *ExecEnv {
 
 // Get retrieves the variable named by the name.
 func (env *ExecEnv) Get(name string) (v Var, set bool) {
-	v, set = env.vars[env.keyFor(name)]
+	if env.isPosParam(name) {
+		if i, _ := strconv.Atoi(name); i < len(env.Args) {
+			v = Var{
+				Name:  strconv.Itoa(i),
+				Value: env.Args[i],
+			}
+			set = true
+		}
+	} else {
+		v, set = env.vars[env.keyFor(name)]
+	}
 	return
 }
 
 // Set sets the value of the variable named by the name.
 func (env *ExecEnv) Set(name, value string) {
+	if env.isPosParam(name) {
+		return
+	}
 	env.vars[env.keyFor(name)] = Var{
 		Name:  name,
 		Value: value,

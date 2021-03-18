@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -30,167 +31,177 @@ const (
 )
 
 var expandTests = []struct {
-	word ast.Word
-	s    string
+	word   ast.Word
+	fields []string
 }{
-	{word(), ""},
-	{word(lit("foo")), "foo"},
-	{word(lit("foo"), lit("bar")), "foobar"},
+	{word(), []string{""}},
+	{word(lit("foo")), []string{"foo"}},
+	{word(lit("foo"), lit("bar")), []string{"foobar"}},
 }
 
 var tildeExpTests = []struct {
 	word   ast.Word
-	assign bool
-	s      string
+	mode   interp.ExpMode
+	fields []string
 }{
-	{word(lit("~")), false, homeDir()},
-	{word(lit("~/")), false, homeDir() + "/"},
-	{word(lit("~"), lit("/")), false, homeDir() + "/"},
+	{word(lit("~")), 0, []string{homeDir()}},
+	{word(lit("~/")), 0, []string{homeDir() + "/"}},
+	{word(lit("~"), lit("/")), 0, []string{homeDir() + "/"}},
 
-	{word(lit("~" + username())), false, homeDir()},
-	{word(lit("~" + username() + "/")), false, homeDir() + "/"},
-	{word(lit("~"), lit(username()), lit("/")), false, homeDir() + "/"},
+	{word(lit("~" + username())), 0, []string{homeDir()}},
+	{word(lit("~" + username() + "/")), 0, []string{homeDir() + "/"}},
+	{word(lit("~"), lit(username()), lit("/")), 0, []string{homeDir() + "/"}},
 
-	{word(lit("~_")), false, "~_"},
-	{word(lit("~_/")), false, "~_/"},
-	{word(lit("~"), lit("_"), lit("/")), false, "~_/"},
+	{word(lit("~_")), 0, []string{"~_"}},
+	{word(lit("~_/")), 0, []string{"~_/"}},
+	{word(lit("~"), lit("_"), lit("/")), 0, []string{"~_/"}},
 
-	{word(lit(sep)), true, sep},
-	{word(litf("~/foo%v~/bar", sep)), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
-	{word(lit("~/foo"), lit(sep), lit("~/bar")), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
-	{word(lit("~"), lit("/foo"), lit(sep), lit("~"), lit("/bar")), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
+	{word(lit(sep)), interp.Assign, []string{sep}},
+	{word(litf("~/foo%v~/bar", sep)), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
+	{word(lit("~/foo"), lit(sep), lit("~/bar")), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
+	{word(lit("~"), lit("/foo"), lit(sep), lit("~"), lit("/bar")), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
 
-	{word(lit("~"), paramExp(lit("_"), "", nil), lit("/")), false, "~/"},
+	{word(lit("~"), paramExp(lit("_"), "", nil), lit("/")), 0, []string{"~/"}},
 
-	{word(paramExp(lit("_"), ":-", word(litf("~/foo%v~/bar", sep)))), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
-	{word(paramExp(lit("E"), "+", word(litf("~/foo%v~/bar", sep)))), true, fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)},
+	{word(paramExp(lit("_"), ":-", word(litf("~/foo%v~/bar", sep)))), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
+	{word(paramExp(lit("E"), "+", word(litf("~/foo%v~/bar", sep)))), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
 }
 
 var paramExpTests = []struct {
 	word   ast.Word
-	s      string
+	fields []string
 	err    string
 	assign bool
 }{
 	// simplest form
-	{word(paramExp(lit("V"), "", nil)), V, "", false},
+	{word(paramExp(lit("V"), "", nil)), []string{V}, "", false},
 	// use default values
-	{word(paramExp(lit("V"), ":-", word(lit("...")))), V, "", false},
-	{word(paramExp(lit("V"), "-", word(lit("...")))), V, "", false},
-	{word(paramExp(lit("E"), ":-", word(lit("...")))), "...", "", false},
-	{word(paramExp(lit("E"), "-", word(lit("...")))), "", "", false},
-	{word(paramExp(lit("E"), ":-", word())), "", "", false},
-	{word(paramExp(lit("_"), ":-", word(lit("...")))), "...", "", false},
-	{word(paramExp(lit("_"), "-", word(lit("...")))), "...", "", false},
-	{word(paramExp(lit("_"), ":-", word())), "", "", false},
-	{word(paramExp(lit("_"), "-", word())), "", "", false},
+	{word(paramExp(lit("V"), ":-", word(lit("...")))), []string{V}, "", false},
+	{word(paramExp(lit("V"), "-", word(lit("...")))), []string{V}, "", false},
+	{word(paramExp(lit("E"), ":-", word(lit("...")))), []string{"..."}, "", false},
+	{word(paramExp(lit("E"), "-", word(lit("...")))), []string{""}, "", false},
+	{word(paramExp(lit("E"), ":-", word())), []string{""}, "", false},
+	{word(paramExp(lit("_"), ":-", word(lit("...")))), []string{"..."}, "", false},
+	{word(paramExp(lit("_"), "-", word(lit("...")))), []string{"..."}, "", false},
+	{word(paramExp(lit("_"), ":-", word())), []string{""}, "", false},
+	{word(paramExp(lit("_"), "-", word())), []string{""}, "", false},
 
-	{word(paramExp(lit("_"), ":-", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("_"), "-", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), ":-", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), "-", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
 	// assign default values
-	{word(paramExp(lit("V"), ":=", word(lit("...")))), V, "", false},
-	{word(paramExp(lit("V"), "=", word(lit("...")))), V, "", false},
-	{word(paramExp(lit("E"), ":=", word(lit("...")))), "...", "", true},
-	{word(paramExp(lit("E"), "=", word(lit("...")))), "", "", false},
-	{word(paramExp(lit("E"), ":=", word())), "", "", true},
-	{word(paramExp(lit("_"), ":=", word(lit("...")))), "...", "", true},
-	{word(paramExp(lit("_"), "=", word(lit("...")))), "...", "", true},
-	{word(paramExp(lit("_"), ":=", word())), "", "", true},
-	{word(paramExp(lit("_"), "=", word())), "", "", true},
+	{word(paramExp(lit("V"), ":=", word(lit("...")))), []string{V}, "", false},
+	{word(paramExp(lit("V"), "=", word(lit("...")))), []string{V}, "", false},
+	{word(paramExp(lit("E"), ":=", word(lit("...")))), []string{"..."}, "", true},
+	{word(paramExp(lit("E"), "=", word(lit("...")))), []string{""}, "", false},
+	{word(paramExp(lit("E"), ":=", word())), []string{""}, "", true},
+	{word(paramExp(lit("_"), ":=", word(lit("...")))), []string{"..."}, "", true},
+	{word(paramExp(lit("_"), "=", word(lit("...")))), []string{"..."}, "", true},
+	{word(paramExp(lit("_"), ":=", word())), []string{""}, "", true},
+	{word(paramExp(lit("_"), "=", word())), []string{""}, "", true},
 
-	{word(paramExp(lit("1"), ":=", word(lit("...")))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("1"), "=", word(lit("...")))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("@"), ":=", word(lit("...")))), "", "$@: cannot assign ", false},
-	{word(paramExp(lit("@"), "=", word(lit("...")))), "", "$@: cannot assign ", false},
-	{word(paramExp(lit("_"), ":=", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("_"), "=", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("1"), ":=", word(lit("...")))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("1"), "=", word(lit("...")))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("@"), ":=", word(lit("...")))), nil, "$@: cannot assign ", false},
+	{word(paramExp(lit("@"), "=", word(lit("...")))), nil, "$@: cannot assign ", false},
+	{word(paramExp(lit("_"), ":=", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), "=", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
 	// indicate error if unset or null
-	{word(paramExp(lit("V"), ":?", word(lit("...")))), V, "", false},
-	{word(paramExp(lit("V"), "?", word(lit("...")))), V, "", false},
-	{word(paramExp(lit("E"), ":?", word(lit("...")))), "", "$E: ...", false},
-	{word(paramExp(lit("E"), "?", word(lit("...")))), "", "", false},
-	{word(paramExp(lit("_"), ":?", word(lit("...")))), "", "$_: ...", false},
-	{word(paramExp(lit("_"), "?", word(lit("...")))), "", "$_: ...", false},
-	{word(paramExp(lit("_"), ":?", word())), "", "$_: parameter is unset or null", false},
-	{word(paramExp(lit("_"), "?", word())), "", "$_: parameter is unset or null", false},
+	{word(paramExp(lit("V"), ":?", word(lit("...")))), []string{V}, "", false},
+	{word(paramExp(lit("V"), "?", word(lit("...")))), []string{V}, "", false},
+	{word(paramExp(lit("E"), ":?", word(lit("...")))), nil, "$E: ...", false},
+	{word(paramExp(lit("E"), "?", word(lit("...")))), []string{""}, "", false},
+	{word(paramExp(lit("_"), ":?", word(lit("...")))), nil, "$_: ...", false},
+	{word(paramExp(lit("_"), "?", word(lit("...")))), nil, "$_: ...", false},
+	{word(paramExp(lit("_"), ":?", word())), nil, "$_: parameter is unset or null", false},
+	{word(paramExp(lit("_"), "?", word())), nil, "$_: parameter is unset or null", false},
 
-	{word(paramExp(lit("_"), ":?", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("_"), "?", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), ":?", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), "?", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
 	// use alternative values
-	{word(paramExp(lit("V"), ":+", word(lit("...")))), "...", "", false},
-	{word(paramExp(lit("V"), "+", word(lit("...")))), "...", "", false},
-	{word(paramExp(lit("E"), ":+", word(lit("...")))), "", "", false},
-	{word(paramExp(lit("E"), "+", word(lit("...")))), "...", "", false},
-	{word(paramExp(lit("E"), "+", word())), "", "", false},
-	{word(paramExp(lit("_"), ":+", word(lit("...")))), "", "", false},
-	{word(paramExp(lit("_"), "+", word(lit("...")))), "", "", false},
-	{word(paramExp(lit("_"), ":+", word())), "", "", false},
-	{word(paramExp(lit("_"), "+", word())), "", "", false},
+	{word(paramExp(lit("V"), ":+", word(lit("...")))), []string{"..."}, "", false},
+	{word(paramExp(lit("V"), "+", word(lit("...")))), []string{"..."}, "", false},
+	{word(paramExp(lit("E"), ":+", word(lit("...")))), []string{""}, "", false},
+	{word(paramExp(lit("E"), "+", word(lit("...")))), []string{"..."}, "", false},
+	{word(paramExp(lit("E"), "+", word())), []string{""}, "", false},
+	{word(paramExp(lit("_"), ":+", word(lit("...")))), []string{""}, "", false},
+	{word(paramExp(lit("_"), "+", word(lit("...")))), []string{""}, "", false},
 
-	{word(paramExp(lit("V"), ":+", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("V"), "+", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), ":+", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "+", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
 	// string length
-	{word(paramExp(lit("V"), "#", nil)), strconv.Itoa(len(V)), "", false},
-	{word(paramExp(lit("E"), "#", nil)), "0", "", false},
-	{word(paramExp(lit("_"), "#", nil)), "", "$_: parameter is unset", false},
+	{word(paramExp(lit("V"), "#", nil)), []string{strconv.Itoa(len(V))}, "", false},
+	{word(paramExp(lit("E"), "#", nil)), []string{"0"}, "", false},
+	{word(paramExp(lit("_"), "#", nil)), nil, "$_: parameter is unset", false},
 	// remove suffix pattern
-	{word(paramExp(lit("P"), "%", word(lit("/*")))), "foo/bar", "", false},
-	{word(paramExp(lit("P"), "%%", word(lit("/*")))), "foo", "", false},
-	{word(paramExp(lit("P"), "%", word())), "foo/bar/baz", "", false},
-	{word(paramExp(lit("P"), "%%", word())), "foo/bar/baz", "", false},
-	{word(paramExp(lit("_"), "%", word())), "", "$_: parameter is unset", false},
-	{word(paramExp(lit("_"), "%%", word())), "", "$_: parameter is unset", false},
+	{word(paramExp(lit("P"), "%", word(lit("/*")))), []string{"foo/bar"}, "", false},
+	{word(paramExp(lit("P"), "%%", word(lit("/*")))), []string{"foo"}, "", false},
+	{word(paramExp(lit("P"), "%", word())), []string{"foo/bar/baz"}, "", false},
+	{word(paramExp(lit("P"), "%%", word())), []string{"foo/bar/baz"}, "", false},
+	{word(paramExp(lit("_"), "%", word())), nil, "$_: parameter is unset", false},
+	{word(paramExp(lit("_"), "%%", word())), nil, "$_: parameter is unset", false},
 
-	{word(paramExp(lit("V"), "%", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("V"), "%%", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("V"), "%", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
-	{word(paramExp(lit("V"), "%%", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
+	{word(paramExp(lit("V"), "%", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "%%", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "%", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
+	{word(paramExp(lit("V"), "%%", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
 	// remove prefix pattern
-	{word(paramExp(lit("P"), "#", word(lit("*/")))), "bar/baz", "", false},
-	{word(paramExp(lit("P"), "##", word(lit("*/")))), "baz", "", false},
-	{word(paramExp(lit("P"), "#", word())), "foo/bar/baz", "", false},
-	{word(paramExp(lit("P"), "##", word())), "foo/bar/baz", "", false},
-	{word(paramExp(lit("_"), "#", word())), "", "$_: parameter is unset", false},
-	{word(paramExp(lit("_"), "##", word())), "", "$_: parameter is unset", false},
+	{word(paramExp(lit("P"), "#", word(lit("*/")))), []string{"bar/baz"}, "", false},
+	{word(paramExp(lit("P"), "##", word(lit("*/")))), []string{"baz"}, "", false},
+	{word(paramExp(lit("P"), "#", word())), []string{"foo/bar/baz"}, "", false},
+	{word(paramExp(lit("P"), "##", word())), []string{"foo/bar/baz"}, "", false},
+	{word(paramExp(lit("_"), "#", word())), nil, "$_: parameter is unset", false},
+	{word(paramExp(lit("_"), "##", word())), nil, "$_: parameter is unset", false},
 
-	{word(paramExp(lit("V"), "#", word(paramExp(lit("1"), "=", word(lit("...")))))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("V"), "##", word(paramExp(lit("1"), ":=", word(lit("...")))))), "", "$1: cannot assign ", false},
-	{word(paramExp(lit("V"), "#", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
-	{word(paramExp(lit("V"), "##", word(lit("\xff")))), "", "regexp: invalid UTF-8", false},
+	{word(paramExp(lit("V"), "#", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "##", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "#", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
+	{word(paramExp(lit("V"), "##", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
 }
 
 var posParamTests = []struct {
-	word ast.Word
-	args []string
-	s    string
+	word   ast.Word
+	args   []string
+	fields []string
 }{
-	{word(paramExp(lit("1"), "", nil)), []string{}, ""},
-	{word(paramExp(lit("1"), "", nil)), []string{""}, ""},
-	{word(paramExp(lit("1"), "", nil)), []string{"1"}, "1"},
-	{word(paramExp(lit("1"), "", nil)), []string{"1", "2"}, "1"},
+	{word(paramExp(lit("1"), "", nil)), []string{}, []string{""}},
+	{word(paramExp(lit("1"), "", nil)), []string{""}, []string{""}},
+	{word(paramExp(lit("1"), "", nil)), []string{"1"}, []string{"1"}},
+	{word(paramExp(lit("1"), "", nil)), []string{"1", "2"}, []string{"1"}},
 
-	{word(paramExp(lit("01"), "", nil)), []string{}, ""},
-	{word(paramExp(lit("01"), "", nil)), []string{""}, ""},
-	{word(paramExp(lit("01"), "", nil)), []string{"1"}, "1"},
-	{word(paramExp(lit("01"), "", nil)), []string{"1", "2"}, "1"},
+	{word(paramExp(lit("01"), "", nil)), []string{}, []string{""}},
+	{word(paramExp(lit("01"), "", nil)), []string{""}, []string{""}},
+	{word(paramExp(lit("01"), "", nil)), []string{"1"}, []string{"1"}},
+	{word(paramExp(lit("01"), "", nil)), []string{"1", "2"}, []string{"1"}},
 
-	{word(paramExp(lit("2"), "", nil)), []string{}, ""},
-	{word(paramExp(lit("2"), "", nil)), []string{"1"}, ""},
-	{word(paramExp(lit("2"), "", nil)), []string{"1", "2"}, "2"},
-	{word(paramExp(lit("2"), "", nil)), []string{"1", "2", "3"}, "2"},
+	{word(paramExp(lit("2"), "", nil)), []string{}, []string{""}},
+	{word(paramExp(lit("2"), "", nil)), []string{"1"}, []string{""}},
+	{word(paramExp(lit("2"), "", nil)), []string{"1", "2"}, []string{"2"}},
+	{word(paramExp(lit("2"), "", nil)), []string{"1", "2", "3"}, []string{"2"}},
 
-	{word(paramExp(lit("02"), "", nil)), []string{}, ""},
-	{word(paramExp(lit("02"), "", nil)), []string{"1"}, ""},
-	{word(paramExp(lit("02"), "", nil)), []string{"1", "2"}, "2"},
-	{word(paramExp(lit("02"), "", nil)), []string{"1", "2", "3"}, "2"},
+	{word(paramExp(lit("02"), "", nil)), []string{}, []string{""}},
+	{word(paramExp(lit("02"), "", nil)), []string{"1"}, []string{""}},
+	{word(paramExp(lit("02"), "", nil)), []string{"1", "2"}, []string{"2"}},
+	{word(paramExp(lit("02"), "", nil)), []string{"1", "2", "3"}, []string{"2"}},
+}
+
+var fieldSplitTests = []struct {
+	word   ast.Word
+	ifs    interface{}
+	fields []string
+}{
+	{word(lit(" \t abc \t xyz \t ")), nil, []string{"abc", "xyz"}},
+	{word(lit(" \t abc \t, \t ,\t xyz \t ")), " \t\n,", []string{"abc", "xyz"}},
+	{word(lit(" \t,abc \t xyz \t,")), " \t\n,", []string{"abc", "xyz"}},
+	{word(lit("abc \xff xyz")), nil, []string{"abc", "\xff", "xyz"}},
+	{word(lit("abc \t xyz")), "", []string{"abc \t xyz"}},
 }
 
 func TestExpand(t *testing.T) {
 	env := interp.NewExecEnv(name)
 	for _, tt := range expandTests {
-		g, _ := env.Expand(tt.word, false)
-		if e := tt.s; g != e {
-			t.Errorf("expected %q, got %q", e, g)
+		g, _ := env.Expand(tt.word, interp.Quote)
+		if e := tt.fields; !reflect.DeepEqual(g, e) {
+			t.Errorf("expected %#v, got %#v", e, g)
 		}
 	}
 	t.Run("TildeExp", func(t *testing.T) {
@@ -198,9 +209,9 @@ func TestExpand(t *testing.T) {
 		env.Set("E", E)
 		env.Unset("_")
 		for _, tt := range tildeExpTests {
-			g, _ := env.Expand(tt.word, tt.assign)
-			if e := tt.s; g != e {
-				t.Errorf("expected %q, got %q", e, g)
+			g, _ := env.Expand(tt.word, tt.mode)
+			if e := tt.fields; !reflect.DeepEqual(g, e) {
+				t.Errorf("expected %#v, got %#v", e, g)
 			}
 		}
 	})
@@ -212,15 +223,15 @@ func TestExpand(t *testing.T) {
 			env.Set("E", E)
 			env.Set("P", P)
 			env.Unset("_")
-			g, err := env.Expand(tt.word, false)
+			g, err := env.Expand(tt.word, interp.Quote)
 			switch {
 			case err == nil && tt.err != "":
 				t.Error("expected error")
 			case err != nil && (tt.err == "" || !strings.Contains(err.Error(), tt.err)):
 				t.Error("unexpected error:", err)
 			default:
-				if e := tt.s; g != e {
-					t.Errorf("expected %q, got %q", e, g)
+				if e := tt.fields; !reflect.DeepEqual(g, e) {
+					t.Errorf("expected %#v, got %#v", e, g)
 				}
 				if tt.assign {
 					pe := tt.word[0].(*ast.ParamExp)
@@ -240,9 +251,23 @@ func TestExpand(t *testing.T) {
 	t.Run("PosParam", func(t *testing.T) {
 		for _, tt := range posParamTests {
 			env := interp.NewExecEnv(name, tt.args...)
-			g, _ := env.Expand(tt.word, false)
-			if e := tt.s; g != e {
-				t.Errorf("expected %q, got %q", e, g)
+			g, _ := env.Expand(tt.word, interp.Quote)
+			if e := tt.fields; !reflect.DeepEqual(g, e) {
+				t.Errorf("expected %#v, got %#v", e, g)
+			}
+		}
+	})
+	t.Run("FieldSplit", func(t *testing.T) {
+		for _, tt := range fieldSplitTests {
+			env := interp.NewExecEnv(name)
+			if tt.ifs != nil {
+				env.Set("IFS", tt.ifs.(string))
+			} else {
+				env.Unset("IFS")
+			}
+			g, _ := env.Expand(tt.word, 0)
+			if e := tt.fields; !reflect.DeepEqual(g, e) {
+				t.Errorf("expected %#v, got %#v", e, g)
 			}
 		}
 	})

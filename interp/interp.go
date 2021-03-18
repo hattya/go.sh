@@ -16,6 +16,8 @@ import (
 	"strings"
 )
 
+const IFS = " \t\n"
+
 // ExecEnv represents a shell execution environment.
 type ExecEnv struct {
 	Args    []string
@@ -40,6 +42,12 @@ func NewExecEnv(name string, args ...string) *ExecEnv {
 				Export: true,
 			}
 		}
+	}
+	// shell variables
+	env.vars[env.keyFor("IFS")] = Var{
+		Name:   "IFS",
+		Value:  IFS,
+		Export: true,
 	}
 	return env
 }

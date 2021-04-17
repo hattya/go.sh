@@ -11,7 +11,10 @@ package pattern
 
 import (
 	"errors"
+	"io"
+	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -65,6 +68,126 @@ func Match(patterns []string, mode Mode, s string) (string, error) {
 		return m[1], nil
 	}
 	return "", NoMatch
+}
+
+// Glob returns paths that matches pattern.
+func Glob(pattern string) ([]string, error) {
+	if pattern == "" {
+		return nil, nil
+	}
+	base, pattern := split(pattern)
+	paths := []string{base}
+	for pattern != "" {
+		i, w := indexSep(pattern)
+		var sep string
+		if i == -1 {
+			i = len(pattern)
+		} else {
+			sep = pattern[i+w-1 : i+w]
+		}
+
+		switch {
+		case i > 0:
+			var matches []string
+			if name, lit := unquote(pattern[:i]); lit {
+				// literal
+				for _, p := range paths {
+					if p == "." {
+						p = name
+					} else {
+						p += name
+					}
+					if _, err := os.Lstat(p); err == nil {
+						matches = append(matches, p+sep)
+					}
+				}
+			} else {
+				// pattern
+				rx, err := compile([]string{pattern[:i]}, Prefix|Suffix)
+				if err != nil {
+					return nil, err
+				}
+				for _, p := range paths {
+					err := glob(p, rx, func(name string) {
+						if p != "." {
+							name = p + name
+						}
+						matches = append(matches, name+sep)
+					})
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+			if len(matches) == 0 {
+				// no match
+				return nil, nil
+			}
+			paths = matches
+			sort.Strings(paths)
+		case w > 0:
+			// sep
+			for i := range paths {
+				paths[i] += sep
+			}
+		}
+		pattern = pattern[i+w:]
+	}
+	return paths, nil
+}
+
+func glob(path string, rx *regexp.Regexp, fn func(string)) error {
+	d, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer d.Close()
+
+	var dot bool
+	if strings.HasPrefix(rx.String(), `^(\.`) {
+		dot = true
+		for _, n := range []string{".", ".."} {
+			if rx.MatchString(n) {
+				fn(n)
+			}
+		}
+	}
+	for {
+		switch n, err := d.Readdirnames(1); {
+		case err != nil:
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		case rx.MatchString(n[0]):
+			if dot || !strings.HasPrefix(n[0], ".") {
+				fn(n[0])
+			}
+		}
+	}
+}
+
+func unquote(s string) (string, bool) {
+	var b strings.Builder
+	var esc bool
+	for _, r := range s {
+		switch r {
+		case utf8.RuneError:
+			return "", false
+		case '\\':
+			if !esc {
+				esc = true
+				continue
+			}
+		case '?', '*', '[':
+			if !esc {
+				return "", false
+			}
+		}
+		b.WriteRune(r)
+		esc = false
+	}
+	return b.String(), true
 }
 
 func compile(patterns []string, mode Mode) (*regexp.Regexp, error) {

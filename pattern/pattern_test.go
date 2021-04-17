@@ -9,6 +9,11 @@
 package pattern_test
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hattya/go.sh/pattern"
@@ -81,4 +86,128 @@ func TestMatchError(t *testing.T) {
 			t.Error("expected error")
 		}
 	}
+}
+
+var globTests = []struct {
+	pattern string
+	paths   []string
+}{
+	{"*.go", []string{"a.go"}},
+	{"[.a]*", []string{"a.go"}},
+	{".*", []string{".", "..", ".git", ".gitignore"}},
+	{"*", []string{"a.go", "bar", "baz", "foo"}},
+	{"*/*", []string{"bar/a.go", "baz/a.go", "foo/a.go"}},
+	{"foo/*", []string{"foo/a.go"}},
+	{"foo//*", []string{"foo//a.go"}},
+	{`foo\/*`, []string{"foo/a.go"}},
+	{`foo/\*`, nil},
+	{"_.go", nil},
+	{"_/*", nil},
+	{"_/_", nil},
+	{".", []string{"."}},
+	{"..", []string{".."}},
+	{"", nil},
+
+	{"${PATDIR}/*.go", []string{"${LITDIR}/a.go"}},
+	{"${PATDIR}/.*", []string{"${LITDIR}/.", "${LITDIR}/..", "${LITDIR}/.git", "${LITDIR}/.gitignore"}},
+	{"${PATDIR}/foo/*", []string{"${LITDIR}/foo/a.go"}},
+	{"${PATDIR}/foo//*", []string{"${LITDIR}/foo//a.go"}},
+	{`${PATDIR}/foo\/*`, []string{"${LITDIR}/foo/a.go"}},
+	{`${PATDIR}/fo/\*`, nil},
+	{"${PATDIR}/_.go", nil},
+	{"${PATDIR}/_/*", nil},
+	{"${PATDIR}/_/_", nil},
+	{"${PATDIR}/", []string{"${LITDIR}/"}},
+	{"${PATDIR}/.", []string{"${LITDIR}/."}},
+	{"${PATDIR}/..", []string{"${LITDIR}/.."}},
+}
+
+func TestGlob(t *testing.T) {
+	dir, err := tempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	popd, err := pushd(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer popd()
+
+	for _, p := range []string{
+		filepath.Join(".git", "config"),
+		".gitignore",
+		"a.go",
+		filepath.Join("foo", "a.go"),
+		filepath.Join("bar", "a.go"),
+		filepath.Join("baz", "a.go"),
+	} {
+		if dir := filepath.Dir(p); dir != "" {
+			if err := mkdir(dir); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := touch(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	mapper := func(k string) string {
+		switch k {
+		case "PATDIR":
+			return strings.ReplaceAll(dir, `\`, `\\`)
+		case "LITDIR":
+			return dir
+		}
+		return ""
+	}
+	for _, tt := range globTests {
+		g, err := pattern.Glob(os.Expand(tt.pattern, mapper))
+		if err != nil {
+			t.Error("unexpected error:", err)
+		}
+		var e []string
+		for _, p := range tt.paths {
+			e = append(e, os.Expand(p, mapper))
+		}
+		if !reflect.DeepEqual(g, e) {
+			t.Errorf("expected %#v, got %#v", e, g)
+		}
+	}
+}
+
+var globErrorTests = []string{
+	"*\xff",
+	"_\xff",
+}
+
+func TestGlobError(t *testing.T) {
+	for _, pat := range globErrorTests {
+		if _, err := pattern.Glob(pat); err == nil {
+			t.Error("expected error")
+		}
+	}
+}
+
+func mkdir(s ...string) error {
+	return os.MkdirAll(filepath.Join(s...), 0777)
+}
+
+func pushd(path string) (func() error, error) {
+	wd, err := os.Getwd()
+	popd := func() error {
+		if err != nil {
+			return err
+		}
+		return os.Chdir(wd)
+	}
+	return popd, os.Chdir(path)
+}
+
+func tempDir() (string, error) {
+	return ioutil.TempDir("", "go.sh")
+}
+
+func touch(s ...string) error {
+	return ioutil.WriteFile(filepath.Join(s...), nil, 0666)
 }

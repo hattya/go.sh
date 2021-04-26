@@ -31,6 +31,10 @@ const (
 	// assignment.
 	Assign ExpMode = 1 << iota
 
+	// Expand a word into a single field, field splitting and pathname
+	// expansion will not be performed.
+	Literal
+
 	// Expands a word as if it is within double-quotes, field splitting
 	// and pathname expansion will not be performed.
 	Quote
@@ -43,14 +47,23 @@ func (env *ExecEnv) Expand(word ast.Word, mode ExpMode) ([]string, error) {
 		return nil, err
 	}
 	var rv []string
-	for _, f := range fields {
-		switch {
-		case mode&Quote != 0:
-			rv = append(rv, f.String())
-		case !f.empty():
-			for _, f := range env.split(f) {
-				if !f.empty() {
-					rv = append(rv, f.String())
+	switch {
+	case mode&Literal != 0:
+		rv = []string{fields[0].String()}
+	default:
+		for _, f := range fields {
+			switch {
+			case mode&Quote != 0:
+				rv = append(rv, f.String())
+			case !f.empty():
+				for _, f := range env.split(f) {
+					if !f.empty() {
+						if env.Opts&NoGlob != 0 {
+							rv = append(rv, f.String())
+						} else {
+							rv = append(rv, env.expandPath(f)...)
+						}
+					}
 				}
 			}
 		}
@@ -108,7 +121,7 @@ func (env *ExecEnv) expand(word ast.Word, mode ExpMode) (fields []*field, err er
 
 // expandTilde performs tilde expansion.
 func (env *ExecEnv) expandTilde(f *field, s string, word ast.Word, mode ExpMode) (off, col int) {
-	if !strings.HasPrefix(s, "~") {
+	if mode&Quote != 0 || !strings.HasPrefix(s, "~") {
 		return
 	}
 	s = s[1:]
@@ -194,7 +207,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 			case set && v.Value != "":
 				f.join(v.Value, quote)
 			case !set || pe.Op == ":-":
-				word, err := env.expand(pe.Word, mode&Assign|Quote)
+				word, err := env.expand(pe.Word, mode&(Assign|Quote)|Literal)
 				if err != nil {
 					return nil, err
 				}
@@ -212,7 +225,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 						Msg:      "cannot assign in this way",
 					}
 				}
-				word, err := env.expand(pe.Word, Quote)
+				word, err := env.expand(pe.Word, mode&Quote|Literal)
 				if err != nil {
 					return nil, err
 				}
@@ -229,7 +242,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 				if len(pe.Word) == 0 {
 					msg = "parameter is unset or null"
 				} else {
-					word, err := env.expand(pe.Word, Quote)
+					word, err := env.expand(pe.Word, mode&Quote|Literal)
 					if err != nil {
 						return nil, err
 					}
@@ -243,7 +256,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 		case ":+", "+":
 			// use alternative values
 			if set && (v.Value != "" || pe.Op == "+") {
-				word, err := env.expand(pe.Word, mode&Assign|Quote)
+				word, err := env.expand(pe.Word, mode&(Assign|Quote)|Literal)
 				if err != nil {
 					return nil, err
 				}
@@ -255,7 +268,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 			case set && v.Value != "":
 				var n int
 				{
-					word, err := env.expand(pe.Word, Quote)
+					word, err := env.expand(pe.Word, Literal)
 					if err != nil {
 						return nil, err
 					}
@@ -281,7 +294,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 			case set && v.Value != "":
 				var i int
 				{
-					word, err := env.expand(pe.Word, Quote)
+					word, err := env.expand(pe.Word, Literal)
 					if err != nil {
 						return nil, err
 					}
@@ -362,6 +375,15 @@ func (env *ExecEnv) split(f *field) []*field {
 		fields = fields[:len(fields)-1]
 	}
 	return fields
+}
+
+// expandPath performs pathname expansion.
+func (env *ExecEnv) expandPath(f *field) []string {
+	paths, err := pattern.Glob(f.String())
+	if err != nil || len(paths) == 0 {
+		return []string{f.String()}
+	}
+	return paths
 }
 
 // ParamExpError represents an error in parameter expansion.

@@ -9,6 +9,9 @@
 package interp_test
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -90,4 +93,23 @@ func TestPosParam(t *testing.T) {
 	if _, set := env.Get("2"); set {
 		t.Errorf("expected unset")
 	}
+}
+
+func pushd(path string) (func() error, error) {
+	wd, err := os.Getwd()
+	popd := func() error {
+		if err != nil {
+			return err
+		}
+		return os.Chdir(wd)
+	}
+	return popd, os.Chdir(path)
+}
+
+func tempDir() (string, error) {
+	return ioutil.TempDir("", "go.sh")
+}
+
+func touch(s ...string) error {
+	return ioutil.WriteFile(filepath.Join(s...), []byte{}, 0o666)
 }

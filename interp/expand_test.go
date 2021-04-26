@@ -32,11 +32,14 @@ const (
 
 var expandTests = []struct {
 	word   ast.Word
+	mode   interp.ExpMode
 	fields []string
 }{
-	{word(), []string{""}},
-	{word(lit("foo")), []string{"foo"}},
-	{word(lit("foo"), lit("bar")), []string{"foobar"}},
+	{word(), interp.Quote, []string{""}},
+	{word(lit("foo")), 0, []string{"foo"}},
+	{word(lit("foo"), lit("bar")), 0, []string{"foobar"}},
+	{word(lit("*")), interp.Quote, []string{"*"}},
+	{word(lit("*")), interp.Literal, []string{"*"}},
 }
 
 var tildeExpTests = []struct {
@@ -62,6 +65,7 @@ var tildeExpTests = []struct {
 	{word(lit("~"), lit("/foo"), lit(sep), lit("~"), lit("/bar")), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
 
 	{word(lit("~"), paramExp(lit("_"), "", nil), lit("/")), 0, []string{"~/"}},
+	{word(lit("~/")), interp.Quote, []string{"~/"}},
 
 	{word(paramExp(lit("_"), ":-", word(litf("~/foo%v~/bar", sep)))), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
 	{word(paramExp(lit("E"), "+", word(litf("~/foo%v~/bar", sep)))), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
@@ -196,10 +200,29 @@ var fieldSplitTests = []struct {
 	{word(lit("abc \t xyz")), "", []string{"abc \t xyz"}},
 }
 
+var pathExpTests = []struct {
+	word   ast.Word
+	opts   interp.Option
+	fields []string
+}{
+	{word(), 0, nil},
+	{word(lit("foo")), 0, []string{"foo"}},
+	{word(lit("qux")), 0, []string{"qux"}},
+
+	{word(lit("b*")), 0, []string{"bar", "baz"}},
+	{word(lit("b*")), interp.NoGlob, []string{"b*"}},
+
+	{word(lit("q*")), 0, []string{"q*"}},
+	{word(lit("q*")), interp.NoGlob, []string{"q*"}},
+
+	{word(lit("\xff*")), 0, []string{"\xff*"}},
+	{word(lit("\xff*")), interp.NoGlob, []string{"\xff*"}},
+}
+
 func TestExpand(t *testing.T) {
 	env := interp.NewExecEnv(name)
 	for _, tt := range expandTests {
-		g, _ := env.Expand(tt.word, interp.Quote)
+		g, _ := env.Expand(tt.word, tt.mode)
 		if e := tt.fields; !reflect.DeepEqual(g, e) {
 			t.Errorf("expected %#v, got %#v", e, g)
 		}
@@ -265,6 +288,33 @@ func TestExpand(t *testing.T) {
 			} else {
 				env.Unset("IFS")
 			}
+			g, _ := env.Expand(tt.word, 0)
+			if e := tt.fields; !reflect.DeepEqual(g, e) {
+				t.Errorf("expected %#v, got %#v", e, g)
+			}
+		}
+	})
+	t.Run("PathExp", func(t *testing.T) {
+		dir, err := tempDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.RemoveAll(dir)
+		popd, err := pushd(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer popd()
+
+		for _, name := range []string{"foo", "bar", "baz"} {
+			if err := touch(name); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		for _, tt := range pathExpTests {
+			env := interp.NewExecEnv(name)
+			env.Opts = tt.opts
 			g, _ := env.Expand(tt.word, 0)
 			if e := tt.fields; !reflect.DeepEqual(g, e) {
 				t.Errorf("expected %#v, got %#v", e, g)

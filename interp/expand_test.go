@@ -14,6 +14,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -35,11 +36,28 @@ var expandTests = []struct {
 	mode   interp.ExpMode
 	fields []string
 }{
+	{word(), 0, nil},
 	{word(), interp.Quote, []string{""}},
+	{word(quote(`'`, word())), 0, []string{""}},
+	{word(quote(`"`, word())), 0, []string{""}},
+
 	{word(lit("foo")), 0, []string{"foo"}},
+	{word(quote(`\`, word(lit("f"))), lit("oo")), 0, []string{"foo"}},
+	{word(quote(`'`, word(lit("foo")))), 0, []string{"foo"}},
+	{word(quote(`"`, word(lit("foo")))), 0, []string{"foo"}},
 	{word(lit("foo"), lit("bar")), 0, []string{"foobar"}},
-	{word(lit("*")), interp.Quote, []string{"*"}},
-	{word(lit("*")), interp.Literal, []string{"*"}},
+
+	{word(quote(`\`, word(lit("*")))), 0, []string{`*`}},
+	{word(quote(`'`, word(lit("*")))), 0, []string{`*`}},
+	{word(quote(`"`, word(lit("*")))), 0, []string{`*`}},
+
+	{word(quote(`\`, word(lit("*")))), interp.Literal, []string{`*`}},
+	{word(quote(`'`, word(lit("*")))), interp.Literal, []string{`*`}},
+	{word(quote(`"`, word(lit("*")))), interp.Literal, []string{`*`}},
+
+	{word(quote(`\`, word(lit("*")))), interp.Pattern, []string{`\*`}},
+	{word(quote(`'`, word(lit("*")))), interp.Pattern, []string{`\*`}},
+	{word(quote(`"`, word(lit("*")))), interp.Pattern, []string{`\*`}},
 }
 
 var tildeExpTests = []struct {
@@ -50,22 +68,33 @@ var tildeExpTests = []struct {
 	{word(lit("~")), 0, []string{homeDir()}},
 	{word(lit("~/")), 0, []string{homeDir() + "/"}},
 	{word(lit("~"), lit("/")), 0, []string{homeDir() + "/"}},
+	{word(lit("~"), quote(`\`, word(lit(`/`)))), 0, []string{"~/"}},
+	{word(lit("~"), quote(`\`, word(lit(`\`)))), 0, []string{homeDir() + `\`}},
 
 	{word(lit("~" + username())), 0, []string{homeDir()}},
 	{word(lit("~" + username() + "/")), 0, []string{homeDir() + "/"}},
 	{word(lit("~"), lit(username()), lit("/")), 0, []string{homeDir() + "/"}},
+	{word(lit("~"+username()), quote(`\`, word(lit(`/`)))), 0, []string{"~" + username() + "/"}},
+	{word(lit("~"+username()), quote(`\`, word(lit(`\`)))), 0, []string{homeDir() + `\`}},
 
 	{word(lit("~_")), 0, []string{"~_"}},
 	{word(lit("~_/")), 0, []string{"~_/"}},
 	{word(lit("~"), lit("_"), lit("/")), 0, []string{"~_/"}},
+	{word(lit("~_"), quote(`\`, word(lit("/")))), 0, []string{"~_/"}},
+	{word(lit("~_"), quote(`\`, word(lit(`\`)))), 0, []string{`~_\`}},
 
 	{word(lit(sep)), interp.Assign, []string{sep}},
 	{word(litf("~/foo%v~/bar", sep)), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
 	{word(lit("~/foo"), lit(sep), lit("~/bar")), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
 	{word(lit("~"), lit("/foo"), lit(sep), lit("~"), lit("/bar")), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
+	{word(lit("~"), quote(`\`, word(lit(`/`))), litf("foo%v~", sep), quote(`\`, word(lit(`/`))), lit("bar")), interp.Assign, []string{fmt.Sprintf("~/foo%v~/bar", sep)}},
+	{word(lit("~"), quote(`\`, word(lit(`\`))), litf("foo%v~", sep), quote(`\`, word(lit(`/`))), lit("bar")), interp.Assign, []string{fmt.Sprintf(`%v\foo%v~/bar`, homeDir(), sep)}},
+	{word(lit("~"), quote(`\`, word(lit(`/`))), litf("foo%v~", sep), quote(`\`, word(lit(`\`))), lit("bar")), interp.Assign, []string{fmt.Sprintf(`~/foo%v%v\bar`, sep, homeDir())}},
+	{word(lit("~"), quote(`\`, word(lit(`\`))), litf("foo%v~", sep), quote(`\`, word(lit(`\`))), lit("bar")), interp.Assign, []string{fmt.Sprintf(`%v\foo%v%[1]v\bar`, homeDir(), sep)}},
 
 	{word(lit("~"), paramExp(lit("_"), "", nil), lit("/")), 0, []string{"~/"}},
 	{word(lit("~/")), interp.Quote, []string{"~/"}},
+	{word(quote(`"`, word(lit("~/")))), 0, []string{"~/"}},
 
 	{word(paramExp(lit("_"), ":-", word(litf("~/foo%v~/bar", sep)))), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
 	{word(paramExp(lit("E"), "+", word(litf("~/foo%v~/bar", sep)))), interp.Assign, []string{fmt.Sprintf("%v/foo%v%[1]v/bar", homeDir(), sep)}},
@@ -85,13 +114,13 @@ var paramExpTests = []struct {
 	{word(paramExp(lit("E"), ":-", word(lit("...")))), []string{"..."}, "", false},
 	{word(paramExp(lit("E"), "-", word(lit("...")))), []string{""}, "", false},
 	{word(paramExp(lit("E"), ":-", word())), []string{""}, "", false},
-	{word(paramExp(lit("_"), ":-", word(lit("...")))), []string{"..."}, "", false},
-	{word(paramExp(lit("_"), "-", word(lit("...")))), []string{"..."}, "", false},
+	{word(paramExp(lit("_"), ":-", word(quote(`'`, word(lit("...")))))), []string{"..."}, "", false},
+	{word(paramExp(lit("_"), "-", word(quote(`'`, word(lit("...")))))), []string{"..."}, "", false},
 	{word(paramExp(lit("_"), ":-", word())), []string{""}, "", false},
 	{word(paramExp(lit("_"), "-", word())), []string{""}, "", false},
 
-	{word(paramExp(lit("_"), ":-", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
-	{word(paramExp(lit("_"), "-", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), ":-", word(quote(`"`, word(paramExp(lit("1"), ":=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), "-", word(quote(`"`, word(paramExp(lit("1"), "=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
 	// assign default values
 	{word(paramExp(lit("V"), ":=", word(lit("...")))), []string{V}, "", false},
 	{word(paramExp(lit("V"), "=", word(lit("...")))), []string{V}, "", false},
@@ -107,20 +136,20 @@ var paramExpTests = []struct {
 	{word(paramExp(lit("1"), "=", word(lit("...")))), nil, "$1: cannot assign ", false},
 	{word(paramExp(lit("@"), ":=", word(lit("...")))), nil, "$@: cannot assign ", false},
 	{word(paramExp(lit("@"), "=", word(lit("...")))), nil, "$@: cannot assign ", false},
-	{word(paramExp(lit("_"), ":=", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
-	{word(paramExp(lit("_"), "=", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), ":=", word(quote(`"`, word(paramExp(lit("1"), ":=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), "=", word(quote(`"`, word(paramExp(lit("1"), "=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
 	// indicate error if unset or null
 	{word(paramExp(lit("V"), ":?", word(lit("...")))), []string{V}, "", false},
 	{word(paramExp(lit("V"), "?", word(lit("...")))), []string{V}, "", false},
 	{word(paramExp(lit("E"), ":?", word(lit("...")))), nil, "$E: ...", false},
 	{word(paramExp(lit("E"), "?", word(lit("...")))), []string{""}, "", false},
-	{word(paramExp(lit("_"), ":?", word(lit("...")))), nil, "$_: ...", false},
-	{word(paramExp(lit("_"), "?", word(lit("...")))), nil, "$_: ...", false},
+	{word(paramExp(lit("_"), ":?", word(quote(`'`, word(lit("...")))))), nil, "$_: ...", false},
+	{word(paramExp(lit("_"), "?", word(quote(`'`, word(lit("...")))))), nil, "$_: ...", false},
 	{word(paramExp(lit("_"), ":?", word())), nil, "$_: parameter is unset or null", false},
 	{word(paramExp(lit("_"), "?", word())), nil, "$_: parameter is unset or null", false},
 
-	{word(paramExp(lit("_"), ":?", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
-	{word(paramExp(lit("_"), "?", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), ":?", word(quote(`"`, word(paramExp(lit("1"), ":=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("_"), "?", word(quote(`"`, word(paramExp(lit("1"), "=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
 	// use alternative values
 	{word(paramExp(lit("V"), ":+", word(lit("...")))), []string{"..."}, "", false},
 	{word(paramExp(lit("V"), "+", word(lit("...")))), []string{"..."}, "", false},
@@ -130,8 +159,8 @@ var paramExpTests = []struct {
 	{word(paramExp(lit("_"), ":+", word(lit("...")))), []string{""}, "", false},
 	{word(paramExp(lit("_"), "+", word(lit("...")))), []string{""}, "", false},
 
-	{word(paramExp(lit("V"), ":+", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
-	{word(paramExp(lit("V"), "+", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), ":+", word(quote(`"`, word(paramExp(lit("1"), ":=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "+", word(quote(`"`, word(paramExp(lit("1"), "=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
 	// string length
 	{word(paramExp(lit("V"), "#", nil)), []string{strconv.Itoa(len(V))}, "", false},
 	{word(paramExp(lit("E"), "#", nil)), []string{"0"}, "", false},
@@ -139,25 +168,29 @@ var paramExpTests = []struct {
 	// remove suffix pattern
 	{word(paramExp(lit("P"), "%", word(lit("/*")))), []string{"foo/bar"}, "", false},
 	{word(paramExp(lit("P"), "%%", word(lit("/*")))), []string{"foo"}, "", false},
+	{word(paramExp(lit("P"), "%", word(quote(`'`, word(lit("/*")))))), []string{"foo/bar/baz"}, "", false},
+	{word(paramExp(lit("P"), "%%", word(quote(`'`, word(lit("/*")))))), []string{"foo/bar/baz"}, "", false},
 	{word(paramExp(lit("P"), "%", word())), []string{"foo/bar/baz"}, "", false},
 	{word(paramExp(lit("P"), "%%", word())), []string{"foo/bar/baz"}, "", false},
 	{word(paramExp(lit("_"), "%", word())), nil, "$_: parameter is unset", false},
 	{word(paramExp(lit("_"), "%%", word())), nil, "$_: parameter is unset", false},
 
-	{word(paramExp(lit("V"), "%", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
-	{word(paramExp(lit("V"), "%%", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "%", word(quote(`"`, word(paramExp(lit("1"), "=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "%%", word(quote(`"`, word(paramExp(lit("1"), ":=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
 	{word(paramExp(lit("V"), "%", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
 	{word(paramExp(lit("V"), "%%", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
 	// remove prefix pattern
 	{word(paramExp(lit("P"), "#", word(lit("*/")))), []string{"bar/baz"}, "", false},
 	{word(paramExp(lit("P"), "##", word(lit("*/")))), []string{"baz"}, "", false},
+	{word(paramExp(lit("P"), "#", word(quote(`'`, word(lit("*/")))))), []string{"foo/bar/baz"}, "", false},
+	{word(paramExp(lit("P"), "##", word(quote(`'`, word(lit("*/")))))), []string{"foo/bar/baz"}, "", false},
 	{word(paramExp(lit("P"), "#", word())), []string{"foo/bar/baz"}, "", false},
 	{word(paramExp(lit("P"), "##", word())), []string{"foo/bar/baz"}, "", false},
 	{word(paramExp(lit("_"), "#", word())), nil, "$_: parameter is unset", false},
 	{word(paramExp(lit("_"), "##", word())), nil, "$_: parameter is unset", false},
 
-	{word(paramExp(lit("V"), "#", word(paramExp(lit("1"), "=", word(lit("...")))))), nil, "$1: cannot assign ", false},
-	{word(paramExp(lit("V"), "##", word(paramExp(lit("1"), ":=", word(lit("...")))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "#", word(quote(`"`, word(paramExp(lit("1"), "=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
+	{word(paramExp(lit("V"), "##", word(quote(`"`, word(paramExp(lit("1"), ":=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
 	{word(paramExp(lit("V"), "#", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
 	{word(paramExp(lit("V"), "##", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
 }
@@ -167,23 +200,25 @@ var posParamTests = []struct {
 	args   []string
 	fields []string
 }{
-	{word(paramExp(lit("1"), "", nil)), []string{}, []string{""}},
-	{word(paramExp(lit("1"), "", nil)), []string{""}, []string{""}},
+	{word(paramExp(lit("1"), "", nil)), []string{}, nil},
+	{word(paramExp(lit("1"), "", nil)), []string{""}, nil},
+	{word(quote(`"`, word(paramExp(lit("1"), "", nil)))), []string{""}, []string{""}},
 	{word(paramExp(lit("1"), "", nil)), []string{"1"}, []string{"1"}},
 	{word(paramExp(lit("1"), "", nil)), []string{"1", "2"}, []string{"1"}},
 
-	{word(paramExp(lit("01"), "", nil)), []string{}, []string{""}},
-	{word(paramExp(lit("01"), "", nil)), []string{""}, []string{""}},
+	{word(paramExp(lit("01"), "", nil)), []string{}, nil},
+	{word(paramExp(lit("01"), "", nil)), []string{""}, nil},
+	{word(quote(`"`, word(paramExp(lit("01"), "", nil)))), []string{""}, []string{""}},
 	{word(paramExp(lit("01"), "", nil)), []string{"1"}, []string{"1"}},
 	{word(paramExp(lit("01"), "", nil)), []string{"1", "2"}, []string{"1"}},
 
-	{word(paramExp(lit("2"), "", nil)), []string{}, []string{""}},
-	{word(paramExp(lit("2"), "", nil)), []string{"1"}, []string{""}},
+	{word(paramExp(lit("2"), "", nil)), []string{}, nil},
+	{word(paramExp(lit("2"), "", nil)), []string{"1"}, nil},
 	{word(paramExp(lit("2"), "", nil)), []string{"1", "2"}, []string{"2"}},
 	{word(paramExp(lit("2"), "", nil)), []string{"1", "2", "3"}, []string{"2"}},
 
-	{word(paramExp(lit("02"), "", nil)), []string{}, []string{""}},
-	{word(paramExp(lit("02"), "", nil)), []string{"1"}, []string{""}},
+	{word(paramExp(lit("02"), "", nil)), []string{}, nil},
+	{word(paramExp(lit("02"), "", nil)), []string{"1"}, nil},
 	{word(paramExp(lit("02"), "", nil)), []string{"1", "2"}, []string{"2"}},
 	{word(paramExp(lit("02"), "", nil)), []string{"1", "2", "3"}, []string{"2"}},
 }
@@ -195,9 +230,14 @@ var fieldSplitTests = []struct {
 }{
 	{word(lit(" \t abc \t xyz \t ")), nil, []string{"abc", "xyz"}},
 	{word(lit(" \t abc \t, \t ,\t xyz \t ")), " \t\n,", []string{"abc", "xyz"}},
+	{word(lit(" \t abc \t, "), quote(`"`, word()), lit(" ,\t xyz \t ")), " \t\n,", []string{"abc", "", "xyz"}},
 	{word(lit(" \t,abc \t xyz \t,")), " \t\n,", []string{"abc", "xyz"}},
+	{word(quote(`"`, word()), lit("\t,abc \t xyz \t,")), " \t\n,", []string{"", "abc", "xyz"}},
+	{word(lit(" \t,abc \t xyz \t,"), quote(`"`, word())), " \t\n,", []string{"abc", "xyz", ""}},
 	{word(lit("abc \xff xyz")), nil, []string{"abc", "\xff", "xyz"}},
 	{word(lit("abc \t xyz")), "", []string{"abc \t xyz"}},
+	{word(quote(`'`, word(lit("abc \t xyz")))), "", []string{"abc \t xyz"}},
+	{word(quote(`"`, word(lit("abc \t xyz")))), "", []string{"abc \t xyz"}},
 }
 
 var pathExpTests = []struct {
@@ -211,12 +251,21 @@ var pathExpTests = []struct {
 
 	{word(lit("b*")), 0, []string{"bar", "baz"}},
 	{word(lit("b*")), interp.NoGlob, []string{"b*"}},
+	{word(lit("b"), quote(`\`, word(lit("*")))), 0, []string{"b*"}},
+	{word(quote(`'`, word(lit("b*")))), 0, []string{"b*"}},
+	{word(quote(`"`, word(lit("b*")))), 0, []string{"b*"}},
 
 	{word(lit("q*")), 0, []string{"q*"}},
 	{word(lit("q*")), interp.NoGlob, []string{"q*"}},
+	{word(lit("q"), quote(`\`, word(lit("*")))), 0, []string{"q*"}},
+	{word(quote(`'`, word(lit("q*")))), 0, []string{"q*"}},
+	{word(quote(`"`, word(lit("q*")))), 0, []string{"q*"}},
 
 	{word(lit("\xff*")), 0, []string{"\xff*"}},
 	{word(lit("\xff*")), interp.NoGlob, []string{"\xff*"}},
+	{word(lit("\xff"), quote(`\`, word(lit("*")))), 0, []string{"\xff*"}},
+	{word(quote(`'`, word(lit("\xff*")))), 0, []string{"\xff*"}},
+	{word(quote(`"`, word(lit("\xff*")))), 0, []string{"\xff*"}},
 }
 
 func TestExpand(t *testing.T) {
@@ -232,6 +281,9 @@ func TestExpand(t *testing.T) {
 		env.Set("E", E)
 		env.Unset("_")
 		for _, tt := range tildeExpTests {
+			if runtime.GOOS != "windows" && strings.ContainsRune(tt.fields[0], '\\') {
+				continue
+			}
 			g, _ := env.Expand(tt.word, tt.mode)
 			if e := tt.fields; !reflect.DeepEqual(g, e) {
 				t.Errorf("expected %#v, got %#v", e, g)
@@ -274,7 +326,7 @@ func TestExpand(t *testing.T) {
 	t.Run("PosParam", func(t *testing.T) {
 		for _, tt := range posParamTests {
 			env := interp.NewExecEnv(name, tt.args...)
-			g, _ := env.Expand(tt.word, interp.Quote)
+			g, _ := env.Expand(tt.word, 0)
 			if e := tt.fields; !reflect.DeepEqual(g, e) {
 				t.Errorf("expected %#v, got %#v", e, g)
 			}
@@ -336,6 +388,13 @@ func lit(s string) *ast.Lit {
 
 func litf(format string, a ...interface{}) *ast.Lit {
 	return &ast.Lit{Value: fmt.Sprintf(format, a...)}
+}
+
+func quote(tok string, word ast.Word) *ast.Quote {
+	return &ast.Quote{
+		Tok:   tok,
+		Value: word,
+	}
 }
 
 func paramExp(name *ast.Lit, op string, word ast.Word) *ast.ParamExp {

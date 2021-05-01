@@ -35,6 +35,11 @@ const (
 	// expansion will not be performed.
 	Literal
 
+	// Expand a word into a single field, field splitting and pathname
+	// expansion will not be performed. The result will be retained if
+	// '?', '*', and '[' are quoted.
+	Pattern
+
 	// Expands a word as if it is within double-quotes, field splitting
 	// and pathname expansion will not be performed.
 	Quote
@@ -49,17 +54,19 @@ func (env *ExecEnv) Expand(word ast.Word, mode ExpMode) ([]string, error) {
 	var rv []string
 	switch {
 	case mode&Literal != 0:
-		rv = []string{fields[0].String()}
+		rv = []string{fields[0].unquote()}
+	case mode&Pattern != 0:
+		rv = []string{fields[0].pattern()}
 	default:
 		for _, f := range fields {
 			switch {
 			case mode&Quote != 0:
-				rv = append(rv, f.String())
+				rv = append(rv, f.unquote())
 			case !f.empty():
 				for _, f := range env.split(f) {
 					if !f.empty() {
 						if env.Opts&NoGlob != 0 {
-							rv = append(rv, f.String())
+							rv = append(rv, f.unquote())
 						} else {
 							rv = append(rv, env.expandPath(f)...)
 						}
@@ -73,6 +80,9 @@ func (env *ExecEnv) Expand(word ast.Word, mode ExpMode) ([]string, error) {
 
 func (env *ExecEnv) expand(word ast.Word, mode ExpMode) (fields []*field, err error) {
 	fields = []*field{{}}
+	if mode&Quote != 0 {
+		fields[0].join("", true)
+	}
 	for i := 0; i < len(word); i++ {
 		switch w := word[i].(type) {
 		case *ast.Lit:
@@ -110,6 +120,21 @@ func (env *ExecEnv) expand(word ast.Word, mode ExpMode) (fields []*field, err er
 			}
 			// remaining
 			f.join(s, mode&Quote != 0)
+		case *ast.Quote:
+			switch w.Tok {
+			case `\`, `'`:
+				var s string
+				if len(w.Value) != 0 {
+					s = w.Value[0].(*ast.Lit).Value
+				}
+				fields[len(fields)-1].join(s, true)
+			case `"`:
+				word, err := env.expand(w.Value, Quote)
+				if err != nil {
+					return nil, err
+				}
+				fields[len(fields)-1].merge(word[0])
+			}
 		case *ast.ParamExp:
 			if fields, err = env.expandParam(fields, w, mode); err != nil {
 				return
@@ -148,6 +173,11 @@ func (env *ExecEnv) expandTilde(f *field, s string, word ast.Word, mode ExpMode)
 			off += 1
 			col = 0
 		} else {
+			if runtime.GOOS == "windows" {
+				if w, ok := word[off].(*ast.Quote); ok && w.Tok == `\` && w.Value[0].(*ast.Lit).Value == `\` {
+					break
+				}
+			}
 			goto Fail
 		}
 	}
@@ -229,7 +259,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 				if err != nil {
 					return nil, err
 				}
-				env.Set(pe.Name.Value, word[0].String())
+				env.Set(pe.Name.Value, word[0].unquote())
 				f.merge(word[0])
 			}
 		case ":?", "?":
@@ -246,7 +276,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 					if err != nil {
 						return nil, err
 					}
-					msg = word[0].String()
+					msg = word[0].unquote()
 				}
 				return nil, ParamExpError{
 					ParamExp: pe,
@@ -268,7 +298,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 			case set && v.Value != "":
 				var n int
 				{
-					word, err := env.expand(pe.Word, Literal)
+					word, err := env.expand(pe.Word, Pattern)
 					if err != nil {
 						return nil, err
 					}
@@ -278,7 +308,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 					} else {
 						mode |= pattern.Largest
 					}
-					m, err := pattern.Match([]string{word[0].String()}, mode, v.Value)
+					m, err := pattern.Match([]string{word[0].pattern()}, mode, v.Value)
 					if err != nil && err != pattern.NoMatch {
 						return nil, err
 					}
@@ -294,7 +324,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 			case set && v.Value != "":
 				var i int
 				{
-					word, err := env.expand(pe.Word, Literal)
+					word, err := env.expand(pe.Word, Pattern)
 					if err != nil {
 						return nil, err
 					}
@@ -304,7 +334,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 					} else {
 						mode |= pattern.Largest
 					}
-					m, err := pattern.Match([]string{word[0].String()}, mode, v.Value)
+					m, err := pattern.Match([]string{word[0].pattern()}, mode, v.Value)
 					if err != nil && err != pattern.NoMatch {
 						return nil, err
 					}
@@ -379,9 +409,9 @@ func (env *ExecEnv) split(f *field) []*field {
 
 // expandPath performs pathname expansion.
 func (env *ExecEnv) expandPath(f *field) []string {
-	paths, err := pattern.Glob(f.String())
+	paths, err := pattern.Glob(f.pattern())
 	if err != nil || len(paths) == 0 {
-		return []string{f.String()}
+		return []string{f.unquote()}
 	}
 	return paths
 }
@@ -420,6 +450,29 @@ func (f *field) merge(t *field) {
 	f.quote = append(f.quote, t.quote...)
 }
 
-func (f *field) String() string {
+func (f *field) pattern() string {
+	var b strings.Builder
+	for i := 0; i < len(f.b); i++ {
+		s := f.b[i]
+		if f.quote[i] {
+			for {
+				i := strings.IndexAny(s, `?*[\`)
+				if i == -1 {
+					b.WriteString(s)
+					break
+				}
+				b.WriteString(s[:i])
+				b.WriteByte('\\')
+				b.WriteByte(s[i])
+				s = s[i+1:]
+			}
+		} else {
+			b.WriteString(s)
+		}
+	}
+	return b.String()
+}
+
+func (f *field) unquote() string {
 	return strings.Join(f.b, "")
 }

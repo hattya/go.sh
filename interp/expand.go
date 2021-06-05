@@ -54,9 +54,9 @@ func (env *ExecEnv) Expand(word ast.Word, mode ExpMode) ([]string, error) {
 	var rv []string
 	switch {
 	case mode&Literal != 0:
-		rv = []string{fields[0].unquote()}
+		rv = []string{env.join(fields...).unquote()}
 	case mode&Pattern != 0:
-		rv = []string{fields[0].pattern()}
+		rv = []string{env.join(fields...).pattern()}
 	default:
 		for _, f := range fields {
 			switch {
@@ -134,6 +134,7 @@ func (env *ExecEnv) expand(word ast.Word, mode ExpMode) (fields []*field, err er
 					return nil, err
 				}
 				fields[len(fields)-1].merge(word[0])
+				fields = append(fields, word[1:]...)
 			}
 		case *ast.ParamExp:
 			if fields, err = env.expandParam(fields, w, mode); err != nil {
@@ -211,20 +212,66 @@ func (env *ExecEnv) homeDir(name string) string {
 
 // expandParam performs parameter expansion.
 func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode) ([]*field, error) {
-	f := fields[len(fields)-1]
 	quote := mode&Quote != 0
-	switch v, set := env.Get(pe.Name.Value); {
+	var a []string
+	var set, null bool
+	switch pe.Name.Value {
+	case "@":
+		set = true
+		switch len(env.Args) {
+		case 1:
+			null = true
+		case 2:
+			null = env.Args[1] == ""
+			fallthrough
+		default:
+			a = make([]string, len(env.Args)-1)
+			copy(a, env.Args[1:])
+		}
+	case "*":
+		set = true
+		switch len(env.Args) {
+		case 1:
+			null = true
+		case 2:
+			a = []string{env.Args[1]}
+			null = env.Args[1] == ""
+		default:
+			var b strings.Builder
+			sep := env.ifs()
+			for i, s := range env.Args[1:] {
+				if i > 0 {
+					b.WriteString(sep)
+				}
+				b.WriteString(s)
+			}
+			a = []string{b.String()}
+		}
+	default:
+		var v Var
+		if v, set = env.Get(pe.Name.Value); set {
+			a = []string{v.Value}
+			null = v.Value == ""
+		}
+	}
+	switch {
 	case pe.Op == "":
 		// simplest form
-		if set && v.Value != "" {
-			f.join(v.Value, quote)
+		if set && !null {
+			goto Param
 		}
 	case pe.Word == nil:
 		// string length
 		if pe.Op == "#" {
 			switch {
 			case set:
-				f.join(strconv.Itoa(utf8.RuneCountInString(v.Value)), quote)
+				var n int
+				if pe.Name.Value == "@" {
+					n = len(a)
+				} else {
+					n = utf8.RuneCountInString(a[0])
+				}
+				fields[len(fields)-1].join(strconv.Itoa(n), quote)
 			case !set && env.Opts&NoUnset != 0:
 				goto Unset
 			}
@@ -234,20 +281,21 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 		case ":-", "-":
 			// use default values
 			switch {
-			case set && v.Value != "":
-				f.join(v.Value, quote)
+			case set && !null:
+				goto Param
 			case !set || pe.Op == ":-":
 				word, err := env.expand(pe.Word, mode&(Assign|Quote)|Literal)
 				if err != nil {
 					return nil, err
 				}
-				f.merge(word[0])
+				fields[len(fields)-1].merge(word[0])
+				fields = append(fields, word[1:]...)
 			}
 		case ":=", "=":
 			// assign default values
 			switch {
-			case set && v.Value != "":
-				f.join(v.Value, quote)
+			case set && !null:
+				goto Param
 			case !set || pe.Op == ":=":
 				if env.isSpParam(pe.Name.Value) || env.isPosParam(pe.Name.Value) {
 					return nil, ParamExpError{
@@ -259,14 +307,15 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 				if err != nil {
 					return nil, err
 				}
-				env.Set(pe.Name.Value, word[0].unquote())
-				f.merge(word[0])
+				env.Set(pe.Name.Value, env.join(word...).unquote())
+				fields[len(fields)-1].merge(word[0])
+				fields = append(fields, word[1:]...)
 			}
 		case ":?", "?":
 			// indicate error if unset or null
 			switch {
-			case set && v.Value != "":
-				f.join(v.Value, quote)
+			case set && !null:
+				goto Param
 			case !set || pe.Op == ":?":
 				var msg string
 				if len(pe.Word) == 0 {
@@ -276,7 +325,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 					if err != nil {
 						return nil, err
 					}
-					msg = word[0].unquote()
+					msg = env.join(word...).unquote()
 				}
 				return nil, ParamExpError{
 					ParamExp: pe,
@@ -285,66 +334,83 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 			}
 		case ":+", "+":
 			// use alternative values
-			if set && (v.Value != "" || pe.Op == "+") {
+			if set && (!null || pe.Op == "+") {
 				word, err := env.expand(pe.Word, mode&(Assign|Quote)|Literal)
 				if err != nil {
 					return nil, err
 				}
-				f.merge(word[0])
+				fields[len(fields)-1].merge(word[0])
+				fields = append(fields, word[1:]...)
 			}
 		case "%", "%%":
 			// remove suffix pattern
 			switch {
-			case set && v.Value != "":
-				var n int
+			case set && !null:
 				{
 					word, err := env.expand(pe.Word, Pattern)
 					if err != nil {
 						return nil, err
 					}
+					pats := []string{env.join(word...).pattern()}
 					mode := pattern.Suffix
 					if pe.Op == "%" {
 						mode |= pattern.Smallest
 					} else {
 						mode |= pattern.Largest
 					}
-					m, err := pattern.Match([]string{word[0].pattern()}, mode, v.Value)
-					if err != nil && err != pattern.NoMatch {
-						return nil, err
+					for i, s := range a {
+						m, err := pattern.Match(pats, mode, s)
+						if err != nil && err != pattern.NoMatch {
+							return nil, err
+						}
+						if i > 0 {
+							fields = append(fields, &field{})
+						}
+						fields[len(fields)-1].join(s[:len(s)-len(m)], quote)
 					}
-					n = len(v.Value) - len(m)
 				}
-				f.join(v.Value[:n], quote)
 			case !set && env.Opts&NoUnset != 0:
 				goto Unset
 			}
 		case "#", "##":
 			// remove prefix pattern
 			switch {
-			case set && v.Value != "":
-				var i int
+			case set && !null:
 				{
 					word, err := env.expand(pe.Word, Pattern)
 					if err != nil {
 						return nil, err
 					}
+					pats := []string{env.join(word...).pattern()}
 					mode := pattern.Prefix
 					if pe.Op == "#" {
 						mode |= pattern.Smallest
 					} else {
 						mode |= pattern.Largest
 					}
-					m, err := pattern.Match([]string{word[0].pattern()}, mode, v.Value)
-					if err != nil && err != pattern.NoMatch {
-						return nil, err
+					for i, s := range a {
+						m, err := pattern.Match(pats, mode, s)
+						if err != nil && err != pattern.NoMatch {
+							return nil, err
+						}
+						if i > 0 {
+							fields = append(fields, &field{})
+						}
+						fields[len(fields)-1].join(s[len(m):], quote)
 					}
-					i = len(m)
 				}
-				f.join(v.Value[i:], quote)
 			case !set && env.Opts&NoUnset != 0:
 				goto Unset
 			}
 		}
+	}
+	return fields, nil
+Param:
+	for i, s := range a {
+		if i > 0 {
+			fields = append(fields, &field{})
+		}
+		fields[len(fields)-1].join(s, quote)
 	}
 	return fields, nil
 Unset:
@@ -405,6 +471,30 @@ func (env *ExecEnv) split(f *field) []*field {
 		fields = fields[:len(fields)-1]
 	}
 	return fields
+}
+
+// join joins the specified fields into a single field.
+func (env *ExecEnv) join(fields ...*field) *field {
+	dst := &field{}
+	sep := env.ifs()
+	for i, f := range fields {
+		if i > 0 {
+			dst.join(sep, false)
+		}
+		dst.merge(f)
+	}
+	return dst
+}
+
+// ifs returns a separator determined by the IFS variable.
+func (env *ExecEnv) ifs() string {
+	if v, set := env.Get("IFS"); set {
+		if v.Value != "" {
+			return v.Value[:1]
+		}
+		return ""
+	}
+	return " "
 }
 
 // expandPath performs pathname expansion.

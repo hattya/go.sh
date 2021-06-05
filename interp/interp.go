@@ -54,6 +54,31 @@ func NewExecEnv(name string, args ...string) *ExecEnv {
 
 // Get retrieves the variable named by the name.
 func (env *ExecEnv) Get(name string) (v Var, set bool) {
+	if len(name) == 1 {
+		var value string
+		switch name {
+		case "#":
+			value = strconv.Itoa(len(env.Args) - 1)
+		case "?":
+			value = "0"
+		case "-":
+			value = env.Opts.String()
+		case "$":
+			value = strconv.Itoa(os.Getpid())
+		case "!":
+		case "0":
+			value = env.Args[0]
+		default:
+			goto Default
+		}
+		v = Var{
+			Name:  name,
+			Value: value,
+		}
+		set = value != ""
+		return
+	}
+Default:
 	if env.isPosParam(name) {
 		if i, _ := strconv.Atoi(name); i < len(env.Args) {
 			v = Var{
@@ -70,7 +95,7 @@ func (env *ExecEnv) Get(name string) (v Var, set bool) {
 
 // Set sets the value of the variable named by the name.
 func (env *ExecEnv) Set(name, value string) {
-	if env.isPosParam(name) {
+	if env.isSpParam(name) || env.isPosParam(name) {
 		return
 	}
 	env.vars[env.keyFor(name)] = Var{
@@ -129,6 +154,22 @@ const (
 	Vi
 	XTrace
 )
+
+const optionString = "ae mCfn buv x"
+
+func (o Option) String() string {
+	var b strings.Builder
+	for i := 0; i <= len(optionString); i++ {
+		switch x := Option(1 << i); x {
+		case IgnoreEOF, NoLog, Vi:
+		default:
+			if o&x != 0 {
+				b.WriteByte(optionString[i])
+			}
+		}
+	}
+	return b.String()
+}
 
 // Var represents a variable.
 type Var struct {

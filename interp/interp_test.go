@@ -13,12 +13,42 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/hattya/go.sh/interp"
 )
 
 const name = "go.sh"
+
+var optionTests = []struct {
+	o interp.Option
+	s string
+}{
+	{interp.AllExport, "a"},
+	{interp.ErrExit, "e"},
+	{interp.IgnoreEOF, ""},
+	{interp.Monitor, "m"},
+	{interp.NoClobber, "C"},
+	{interp.NoGlob, "f"},
+	{interp.NoExec, "n"},
+	{interp.NoLog, ""},
+	{interp.Notify, "b"},
+	{interp.NoUnset, "u"},
+	{interp.Verbose, "v"},
+	{interp.Vi, ""},
+	{interp.XTrace, "x"},
+	{interp.AllExport | interp.IgnoreEOF | interp.NoClobber | interp.NoExec | interp.Notify | interp.Verbose | interp.XTrace, "aCnbvx"},
+	{interp.ErrExit | interp.Monitor | interp.NoGlob | interp.NoLog | interp.NoUnset | interp.Vi, "emfu"},
+}
+
+func TestOption(t *testing.T) {
+	for _, tt := range optionTests {
+		if g, e := tt.o.String(), tt.s; g != e {
+			t.Errorf("expected %q, got %q", e, g)
+		}
+	}
+}
 
 func TestVar(t *testing.T) {
 	env := interp.NewExecEnv(name)
@@ -65,6 +95,30 @@ func TestVar(t *testing.T) {
 	})
 	if export != n {
 		t.Errorf("expected export == n; got export = %d, n = %d", export, n)
+	}
+}
+
+func TestSpParam(t *testing.T) {
+	env := interp.NewExecEnv(name, "1")
+	for _, tt := range []struct {
+		name, value string
+	}{
+		{"#", "1"},
+		{"?", "0"},
+		{"-", ""},
+		{"$", strconv.Itoa(os.Getpid())},
+		{"!", ""},
+		{"0", name},
+	} {
+		// get
+		if v, _ := env.Get(tt.name); v.Value != tt.value {
+			t.Errorf("expected $%v = %q, got %q", tt.name, tt.value, v.Value)
+		}
+		// set
+		env.Set(tt.name, "_")
+		if v, _ := env.Get(tt.name); v.Value != tt.value {
+			t.Errorf("expected $%v = %q, got %q", tt.name, tt.value, v.Value)
+		}
 	}
 }
 

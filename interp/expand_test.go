@@ -135,7 +135,6 @@ var paramExpTests = []struct {
 	{word(paramExp(lit("1"), ":=", word(lit("...")))), nil, "$1: cannot assign ", false},
 	{word(paramExp(lit("1"), "=", word(lit("...")))), nil, "$1: cannot assign ", false},
 	{word(paramExp(lit("@"), ":=", word(lit("...")))), nil, "$@: cannot assign ", false},
-	{word(paramExp(lit("@"), "=", word(lit("...")))), nil, "$@: cannot assign ", false},
 	{word(paramExp(lit("_"), ":=", word(quote(`"`, word(paramExp(lit("1"), ":=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
 	{word(paramExp(lit("_"), "=", word(quote(`"`, word(paramExp(lit("1"), "=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
 	// indicate error if unset or null
@@ -193,6 +192,102 @@ var paramExpTests = []struct {
 	{word(paramExp(lit("V"), "##", word(quote(`"`, word(paramExp(lit("1"), ":=", word(lit("...")))))))), nil, "$1: cannot assign ", false},
 	{word(paramExp(lit("V"), "#", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
 	{word(paramExp(lit("V"), "##", word(lit("\xff")))), nil, "regexp: invalid UTF-8", false},
+}
+
+var spParamTests = []struct {
+	word   ast.Word
+	mode   interp.ExpMode
+	args   []string
+	ifs    interface{}
+	fields []string
+	err    string
+	assign string
+}{
+	// simplest form
+	{word(paramExp(lit("@"), "", nil)), 0, nil, nil, nil, "", ""},
+	{word(paramExp(lit("@"), "", nil)), 0, []string{""}, nil, nil, "", ""},
+	{word(quote(`"`, word(paramExp(lit("@"), "", nil)))), 0, []string{""}, nil, []string{""}, "", ""},
+	{word(paramExp(lit("@"), "", nil)), 0, []string{"1"}, nil, []string{"1"}, "", ""},
+	{word(paramExp(lit("@"), "", nil)), 0, []string{"1", "2"}, nil, []string{"1", "2"}, "", ""},
+	{word(paramExp(lit("@"), "", nil)), 0, []string{"", "2", ""}, nil, []string{"2"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("@"), "", nil)))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", ""},
+
+	{word(paramExp(lit("*"), "", nil)), 0, nil, nil, nil, "", ""},
+	{word(paramExp(lit("*"), "", nil)), 0, []string{""}, nil, nil, "", ""},
+	{word(quote(`"`, word(paramExp(lit("*"), "", nil)))), 0, []string{""}, nil, []string{""}, "", ""},
+	{word(paramExp(lit("*"), "", nil)), 0, []string{"1"}, nil, []string{"1"}, "", ""},
+	{word(paramExp(lit("*"), "", nil)), 0, []string{"1", "2"}, nil, []string{"1", "2"}, "", ""},
+	{word(paramExp(lit("*"), "", nil)), 0, []string{"", "2", ""}, nil, []string{"2"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("*"), "", nil)))), 0, []string{"", "2", ""}, nil, []string{" 2 "}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("*"), "", nil)))), 0, []string{"", "2", ""}, ", \t\n", []string{",2,"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("*"), "", nil)))), 0, []string{"", "2", ""}, "", []string{"2"}, "", ""},
+
+	{word(paramExp(lit("@"), "", nil)), interp.Literal, []string{"*", "?"}, nil, []string{"* ?"}, "", ""},
+	{word(paramExp(lit("@"), "", nil)), interp.Literal, []string{"*", "?"}, ", \t\n", []string{"*,?"}, "", ""},
+	{word(paramExp(lit("@"), "", nil)), interp.Literal, []string{"*", "?"}, "", []string{"*?"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("@"), "", nil)))), interp.Literal, []string{"*", "?"}, nil, []string{"* ?"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("@"), "", nil)))), interp.Literal, []string{"*", "?"}, ", \t\n", []string{"*,?"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("@"), "", nil)))), interp.Literal, []string{"*", "?"}, "", []string{"*?"}, "", ""},
+
+	{word(paramExp(lit("@"), "", nil)), interp.Pattern, []string{"*", "?"}, nil, []string{"* ?"}, "", ""},
+	{word(paramExp(lit("@"), "", nil)), interp.Pattern, []string{"*", "?"}, ", \t\n", []string{"*,?"}, "", ""},
+	{word(paramExp(lit("@"), "", nil)), interp.Pattern, []string{"*", "?"}, "", []string{"*?"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("@"), "", nil)))), interp.Pattern, []string{"*", "?"}, nil, []string{`\* \?`}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("@"), "", nil)))), interp.Pattern, []string{"*", "?"}, ", \t\n", []string{`\*,\?`}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("@"), "", nil)))), interp.Pattern, []string{"*", "?"}, "", []string{`\*\?`}, "", ""},
+	// use default values
+	{word(paramExp(lit("@"), ":-", word(lit("...")))), 0, []string{"", "2", ""}, nil, []string{"2"}, "", ""},
+	{word(paramExp(lit("_"), ":-", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "2", ""}, nil, []string{"2"}, "", ""},
+	{word(paramExp(lit("_"), ":-", word(quote(`"`, word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("_"), ":-", word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("_"), ":-", word(quote(`"`, word(paramExp(lit("@"), "", nil)))))))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", ""},
+	// assign default values
+	{word(paramExp(lit("@"), ":=", word(lit("...")))), 0, []string{"", "2", ""}, nil, []string{"2"}, "", ""},
+	{word(paramExp(lit("_"), ":=", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "2", ""}, nil, []string{"2"}, "", " 2 "},
+	{word(paramExp(lit("_"), ":=", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "2", ""}, ", \n\t", []string{"2"}, "", ",2,"},
+	{word(paramExp(lit("_"), ":=", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "2", ""}, "", []string{"2"}, "", "2"},
+	{word(paramExp(lit("_"), ":=", word(quote(`"`, word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", " 2 "},
+	{word(quote(`"`, word(paramExp(lit("_"), ":=", word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", " 2 "},
+	{word(quote(`"`, word(paramExp(lit("_"), ":=", word(quote(`"`, word(paramExp(lit("@"), "", nil)))))))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", " 2 "},
+	// indicate error if unset or null
+	{word(paramExp(lit("@"), ":?", word(lit("...")))), 0, []string{"", "2", ""}, nil, []string{"2"}, "", ""},
+	{word(paramExp(lit("_"), ":?", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "2", ""}, nil, nil, "$_:  2 ", ""},
+	{word(paramExp(lit("_"), ":?", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "2", ""}, ", \n\t", nil, "$_: ,2,", ""},
+	{word(paramExp(lit("_"), ":?", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "2", ""}, "", nil, "$_: 2", ""},
+	{word(paramExp(lit("_"), ":?", word(quote(`"`, word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "2", ""}, nil, nil, "$_:  2 ", ""},
+	{word(quote(`"`, word(paramExp(lit("_"), ":?", word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "2", ""}, nil, nil, "$_:  2 ", ""},
+	{word(quote(`"`, word(paramExp(lit("_"), ":?", word(quote(`"`, word(paramExp(lit("@"), "", nil)))))))), 0, []string{"", "2", ""}, nil, nil, "$_:  2 ", ""},
+	// use alternative values
+	{word(paramExp(lit("@"), ":+", word(lit("...")))), 0, []string{"", "2", ""}, nil, []string{"..."}, "", ""},
+	{word(paramExp(lit("V"), ":+", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "2", ""}, nil, []string{"2"}, "", ""},
+	{word(paramExp(lit("V"), ":+", word(quote(`"`, word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("V"), ":+", word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("V"), ":+", word(quote(`"`, word(paramExp(lit("@"), "", nil)))))))), 0, []string{"", "2", ""}, nil, []string{"", "2", ""}, "", ""},
+	// string length
+	{word(paramExp(lit("@"), "#", nil)), 0, nil, nil, []string{"0"}, "", ""},
+	{word(paramExp(lit("@"), "#", nil)), 0, []string{""}, nil, []string{"1"}, "", ""},
+	{word(paramExp(lit("@"), "#", nil)), 0, []string{"1"}, nil, []string{"1"}, "", ""},
+	{word(paramExp(lit("@"), "#", nil)), 0, []string{"1", "2"}, nil, []string{"2"}, "", ""},
+	// remove suffix pattern
+	{word(paramExp(lit("@"), "%", word(lit("/*")))), 0, []string{"foo/bar/baz", "qux/quux"}, nil, []string{"foo/bar", "qux"}, "", ""},
+	{word(paramExp(lit("@"), "%%", word(lit("/*")))), 0, []string{"foo/bar/baz", "qux/quux"}, nil, []string{"foo", "qux"}, "", ""},
+	{word(paramExp(lit("@"), "%", word())), 0, []string{"foo/bar/baz", "qux/quux"}, nil, []string{"foo/bar/baz", "qux/quux"}, "", ""},
+	{word(paramExp(lit("@"), "%%", word())), 0, []string{"foo/bar/baz", "qux/quux"}, nil, []string{"foo/bar/baz", "qux/quux"}, "", ""},
+
+	{word(paramExp(lit("P"), "%", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "*"}, "/", []string{"foo", "bar"}, "", ""},
+	{word(paramExp(lit("P"), "%%", word(paramExp(lit("@"), "", nil)))), 0, []string{"", "*"}, "/", []string{"foo"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("P"), "%", word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "*"}, "/", []string{"foo/bar"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("P"), "%%", word(paramExp(lit("@"), "", nil)))))), 0, []string{"", "*"}, "/", []string{"foo"}, "", ""},
+	// remove prefix pattern
+	{word(paramExp(lit("@"), "#", word(lit("*/")))), 0, []string{"foo/bar/baz", "qux/quux"}, nil, []string{"bar/baz", "quux"}, "", ""},
+	{word(paramExp(lit("@"), "##", word(lit("*/")))), 0, []string{"foo/bar/baz", "qux/quux"}, nil, []string{"baz", "quux"}, "", ""},
+	{word(paramExp(lit("@"), "#", word())), 0, []string{"foo/bar/baz", "qux/quux"}, nil, []string{"foo/bar/baz", "qux/quux"}, "", ""},
+	{word(paramExp(lit("@"), "##", word())), 0, []string{"foo/bar/baz", "qux/quux"}, nil, []string{"foo/bar/baz", "qux/quux"}, "", ""},
+
+	{word(paramExp(lit("P"), "#", word(paramExp(lit("@"), "", nil)))), 0, []string{"*", ""}, "/", []string{"bar", "baz"}, "", ""},
+	{word(paramExp(lit("P"), "##", word(paramExp(lit("@"), "", nil)))), 0, []string{"*", ""}, "/", []string{"baz"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("P"), "#", word(paramExp(lit("@"), "", nil)))))), 0, []string{"*", ""}, "/", []string{"bar/baz"}, "", ""},
+	{word(quote(`"`, word(paramExp(lit("P"), "##", word(paramExp(lit("@"), "", nil)))))), 0, []string{"*", ""}, "/", []string{"baz"}, "", ""},
 }
 
 var posParamTests = []struct {
@@ -316,6 +411,43 @@ func TestExpand(t *testing.T) {
 						var b strings.Builder
 						printer.Fprint(&b, pe.Word)
 						if g, e := v.Value, b.String(); g != e {
+							t.Errorf("expected %q, got %q", e, g)
+						}
+					}
+				}
+			}
+		}
+	})
+	t.Run("SpParam", func(t *testing.T) {
+		for _, tt := range spParamTests {
+			env := interp.NewExecEnv(name, tt.args...)
+			env.Set("V", V)
+			env.Set("P", P)
+			env.Unset("_")
+			if tt.ifs != nil {
+				env.Set("IFS", tt.ifs.(string))
+			} else {
+				env.Unset("IFS")
+			}
+			g, err := env.Expand(tt.word, tt.mode)
+			switch {
+			case err == nil && tt.err != "":
+				t.Error("expected error")
+			case err != nil && (tt.err == "" || !strings.Contains(err.Error(), tt.err)):
+				t.Error("unexpected error:", err)
+			default:
+				if e := tt.fields; !reflect.DeepEqual(g, e) {
+					t.Errorf("expected %#v, got %#v", e, g)
+				}
+				if tt.assign != "" {
+					pe, ok := tt.word[0].(*ast.ParamExp)
+					if !ok {
+						pe = tt.word[0].(*ast.Quote).Value[0].(*ast.ParamExp)
+					}
+					if v, set := env.Get(pe.Name.Value); !set {
+						t.Errorf("%v is unset", pe.Name.Value)
+					} else {
+						if g, e := v.Value, tt.assign; g != e {
 							t.Errorf("expected %q, got %q", e, g)
 						}
 					}

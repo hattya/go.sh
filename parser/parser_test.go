@@ -3347,15 +3347,13 @@ func TestReadError(t *testing.T) {
 
 type reader struct {
 	data string
-	i    int
 	eof  error
 }
 
 func (r *reader) Read(p []byte) (int, error) {
-	if r.i < len(r.data) {
-		p[0] = r.data[r.i]
-		r.i++
-		return 1, nil
+	if r.data == "" {
+		return 0, r.eof
 	}
-	return 0, r.eof
+	p[0], r.data = r.data[0], r.data[1:]
+	return 1, nil
 }

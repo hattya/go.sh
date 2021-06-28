@@ -969,11 +969,10 @@ func (l *lexer) scanRawToken() int {
 }
 
 func (l *lexer) scanOp(r rune) (op int) {
-	var err error
 	switch r {
 	case '&':
-		op = int('&')
-		if r, err = l.read(); err == nil {
+		op = '&'
+		if r, err := l.read(); err == nil {
 			if r == '&' {
 				op = AND
 			} else {
@@ -981,10 +980,10 @@ func (l *lexer) scanOp(r rune) (op int) {
 			}
 		}
 	case '(':
-		op = int('(')
+		op = '('
 		l.paren++
 		if l.paren == 1 {
-			if r, err = l.read(); err == nil {
+			if r, err := l.read(); err == nil {
 				if r == '(' {
 					op = LAE
 					l.paren++
@@ -995,10 +994,10 @@ func (l *lexer) scanOp(r rune) (op int) {
 			}
 		}
 	case ')':
-		op = int(')')
+		op = ')'
 		l.paren--
 		if l.arithExpr && l.paren == 1 {
-			if r, err = l.read(); err == nil {
+			if r, err := l.read(); err == nil {
 				if r == ')' {
 					op = RAE
 					l.paren--
@@ -1009,8 +1008,8 @@ func (l *lexer) scanOp(r rune) (op int) {
 			}
 		}
 	case ';':
-		op = int(';')
-		if r, err = l.read(); err == nil {
+		op = ';'
+		if r, err := l.read(); err == nil {
 			if r == ';' {
 				op = BREAK
 			} else {
@@ -1018,8 +1017,8 @@ func (l *lexer) scanOp(r rune) (op int) {
 			}
 		}
 	case '<':
-		op = int('<')
-		if r, err = l.read(); err == nil {
+		op = '<'
+		if r, err := l.read(); err == nil {
 			switch r {
 			case '&':
 				op = DUPIN
@@ -1039,8 +1038,8 @@ func (l *lexer) scanOp(r rune) (op int) {
 			}
 		}
 	case '>':
-		op = int('>')
-		if r, err = l.read(); err == nil {
+		op = '>'
+		if r, err := l.read(); err == nil {
 			switch r {
 			case '&':
 				op = DUPOUT
@@ -1053,8 +1052,8 @@ func (l *lexer) scanOp(r rune) (op int) {
 			}
 		}
 	case '|':
-		op = int('|')
-		if r, err = l.read(); err == nil {
+		op = '|'
+		if r, err := l.read(); err == nil {
 			if r == '|' {
 				op = OR
 			} else {

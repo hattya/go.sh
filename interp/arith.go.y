@@ -24,12 +24,15 @@ import (
 %token<expr> NUMBER IDENT
 %token<op>   '(' ')'
 %token<op>   INC DEC '+' '-' '~' '!'
+%token<op>   '*' '/' '%'
 
 %type<expr> primary_expr
 %type<expr> postfix_expr unary_expr
 %type<op>   unary_op
+%type<expr> mul_expr
 %type<expr> expr
 
+%left  '*' '/' '%'
 %right INC DEC
 
 %%
@@ -130,8 +133,23 @@ unary_op:
 	|	'~'
 	|	'!'
 
+mul_expr:
+		             unary_expr
+	|	mul_expr '*' unary_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+	|	mul_expr '/' unary_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+	|	mul_expr '%' unary_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+
 expr:
-		unary_expr
+		mul_expr
 
 %%
 
@@ -173,9 +191,32 @@ func expand(yylex yyLexer, x expr) (int, bool) {
 	}
 }
 
+func calculate(yylex yyLexer, l expr, op string, r expr) (x expr) {
+	if l, ok := expand(yylex, l); ok {
+		if r, ok := expand(yylex, r); ok {
+			switch op {
+			case "*":
+				x.n = l * r
+			case "/":
+				x.n = l / r
+			case "%":
+				x.n = l % r
+			}
+		}
+	}
+	return
+}
+
 // Eval evaluates an arithmetic expression.
-func (env *ExecEnv) Eval(expr string) (int, error) {
+func (env *ExecEnv) Eval(expr string) (n int, err error) {
 	l := newLexer(env, strings.NewReader(expr))
+	defer func() {
+		if e := recover(); e != nil {
+			l.Error(e.(error).Error())
+			err = l.err
+		}
+	}()
+
 	yyParse(l)
 	return l.n, l.err
 }

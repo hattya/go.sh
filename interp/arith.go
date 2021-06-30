@@ -42,6 +42,9 @@ var yyToknames = [...]string{
 	"'-'",
 	"'~'",
 	"'!'",
+	"'*'",
+	"'/'",
+	"'%'",
 }
 
 var yyStatenames = [...]string{}
@@ -88,9 +91,32 @@ func expand(yylex yyLexer, x expr) (int, bool) {
 	}
 }
 
+func calculate(yylex yyLexer, l expr, op string, r expr) (x expr) {
+	if l, ok := expand(yylex, l); ok {
+		if r, ok := expand(yylex, r); ok {
+			switch op {
+			case "*":
+				x.n = l * r
+			case "/":
+				x.n = l / r
+			case "%":
+				x.n = l % r
+			}
+		}
+	}
+	return
+}
+
 // Eval evaluates an arithmetic expression.
-func (env *ExecEnv) Eval(expr string) (int, error) {
+func (env *ExecEnv) Eval(expr string) (n int, err error) {
 	l := newLexer(env, strings.NewReader(expr))
+	defer func() {
+		if e := recover(); e != nil {
+			l.Error(e.(error).Error())
+			err = l.err
+		}
+	}()
+
 	yyParse(l)
 	return l.n, l.err
 }
@@ -103,52 +129,55 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 23
+const yyLast = 32
 
 var yyAct = [...]int{
-	13, 14, 15, 2, 5, 6, 9, 10, 11, 12,
-	16, 17, 22, 1, 3, 7, 4, 8, 0, 21,
-	18, 19, 20,
+	4, 17, 18, 19, 20, 21, 29, 22, 23, 24,
+	1, 3, 8, 5, 2, 9, 0, 0, 26, 27,
+	28, 14, 15, 16, 0, 6, 7, 10, 11, 12,
+	13, 25,
 }
 
 var yyPact = [...]int{
-	-4, -1000, -1000, -1000, 2, -4, -4, -4, -1000, -1000,
-	-1000, -1000, -1000, -1000, -1000, -4, -1000, -1000, -1000, -1000,
-	-1000, 5, -1000,
+	17, -1000, -1000, -13, -1000, -4, 17, 17, 17, -1000,
+	-1000, -1000, -1000, -1000, -1000, -1000, 17, 17, 17, 17,
+	-1000, -1000, -1000, -1000, -1000, -1, -1000, -1000, -1000, -1000,
 }
 
 var yyPgo = [...]int{
-	0, 17, 16, 14, 15, 3, 13,
+	0, 15, 13, 0, 12, 11, 14, 10,
 }
 
 var yyR1 = [...]int{
-	0, 6, 1, 1, 1, 2, 2, 2, 3, 3,
-	3, 3, 4, 4, 4, 4, 5,
+	0, 7, 1, 1, 1, 2, 2, 2, 3, 3,
+	3, 3, 4, 4, 4, 4, 5, 5, 5, 5,
+	6,
 }
 
 var yyR2 = [...]int{
 	0, 1, 1, 1, 3, 1, 2, 2, 1, 2,
-	2, 2, 1, 1, 1, 1, 1,
+	2, 2, 1, 1, 1, 1, 1, 3, 3, 3,
+	1,
 }
 
 var yyChk = [...]int{
-	-1000, -6, -5, -3, -2, 8, 9, -4, -1, 10,
-	11, 12, 13, 4, 5, 6, 8, 9, -3, -3,
-	-3, -5, 7,
+	-1000, -7, -6, -5, -3, -2, 8, 9, -4, -1,
+	10, 11, 12, 13, 4, 5, 6, 14, 15, 16,
+	8, 9, -3, -3, -3, -6, -3, -3, -3, 7,
 }
 
 var yyDef = [...]int{
-	0, -2, 1, 16, 8, 0, 0, 0, 5, 12,
-	13, 14, 15, 2, 3, 0, 6, 7, 9, 10,
-	11, 0, 4,
+	0, -2, 1, 20, 16, 8, 0, 0, 0, 5,
+	12, 13, 14, 15, 2, 3, 0, 0, 0, 0,
+	6, 7, 9, 10, 11, 0, 17, 18, 19, 4,
 }
 
 var yyTok1 = [...]int{
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 13, 3, 3, 3, 3, 3, 3,
-	6, 7, 3, 10, 3, 11, 3, 3, 3, 3,
+	3, 3, 3, 13, 3, 3, 3, 16, 3, 3,
+	6, 7, 14, 10, 3, 11, 3, 15, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -588,6 +617,21 @@ yydefault:
 					}
 				}
 			}
+		}
+	case 17:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+		}
+	case 18:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+		}
+	case 19:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	}
 	goto yystack /* stack new state and value */

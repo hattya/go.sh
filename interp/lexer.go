@@ -27,6 +27,9 @@ var ops = map[int]string{
 	'-': "-",
 	'~': "~",
 	'!': "!",
+	'*': "*",
+	'/': "/",
+	'%': "%",
 }
 
 type lexer struct {
@@ -157,7 +160,7 @@ Ident:
 func (l *lexer) lexOp() action {
 	var op int
 	switch r, _ := l.read(); r {
-	case '(', ')', '~', '!':
+	case '(', ')', '~', '!', '*', '/', '%':
 		op = int(r)
 	case '+':
 		op = '+'
@@ -218,11 +221,14 @@ func (l *lexer) Error(s string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if strings.HasPrefix(s, "syntax error: ") {
+	switch {
+	case strings.HasPrefix(s, "syntax error: "):
 		s = s[14:]
 		if l.err != nil && s == "unexpected EOF" {
 			return // lexing was interrupted
 		}
+	case strings.HasPrefix(s, "runtime error: "):
+		s = s[15:]
 	}
 	l.err = ArithExprError(s)
 

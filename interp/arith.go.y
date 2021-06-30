@@ -29,9 +29,10 @@ import (
 %type<expr> primary_expr
 %type<expr> postfix_expr unary_expr
 %type<op>   unary_op
-%type<expr> mul_expr
+%type<expr> mul_expr add_expr
 %type<expr> expr
 
+%left  '+' '-'
 %left  '*' '/' '%'
 %right INC DEC
 
@@ -148,8 +149,19 @@ mul_expr:
 			$$ = calculate(yylex, $1, $2, $3)
 		}
 
+add_expr:
+		             mul_expr
+	|	add_expr '+' mul_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+	|	add_expr '-' mul_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+
 expr:
-		mul_expr
+		add_expr
 
 %%
 
@@ -201,6 +213,10 @@ func calculate(yylex yyLexer, l expr, op string, r expr) (x expr) {
 				x.n = l / r
 			case "%":
 				x.n = l % r
+			case "+":
+				x.n = l + r
+			case "-":
+				x.n = l - r
 			}
 		}
 	}

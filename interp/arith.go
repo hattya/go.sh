@@ -29,6 +29,8 @@ const INC = 57348
 const DEC = 57349
 const LSH = 57350
 const RSH = 57351
+const LE = 57352
+const GE = 57353
 
 var yyToknames = [...]string{
 	"$end",
@@ -49,6 +51,10 @@ var yyToknames = [...]string{
 	"'%'",
 	"LSH",
 	"RSH",
+	"'<'",
+	"'>'",
+	"LE",
+	"GE",
 }
 
 var yyStatenames = [...]string{}
@@ -72,6 +78,10 @@ func init() {
 			s = "'<<'"
 		case "RSH":
 			s = "'>>'"
+		case "LE":
+			s = "'<='"
+		case "GE":
+			s = "'>='"
 		}
 		yyToknames[i] = s
 	}
@@ -123,6 +133,28 @@ func calculate(yylex yyLexer, l expr, op string, r expr) (x expr) {
 	return
 }
 
+func compare(yylex yyLexer, l expr, op string, r expr) (x expr) {
+	if l, ok := expand(yylex, l); ok {
+		if r, ok := expand(yylex, r); ok {
+			var b bool
+			switch op {
+			case "<":
+				b = l < r
+			case ">":
+				b = l > r
+			case "<=":
+				b = l <= r
+			case ">=":
+				b = l >= r
+			}
+			if b {
+				x.n = 1
+			}
+		}
+	}
+	return
+}
+
 // Eval evaluates an arithmetic expression.
 func (env *ExecEnv) Eval(expr string) (n int, err error) {
 	l := newLexer(env, strings.NewReader(expr))
@@ -145,50 +177,57 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 39
+const yyLast = 48
 
 var yyAct = [...]int{
-	6, 4, 19, 20, 2, 5, 23, 24, 25, 28,
-	29, 30, 21, 22, 26, 27, 39, 1, 3, 10,
-	7, 32, 33, 31, 36, 37, 38, 34, 35, 16,
-	17, 18, 11, 8, 9, 12, 13, 14, 15,
+	7, 4, 5, 24, 25, 6, 20, 21, 22, 23,
+	33, 34, 35, 28, 29, 30, 48, 2, 26, 27,
+	31, 32, 37, 38, 39, 40, 1, 41, 42, 45,
+	46, 47, 43, 44, 17, 18, 19, 36, 9, 10,
+	13, 14, 15, 16, 3, 11, 8, 12,
 }
 
 var yyPact = [...]int{
-	25, -1000, -1000, -15, 2, -8, -1000, 6, 25, 25,
-	25, -1000, -1000, -1000, -1000, -1000, -1000, -1000, 25, 25,
-	25, 25, 25, 25, 25, 25, -1000, -1000, -1000, -1000,
-	-1000, 9, 2, 2, -8, -8, -1000, -1000, -1000, -1000,
+	30, -1000, -1000, -13, -14, 8, -1, -1000, 12, 30,
+	30, 30, -1000, -1000, -1000, -1000, -1000, -1000, -1000, 30,
+	30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+	30, -1000, -1000, -1000, -1000, -1000, 9, -14, -14, -14,
+	-14, 8, 8, -1, -1, -1000, -1000, -1000, -1000,
 }
 
 var yyPgo = [...]int{
-	0, 32, 20, 0, 19, 5, 1, 18, 4, 17,
+	0, 47, 46, 0, 45, 5, 2, 1, 44, 17,
+	26,
 }
 
 var yyR1 = [...]int{
-	0, 9, 1, 1, 1, 2, 2, 2, 3, 3,
+	0, 10, 1, 1, 1, 2, 2, 2, 3, 3,
 	3, 3, 4, 4, 4, 4, 5, 5, 5, 5,
-	6, 6, 6, 7, 7, 7, 8,
+	6, 6, 6, 7, 7, 7, 8, 8, 8, 8,
+	8, 9,
 }
 
 var yyR2 = [...]int{
 	0, 1, 1, 1, 3, 1, 2, 2, 1, 2,
 	2, 2, 1, 1, 1, 1, 1, 3, 3, 3,
-	1, 3, 3, 1, 3, 3, 1,
+	1, 3, 3, 1, 3, 3, 1, 3, 3, 3,
+	3, 1,
 }
 
 var yyChk = [...]int{
-	-1000, -9, -8, -7, -6, -5, -3, -2, 8, 9,
-	-4, -1, 10, 11, 12, 13, 4, 5, 6, 17,
-	18, 10, 11, 14, 15, 16, 8, 9, -3, -3,
-	-3, -8, -6, -6, -5, -5, -3, -3, -3, 7,
+	-1000, -10, -9, -8, -7, -6, -5, -3, -2, 8,
+	9, -4, -1, 10, 11, 12, 13, 4, 5, 6,
+	19, 20, 21, 22, 17, 18, 10, 11, 14, 15,
+	16, 8, 9, -3, -3, -3, -9, -7, -7, -7,
+	-7, -6, -6, -5, -5, -3, -3, -3, 7,
 }
 
 var yyDef = [...]int{
-	0, -2, 1, 26, 23, 20, 16, 8, 0, 0,
-	0, 5, 12, 13, 14, 15, 2, 3, 0, 0,
-	0, 0, 0, 0, 0, 0, 6, 7, 9, 10,
-	11, 0, 24, 25, 21, 22, 17, 18, 19, 4,
+	0, -2, 1, 31, 26, 23, 20, 16, 8, 0,
+	0, 0, 5, 12, 13, 14, 15, 2, 3, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 6, 7, 9, 10, 11, 0, 27, 28, 29,
+	30, 24, 25, 21, 22, 17, 18, 19, 4,
 }
 
 var yyTok1 = [...]int{
@@ -198,7 +237,7 @@ var yyTok1 = [...]int{
 	3, 3, 3, 13, 3, 3, 3, 16, 3, 3,
 	6, 7, 14, 10, 3, 11, 3, 15, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	19, 3, 20, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -208,7 +247,7 @@ var yyTok1 = [...]int{
 }
 
 var yyTok2 = [...]int{
-	2, 3, 4, 5, 8, 9, 17, 18,
+	2, 3, 4, 5, 8, 9, 17, 18, 21, 22,
 }
 
 var yyTok3 = [...]int{
@@ -671,6 +710,26 @@ yydefault:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
 			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+		}
+	case 27:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.expr = compare(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+		}
+	case 28:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.expr = compare(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+		}
+	case 29:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.expr = compare(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+		}
+	case 30:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.expr = compare(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	}
 	goto yystack /* stack new state and value */

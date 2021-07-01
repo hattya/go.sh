@@ -24,14 +24,15 @@ import (
 %token<expr> NUMBER IDENT
 %token<op>   '(' ')'
 %token<op>   INC DEC '+' '-' '~' '!'
-%token<op>   '*' '/' '%' LSH RSH
+%token<op>   '*' '/' '%' LSH RSH '<' '>' LE GE
 
 %type<expr> primary_expr
 %type<expr> postfix_expr unary_expr
 %type<op>   unary_op
-%type<expr> mul_expr add_expr shift_expr
+%type<expr> mul_expr add_expr shift_expr rel_expr
 %type<expr> expr
 
+%left  '<' '>' LE  GE
 %left  LSH RSH
 %left  '+' '-'
 %left  '*' '/' '%'
@@ -172,8 +173,27 @@ shift_expr:
 			$$ = calculate(yylex, $1, $2, $3)
 		}
 
+rel_expr:
+		             shift_expr
+	|	rel_expr '<' shift_expr
+		{
+			$$ = compare(yylex, $1, $2, $3)
+		}
+	|	rel_expr '>' shift_expr
+		{
+			$$ = compare(yylex, $1, $2, $3)
+		}
+	|	rel_expr LE  shift_expr
+		{
+			$$ = compare(yylex, $1, $2, $3)
+		}
+	|	rel_expr GE  shift_expr
+		{
+			$$ = compare(yylex, $1, $2, $3)
+		}
+
 expr:
-		shift_expr
+		rel_expr
 
 %%
 
@@ -192,6 +212,10 @@ func init() {
 			s = "'<<'"
 		case "RSH":
 			s = "'>>'"
+		case "LE":
+			s = "'<='"
+		case "GE":
+			s = "'>='"
 		}
 		yyToknames[i] = s
 	}
@@ -237,6 +261,28 @@ func calculate(yylex yyLexer, l expr, op string, r expr) (x expr) {
 				x.n = l << r
 			case ">>":
 				x.n = l >> r
+			}
+		}
+	}
+	return
+}
+
+func compare(yylex yyLexer, l expr, op string, r expr) (x expr) {
+	if l, ok := expand(yylex, l); ok {
+		if r, ok := expand(yylex, r); ok {
+			var b bool
+			switch op {
+			case "<":
+				b = l < r
+			case ">":
+				b = l > r
+			case "<=":
+				b = l <= r
+			case ">=":
+				b = l >= r
+			}
+			if b {
+				x.n = 1
 			}
 		}
 	}

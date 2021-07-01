@@ -30,6 +30,8 @@ var ops = map[int]string{
 	'*': "*",
 	'/': "/",
 	'%': "%",
+	LSH: "<<",
+	RSH: ">>",
 }
 
 type lexer struct {
@@ -176,6 +178,24 @@ func (l *lexer) lexOp() action {
 		if r, err := l.read(); err == nil {
 			if r == '-' {
 				op = DEC
+			} else {
+				l.unread()
+			}
+		}
+	case '<':
+		op = '<'
+		if r, err := l.read(); err == nil {
+			if r == '<' {
+				op = LSH
+			} else {
+				l.unread()
+			}
+		}
+	case '>':
+		op = '>'
+		if r, err := l.read(); err == nil {
+			if r == '>' {
+				op = RSH
 			} else {
 				l.unread()
 			}

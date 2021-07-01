@@ -24,14 +24,15 @@ import (
 %token<expr> NUMBER IDENT
 %token<op>   '(' ')'
 %token<op>   INC DEC '+' '-' '~' '!'
-%token<op>   '*' '/' '%'
+%token<op>   '*' '/' '%' LSH RSH
 
 %type<expr> primary_expr
 %type<expr> postfix_expr unary_expr
 %type<op>   unary_op
-%type<expr> mul_expr add_expr
+%type<expr> mul_expr add_expr shift_expr
 %type<expr> expr
 
+%left  LSH RSH
 %left  '+' '-'
 %left  '*' '/' '%'
 %right INC DEC
@@ -160,8 +161,19 @@ add_expr:
 			$$ = calculate(yylex, $1, $2, $3)
 		}
 
+shift_expr:
+		               add_expr
+	|	shift_expr LSH add_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+	|	shift_expr RSH add_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+
 expr:
-		add_expr
+		shift_expr
 
 %%
 
@@ -176,6 +188,10 @@ func init() {
 			s = "'++'"
 		case "DEC":
 			s = "'--'"
+		case "LSH":
+			s = "'<<'"
+		case "RSH":
+			s = "'>>'"
 		}
 		yyToknames[i] = s
 	}
@@ -217,6 +233,10 @@ func calculate(yylex yyLexer, l expr, op string, r expr) (x expr) {
 				x.n = l + r
 			case "-":
 				x.n = l - r
+			case "<<":
+				x.n = l << r
+			case ">>":
+				x.n = l >> r
 			}
 		}
 	}

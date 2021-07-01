@@ -112,6 +112,18 @@ var evalTests = []struct {
 	{"(8 -  4) / 2 ", 2},
 	{" 8 %  4  - 2 ", -2},
 	{" 8 % (4  - 2)", 0},
+	// lsh
+	{" 4 <<  2  << 1 ", 32},
+	{" 4 +   2  << 1 ", 12},
+	{" 4 +  (2  << 1)", 8},
+	{" 4 <<  2  -  1 ", 8},
+	{"(4 <<  2) -  1 ", 15},
+	// rsh
+	{" 8 >>  2  >> 1 ", 1},
+	{" 8 +   2  >> 1 ", 5},
+	{" 8 +  (2  >> 1)", 9},
+	{" 8 >>  2  -  1 ", 4},
+	{"(8 >>  2) -  1 ", 1},
 }
 
 func TestEval(t *testing.T) {
@@ -162,9 +174,14 @@ var evalErrorTests = []struct {
 	{"0--", "'--' requires lvalue"},
 	{"--0", "'--' requires lvalue"},
 	{"---0", "'--' requires lvalue"},
+	{"<<", "unexpected '<<'"},
+	{">>", "unexpected '>>'"},
 	// devide by zero
 	{"0 / 0", "integer divide by zero"},
 	{"0 % 0", "integer divide by zero"},
+	// negative shift
+	{"1 << -1", "negative shift amount"},
+	{"1 >> -1", "negative shift amount"},
 }
 
 func TestEvalError(t *testing.T) {

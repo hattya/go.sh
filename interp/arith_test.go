@@ -156,6 +156,28 @@ var evalTests = []struct {
 	{" 4 << (2  >= 2)", 8},
 	{" 4 >=  2  >> 1 ", 1},
 	{"(4 >=  2) >> 1 ", 0},
+	// eq
+	{" 1 ==  1  ", 1},
+	{" 1 ==  0  ", 0},
+	{" 1 <   1  == 0 ", 1},
+	{" 1 <  (1  == 0)", 0},
+	{" 0 ==  1  <= 1 ", 0},
+	{"(0 ==  1) <= 1 ", 1},
+	{" 0 >   1  == 0 ", 1},
+	{" 0 >  (1  == 0)", 0},
+	{" 0 ==  1  >= 0 ", 0},
+	{"(0 ==  1) >= 0 ", 1},
+	// ne
+	{" 1 !=  1  ", 0},
+	{" 1 !=  2  ", 1},
+	{" 1 <   0  != 1 ", 1},
+	{" 1 <  (0  != 1)", 0},
+	{" 1 !=  0  <= 1 ", 0},
+	{"(1 !=  0) <= 1 ", 1},
+	{" 0 >   1  != 1 ", 1},
+	{" 0 >  (1  != 1)", 0},
+	{" 1 !=  1  >= 0 ", 0},
+	{"(1 !=  1) >= 0 ", 1},
 }
 
 func TestEval(t *testing.T) {
@@ -212,12 +234,16 @@ var evalErrorTests = []struct {
 	{">", "unexpected '>'"},
 	{"<=", "unexpected '<='"},
 	{">=", "unexpected '>='"},
+	{"==", "unexpected '=='"},
+	{"!=", "unexpected '!='"},
 	// devide by zero
 	{"0 / 0", "integer divide by zero"},
 	{"0 % 0", "integer divide by zero"},
 	// negative shift
 	{"1 << -1", "negative shift amount"},
 	{"1 >> -1", "negative shift amount"},
+	// unknown token
+	{"=", "unexpected $unk"},
 }
 
 func TestEvalError(t *testing.T) {

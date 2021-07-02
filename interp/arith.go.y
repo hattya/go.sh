@@ -24,14 +24,15 @@ import (
 %token<expr> NUMBER IDENT
 %token<op>   '(' ')'
 %token<op>   INC DEC '+' '-' '~' '!'
-%token<op>   '*' '/' '%' LSH RSH '<' '>' LE GE
+%token<op>   '*' '/' '%' LSH RSH '<' '>' LE GE EQ NE
 
 %type<expr> primary_expr
 %type<expr> postfix_expr unary_expr
 %type<op>   unary_op
-%type<expr> mul_expr add_expr shift_expr rel_expr
+%type<expr> mul_expr add_expr shift_expr rel_expr eq_expr
 %type<expr> expr
 
+%left  EQ  NE
 %left  '<' '>' LE  GE
 %left  LSH RSH
 %left  '+' '-'
@@ -192,8 +193,19 @@ rel_expr:
 			$$ = compare(yylex, $1, $2, $3)
 		}
 
+eq_expr:
+		           rel_expr
+	|	eq_expr EQ rel_expr
+		{
+			$$ = compare(yylex, $1, $2, $3)
+		}
+	|	eq_expr NE rel_expr
+		{
+			$$ = compare(yylex, $1, $2, $3)
+		}
+
 expr:
-		rel_expr
+		eq_expr
 
 %%
 
@@ -216,6 +228,10 @@ func init() {
 			s = "'<='"
 		case "GE":
 			s = "'>='"
+		case "EQ":
+			s = "'=='"
+		case "NE":
+			s = "'!='"
 		}
 		yyToknames[i] = s
 	}
@@ -280,6 +296,10 @@ func compare(yylex yyLexer, l expr, op string, r expr) (x expr) {
 				b = l <= r
 			case ">=":
 				b = l >= r
+			case "==":
+				b = l == r
+			case "!=":
+				b = l != r
 			}
 			if b {
 				x.n = 1

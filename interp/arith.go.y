@@ -24,14 +24,17 @@ import (
 %token<expr> NUMBER IDENT
 %token<op>   '(' ')'
 %token<op>   INC DEC '+' '-' '~' '!'
-%token<op>   '*' '/' '%' LSH RSH '<' '>' LE GE EQ NE
+%token<op>   '*' '/' '%' LSH RSH '<' '>' LE GE EQ NE '&' '^' '|'
 
 %type<expr> primary_expr
 %type<expr> postfix_expr unary_expr
 %type<op>   unary_op
-%type<expr> mul_expr add_expr shift_expr rel_expr eq_expr
+%type<expr> mul_expr add_expr shift_expr rel_expr eq_expr and_expr xor_expr or_expr
 %type<expr> expr
 
+%left  '|'
+%left  '^'
+%left  '&'
 %left  EQ  NE
 %left  '<' '>' LE  GE
 %left  LSH RSH
@@ -204,8 +207,29 @@ eq_expr:
 			$$ = compare(yylex, $1, $2, $3)
 		}
 
+and_expr:
+		             eq_expr
+	|	and_expr '&' eq_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+
+xor_expr:
+		             and_expr
+	|	xor_expr '^' and_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+
+or_expr:
+		            xor_expr
+	|	or_expr '|' xor_expr
+		{
+			$$ = calculate(yylex, $1, $2, $3)
+		}
+
 expr:
-		eq_expr
+		or_expr
 
 %%
 
@@ -277,6 +301,12 @@ func calculate(yylex yyLexer, l expr, op string, r expr) (x expr) {
 				x.n = l << r
 			case ">>":
 				x.n = l >> r
+			case "&":
+				x.n = l & r
+			case "^":
+				x.n = l ^ r
+			case "|":
+				x.n = l | r
 			}
 		}
 	}

@@ -19,28 +19,30 @@ import (
 )
 
 var ops = map[int]string{
-	'(': "(",
-	')': ")",
-	INC: "++",
-	DEC: "--",
-	'+': "+",
-	'-': "-",
-	'~': "~",
-	'!': "!",
-	'*': "*",
-	'/': "/",
-	'%': "%",
-	LSH: "<<",
-	RSH: ">>",
-	'<': "<",
-	'>': ">",
-	LE:  "<=",
-	GE:  ">=",
-	EQ:  "==",
-	NE:  "!=",
-	'&': "&",
-	'^': "^",
-	'|': "|",
+	'(':  "(",
+	')':  ")",
+	INC:  "++",
+	DEC:  "--",
+	'+':  "+",
+	'-':  "-",
+	'~':  "~",
+	'!':  "!",
+	'*':  "*",
+	'/':  "/",
+	'%':  "%",
+	LSH:  "<<",
+	RSH:  ">>",
+	'<':  "<",
+	'>':  ">",
+	LE:   "<=",
+	GE:   ">=",
+	EQ:   "==",
+	NE:   "!=",
+	'&':  "&",
+	'^':  "^",
+	'|':  "|",
+	LAND: "&&",
+	LOR:  "||",
 }
 
 type lexer struct {
@@ -171,7 +173,7 @@ Ident:
 func (l *lexer) lexOp() action {
 	var op int
 	switch r, _ := l.read(); r {
-	case '(', ')', '~', '*', '/', '%', '&', '^', '|':
+	case '(', ')', '~', '*', '/', '%', '^':
 		op = int(r)
 	case '+':
 		op = '+'
@@ -229,6 +231,24 @@ func (l *lexer) lexOp() action {
 		if r, err := l.read(); err == nil {
 			if r == '=' {
 				op = EQ
+			} else {
+				l.unread()
+			}
+		}
+	case '&':
+		op = '&'
+		if r, err := l.read(); err == nil {
+			if r == '&' {
+				op = LAND
+			} else {
+				l.unread()
+			}
+		}
+	case '|':
+		op = '|'
+		if r, err := l.read(); err == nil {
+			if r == '|' {
+				op = LOR
 			} else {
 				l.unread()
 			}

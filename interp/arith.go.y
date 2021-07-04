@@ -24,14 +24,16 @@ import (
 %token<expr> NUMBER IDENT
 %token<op>   '(' ')'
 %token<op>   INC DEC '+' '-' '~' '!'
-%token<op>   '*' '/' '%' LSH RSH '<' '>' LE GE EQ NE '&' '^' '|'
+%token<op>   '*' '/' '%' LSH RSH '<' '>' LE GE EQ NE '&' '^' '|' LAND LOR
 
 %type<expr> primary_expr
 %type<expr> postfix_expr unary_expr
 %type<op>   unary_op
-%type<expr> mul_expr add_expr shift_expr rel_expr eq_expr and_expr xor_expr or_expr
+%type<expr> mul_expr add_expr shift_expr rel_expr eq_expr and_expr xor_expr or_expr land_expr lor_expr
 %type<expr> expr
 
+%left  LOR
+%left  LAND
 %left  '|'
 %left  '^'
 %left  '&'
@@ -228,8 +230,34 @@ or_expr:
 			$$ = calculate(yylex, $1, $2, $3)
 		}
 
+land_expr:
+		               or_expr
+	|	land_expr LAND or_expr
+		{
+			$$.n = 0
+			$$.s = ""
+			if l, ok := expand(yylex, $1); ok && l != 0 {
+				if r, ok := expand(yylex, $3); ok && r != 0 {
+					$$.n = 1
+				}
+			}
+		}
+
+lor_expr:
+		             land_expr
+	|	lor_expr LOR land_expr
+		{
+			$$.n = 0
+			$$.s = ""
+			if l, ok := expand(yylex, $1); ok && l != 0 {
+				$$.n = 1
+			} else if r, ok := expand(yylex, $3); ok && r != 0 {
+				$$.n = 1
+			}
+		}
+
 expr:
-		or_expr
+		lor_expr
 
 %%
 
@@ -256,6 +284,10 @@ func init() {
 			s = "'=='"
 		case "NE":
 			s = "'!='"
+		case "LAND":
+			s = "'&&'"
+		case "LOR":
+			s = "'||'"
 		}
 		yyToknames[i] = s
 	}

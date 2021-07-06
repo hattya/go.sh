@@ -25,13 +25,16 @@ import (
 %token<op>   '(' ')'
 %token<op>   INC DEC '+' '-' '~' '!'
 %token<op>   '*' '/' '%' LSH RSH '<' '>' LE GE EQ NE '&' '^' '|' LAND LOR
+%token<op>   '?' ':'
 
 %type<expr> primary_expr
 %type<expr> postfix_expr unary_expr
 %type<op>   unary_op
 %type<expr> mul_expr add_expr shift_expr rel_expr eq_expr and_expr xor_expr or_expr land_expr lor_expr
+%type<expr> cond_expr
 %type<expr> expr
 
+%right '?'
 %left  LOR
 %left  LAND
 %left  '|'
@@ -256,8 +259,22 @@ lor_expr:
 			}
 		}
 
-expr:
+cond_expr:
 		lor_expr
+	|	lor_expr '?' expr ':' cond_expr
+		{
+			$$.s = ""
+			if l, ok := expand(yylex, $1); ok {
+				if l != 0 {
+					$$.n, _ = expand(yylex, $3)
+				} else {
+					$$.n, _ = expand(yylex, $5)
+				}
+			}
+		}
+
+expr:
+		cond_expr
 
 %%
 

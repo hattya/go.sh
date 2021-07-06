@@ -43,6 +43,8 @@ var ops = map[int]string{
 	'|':  "|",
 	LAND: "&&",
 	LOR:  "||",
+	'?':  "?",
+	':':  ":",
 }
 
 type lexer struct {
@@ -173,7 +175,7 @@ Ident:
 func (l *lexer) lexOp() action {
 	var op int
 	switch r, _ := l.read(); r {
-	case '(', ')', '~', '*', '/', '%', '^':
+	case '(', ')', '~', '*', '/', '%', '^', '?', ':':
 		op = int(r)
 	case '+':
 		op = '+'

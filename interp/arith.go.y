@@ -26,6 +26,7 @@ import (
 %token<op>   INC DEC '+' '-' '~' '!'
 %token<op>   '*' '/' '%' LSH RSH '<' '>' LE GE EQ NE '&' '^' '|' LAND LOR
 %token<op>   '?' ':'
+%token<op>   '=' MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN SUB_ASSIGN LSH_ASSIGN RSH_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
 
 %type<expr> primary_expr
 %type<expr> postfix_expr unary_expr
@@ -33,7 +34,9 @@ import (
 %type<expr> mul_expr add_expr shift_expr rel_expr eq_expr and_expr xor_expr or_expr land_expr lor_expr
 %type<expr> cond_expr
 %type<expr> expr
+%type<op>   assign_op
 
+%right '=' MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN SUB_ASSIGN LSH_ASSIGN RSH_ASSIGN AND_ASSIGN XOR_ASSIGN OR_ASSIGN
 %right '?'
 %left  LOR
 %left  LAND
@@ -149,37 +152,37 @@ mul_expr:
 		             unary_expr
 	|	mul_expr '*' unary_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 	|	mul_expr '/' unary_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 	|	mul_expr '%' unary_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 
 add_expr:
 		             mul_expr
 	|	add_expr '+' mul_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 	|	add_expr '-' mul_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 
 shift_expr:
 		               add_expr
 	|	shift_expr LSH add_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 	|	shift_expr RSH add_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 
 rel_expr:
@@ -216,21 +219,21 @@ and_expr:
 		             eq_expr
 	|	and_expr '&' eq_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 
 xor_expr:
 		             and_expr
 	|	xor_expr '^' and_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 
 or_expr:
 		            xor_expr
 	|	or_expr '|' xor_expr
 		{
-			$$ = calculate(yylex, $1, $2, $3)
+			$$, _ = calculate(yylex, $1, $2, $3)
 		}
 
 land_expr:
@@ -275,6 +278,36 @@ cond_expr:
 
 expr:
 		cond_expr
+	|	unary_expr assign_op expr
+		{
+			$$.s = ""
+			if $1.s == "" {
+				yylex.Error(errLValue($2))
+			} else {
+				var ok bool
+				if $2 == "=" {
+					$$.n, ok = expand(yylex, $3)
+				} else {
+					$$, ok = calculate(yylex, $1, $2[:len($2)-1], $3)
+				}
+				if ok {
+					yylex.(*lexer).env.Set($1.s, strconv.Itoa($$.n))
+				}
+			}
+		}
+
+assign_op:
+		'='
+	|	MUL_ASSIGN
+	|	DIV_ASSIGN
+	|	MOD_ASSIGN
+	|	ADD_ASSIGN
+	|	SUB_ASSIGN
+	|	LSH_ASSIGN
+	|	RSH_ASSIGN
+	|	AND_ASSIGN
+	|	XOR_ASSIGN
+	|	 OR_ASSIGN
 
 %%
 
@@ -305,6 +338,26 @@ func init() {
 			s = "'&&'"
 		case "LOR":
 			s = "'||'"
+		case "MUL_ASSIGN":
+			s = "'*='"
+		case "DIV_ASSIGN":
+			s = "'/='"
+		case "MOD_ASSIGN":
+			s = "'%='"
+		case "ADD_ASSIGN":
+			s = "'+='"
+		case "SUB_ASSIGN":
+			s = "'-='"
+		case "LSH_ASSIGN":
+			s = "'<<='"
+		case "RSH_ASSIGN":
+			s = "'>>='"
+		case "AND_ASSIGN":
+			s = "'&='"
+		case "XOR_ASSIGN":
+			s = "'^='"
+		case "OR_ASSIGN":
+			s = "'|='"
 		}
 		yyToknames[i] = s
 	}
@@ -332,9 +385,10 @@ func expand(yylex yyLexer, x expr) (int, bool) {
 	}
 }
 
-func calculate(yylex yyLexer, l expr, op string, r expr) (x expr) {
-	if l, ok := expand(yylex, l); ok {
-		if r, ok := expand(yylex, r); ok {
+func calculate(yylex yyLexer, l expr, op string, r expr) (x expr, ok bool) {
+	if l, ok1 := expand(yylex, l); ok1 {
+		if r, ok2 := expand(yylex, r); ok2 {
+			ok = true
 			switch op {
 			case "*":
 				x.n = l * r

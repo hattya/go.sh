@@ -19,32 +19,43 @@ import (
 )
 
 var ops = map[int]string{
-	'(':  "(",
-	')':  ")",
-	INC:  "++",
-	DEC:  "--",
-	'+':  "+",
-	'-':  "-",
-	'~':  "~",
-	'!':  "!",
-	'*':  "*",
-	'/':  "/",
-	'%':  "%",
-	LSH:  "<<",
-	RSH:  ">>",
-	'<':  "<",
-	'>':  ">",
-	LE:   "<=",
-	GE:   ">=",
-	EQ:   "==",
-	NE:   "!=",
-	'&':  "&",
-	'^':  "^",
-	'|':  "|",
-	LAND: "&&",
-	LOR:  "||",
-	'?':  "?",
-	':':  ":",
+	'(':        "(",
+	')':        ")",
+	INC:        "++",
+	DEC:        "--",
+	'+':        "+",
+	'-':        "-",
+	'~':        "~",
+	'!':        "!",
+	'*':        "*",
+	'/':        "/",
+	'%':        "%",
+	LSH:        "<<",
+	RSH:        ">>",
+	'<':        "<",
+	'>':        ">",
+	LE:         "<=",
+	GE:         ">=",
+	EQ:         "==",
+	NE:         "!=",
+	'&':        "&",
+	'^':        "^",
+	'|':        "|",
+	LAND:       "&&",
+	LOR:        "||",
+	'?':        "?",
+	':':        ":",
+	'=':        "=",
+	MUL_ASSIGN: "*=",
+	DIV_ASSIGN: "/=",
+	MOD_ASSIGN: "%=",
+	ADD_ASSIGN: "+=",
+	SUB_ASSIGN: "-=",
+	LSH_ASSIGN: "<<=",
+	RSH_ASSIGN: ">>=",
+	AND_ASSIGN: "&=",
+	XOR_ASSIGN: "^=",
+	OR_ASSIGN:  "|=",
 }
 
 type lexer struct {
@@ -175,23 +186,29 @@ Ident:
 func (l *lexer) lexOp() action {
 	var op int
 	switch r, _ := l.read(); r {
-	case '(', ')', '~', '*', '/', '%', '^', '?', ':':
+	case '(', ')', '~', '?', ':':
 		op = int(r)
 	case '+':
 		op = '+'
 		if r, err := l.read(); err == nil {
-			if r == '+' {
+			switch r {
+			case '+':
 				op = INC
-			} else {
+			case '=':
+				op = ADD_ASSIGN
+			default:
 				l.unread()
 			}
 		}
 	case '-':
 		op = '-'
 		if r, err := l.read(); err == nil {
-			if r == '-' {
+			switch r {
+			case '-':
 				op = DEC
-			} else {
+			case '=':
+				op = SUB_ASSIGN
+			default:
 				l.unread()
 			}
 		}
@@ -204,12 +221,46 @@ func (l *lexer) lexOp() action {
 				l.unread()
 			}
 		}
+	case '*':
+		op = '*'
+		if r, err := l.read(); err == nil {
+			if r == '=' {
+				op = MUL_ASSIGN
+			} else {
+				l.unread()
+			}
+		}
+	case '/':
+		op = '/'
+		if r, err := l.read(); err == nil {
+			if r == '=' {
+				op = DIV_ASSIGN
+			} else {
+				l.unread()
+			}
+		}
+	case '%':
+		op = '%'
+		if r, err := l.read(); err == nil {
+			if r == '=' {
+				op = MOD_ASSIGN
+			} else {
+				l.unread()
+			}
+		}
 	case '<':
 		op = '<'
 		if r, err := l.read(); err == nil {
 			switch r {
 			case '<':
 				op = LSH
+				if r, err := l.read(); err == nil {
+					if r == '=' {
+						op = LSH_ASSIGN
+					} else {
+						l.unread()
+					}
+				}
 			case '=':
 				op = LE
 			default:
@@ -222,6 +273,13 @@ func (l *lexer) lexOp() action {
 			switch r {
 			case '>':
 				op = RSH
+				if r, err := l.read(); err == nil {
+					if r == '=' {
+						op = RSH_ASSIGN
+					} else {
+						l.unread()
+					}
+				}
 			case '=':
 				op = GE
 			default:
@@ -240,8 +298,20 @@ func (l *lexer) lexOp() action {
 	case '&':
 		op = '&'
 		if r, err := l.read(); err == nil {
-			if r == '&' {
+			switch r {
+			case '&':
 				op = LAND
+			case '=':
+				op = AND_ASSIGN
+			default:
+				l.unread()
+			}
+		}
+	case '^':
+		op = '^'
+		if r, err := l.read(); err == nil {
+			if r == '=' {
+				op = XOR_ASSIGN
 			} else {
 				l.unread()
 			}
@@ -249,9 +319,12 @@ func (l *lexer) lexOp() action {
 	case '|':
 		op = '|'
 		if r, err := l.read(); err == nil {
-			if r == '|' {
+			switch r {
+			case '|':
 				op = LOR
-			} else {
+			case '=':
+				op = OR_ASSIGN
+			default:
 				l.unread()
 			}
 		}

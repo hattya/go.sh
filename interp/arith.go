@@ -35,6 +35,16 @@ const EQ = 57354
 const NE = 57355
 const LAND = 57356
 const LOR = 57357
+const MUL_ASSIGN = 57358
+const DIV_ASSIGN = 57359
+const MOD_ASSIGN = 57360
+const ADD_ASSIGN = 57361
+const SUB_ASSIGN = 57362
+const LSH_ASSIGN = 57363
+const RSH_ASSIGN = 57364
+const AND_ASSIGN = 57365
+const XOR_ASSIGN = 57366
+const OR_ASSIGN = 57367
 
 var yyToknames = [...]string{
 	"$end",
@@ -68,6 +78,17 @@ var yyToknames = [...]string{
 	"LOR",
 	"'?'",
 	"':'",
+	"'='",
+	"MUL_ASSIGN",
+	"DIV_ASSIGN",
+	"MOD_ASSIGN",
+	"ADD_ASSIGN",
+	"SUB_ASSIGN",
+	"LSH_ASSIGN",
+	"RSH_ASSIGN",
+	"AND_ASSIGN",
+	"XOR_ASSIGN",
+	"OR_ASSIGN",
 }
 
 var yyStatenames = [...]string{}
@@ -103,6 +124,26 @@ func init() {
 			s = "'&&'"
 		case "LOR":
 			s = "'||'"
+		case "MUL_ASSIGN":
+			s = "'*='"
+		case "DIV_ASSIGN":
+			s = "'/='"
+		case "MOD_ASSIGN":
+			s = "'%='"
+		case "ADD_ASSIGN":
+			s = "'+='"
+		case "SUB_ASSIGN":
+			s = "'-='"
+		case "LSH_ASSIGN":
+			s = "'<<='"
+		case "RSH_ASSIGN":
+			s = "'>>='"
+		case "AND_ASSIGN":
+			s = "'&='"
+		case "XOR_ASSIGN":
+			s = "'^='"
+		case "OR_ASSIGN":
+			s = "'|='"
 		}
 		yyToknames[i] = s
 	}
@@ -130,9 +171,10 @@ func expand(yylex yyLexer, x expr) (int, bool) {
 	}
 }
 
-func calculate(yylex yyLexer, l expr, op string, r expr) (x expr) {
-	if l, ok := expand(yylex, l); ok {
-		if r, ok := expand(yylex, r); ok {
+func calculate(yylex yyLexer, l expr, op string, r expr) (x expr, ok bool) {
+	if l, ok1 := expand(yylex, l); ok1 {
+		if r, ok2 := expand(yylex, r); ok2 {
+			ok = true
 			switch op {
 			case "*":
 				x.n = l * r
@@ -208,41 +250,45 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 74
+const yyLast = 98
 
 var yyAct = [...]int{
-	3, 14, 11, 12, 9, 72, 13, 27, 28, 29,
-	8, 30, 31, 33, 34, 71, 10, 32, 48, 49,
-	50, 7, 39, 40, 6, 1, 2, 4, 5, 35,
-	36, 37, 38, 43, 44, 45, 18, 57, 60, 61,
-	62, 63, 56, 64, 65, 68, 69, 70, 66, 67,
-	58, 59, 55, 51, 54, 53, 52, 24, 25, 26,
-	15, 16, 17, 20, 21, 22, 23, 41, 42, 46,
-	47, 19, 0, 73,
+	3, 66, 4, 24, 22, 20, 26, 16, 10, 43,
+	44, 45, 25, 86, 39, 40, 23, 46, 47, 49,
+	50, 4, 21, 53, 54, 55, 56, 57, 58, 4,
+	28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
+	38, 70, 4, 51, 52, 61, 62, 63, 65, 59,
+	60, 41, 42, 69, 68, 72, 2, 75, 76, 77,
+	78, 1, 27, 83, 84, 85, 81, 82, 73, 74,
+	79, 80, 71, 17, 18, 19, 48, 7, 8, 12,
+	13, 14, 15, 5, 64, 9, 6, 87, 11, 0,
+	0, 0, 0, 0, 0, 0, 0, 67,
 }
 
 var yyPact = [...]int{
-	53, -1000, -1000, -1000, -22, -19, -16, -14, -8, -10,
-	10, 5, 57, 19, -1000, 61, 53, 53, 53, -1000,
-	-1000, -1000, -1000, -1000, -1000, -1000, 53, 53, 53, 53,
-	53, 53, 53, 53, 53, 53, 53, 53, 53, 53,
-	53, 53, 53, 53, 53, 53, -1000, -1000, -1000, -1000,
-	-1000, 8, -19, -26, -16, -14, -8, -10, 10, 10,
-	5, 5, 5, 5, 57, 57, 19, 19, -1000, -1000,
-	-1000, -1000, 53, -1000,
+	69, -1000, -1000, -1000, -2, -15, 43, 69, 69, 69,
+	-11, -1000, -1000, -1000, -1000, -1000, -9, -1000, -1000, 69,
+	-7, -5, 20, 4, 10, 39, 31, 69, -1000, -1000,
+	-1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000, -1000, 69,
+	69, -1000, -1000, -1000, -1000, -1000, 69, 69, 34, 69,
+	69, 69, 69, 69, 69, 69, 69, 69, 69, 69,
+	69, 69, 69, 69, -1000, -11, -1000, -18, -9, -7,
+	-1000, -5, 20, 4, 4, 10, 10, 10, 10, 39,
+	39, 31, 31, -1000, -1000, -1000, 69, -1000,
 }
 
 var yyPgo = [...]int{
-	0, 71, 60, 1, 36, 6, 3, 2, 16, 4,
-	10, 21, 24, 28, 27, 0, 26, 25,
+	0, 88, 86, 1, 85, 6, 12, 3, 16, 4,
+	22, 5, 7, 8, 83, 0, 56, 62, 61,
 }
 
 var yyR1 = [...]int{
-	0, 17, 1, 1, 1, 2, 2, 2, 3, 3,
+	0, 18, 1, 1, 1, 2, 2, 2, 3, 3,
 	3, 3, 4, 4, 4, 4, 5, 5, 5, 5,
 	6, 6, 6, 7, 7, 7, 8, 8, 8, 8,
 	8, 9, 9, 9, 10, 10, 11, 11, 12, 12,
-	13, 13, 14, 14, 15, 15, 16,
+	13, 13, 14, 14, 15, 15, 16, 16, 17, 17,
+	17, 17, 17, 17, 17, 17, 17, 17, 17,
 }
 
 var yyR2 = [...]int{
@@ -250,29 +296,32 @@ var yyR2 = [...]int{
 	2, 2, 1, 1, 1, 1, 1, 3, 3, 3,
 	1, 3, 3, 1, 3, 3, 1, 3, 3, 3,
 	3, 1, 3, 3, 1, 3, 1, 3, 1, 3,
-	1, 3, 1, 3, 1, 5, 1,
+	1, 3, 1, 3, 1, 5, 1, 3, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1,
 }
 
 var yyChk = [...]int{
-	-1000, -17, -16, -15, -14, -13, -12, -11, -10, -9,
-	-8, -7, -6, -5, -3, -2, 8, 9, -4, -1,
-	10, 11, 12, 13, 4, 5, 6, 29, 30, 28,
-	27, 26, 25, 23, 24, 19, 20, 21, 22, 17,
-	18, 10, 11, 14, 15, 16, 8, 9, -3, -3,
-	-3, -16, -13, -16, -12, -11, -10, -9, -8, -8,
-	-7, -7, -7, -7, -6, -6, -5, -5, -3, -3,
-	-3, 7, 31, -15,
+	-1000, -18, -16, -15, -3, -14, -2, 8, 9, -4,
+	-13, -1, 10, 11, 12, 13, -12, 4, 5, 6,
+	-11, -10, -9, -8, -7, -6, -5, -17, 32, 33,
+	34, 35, 36, 37, 38, 39, 40, 41, 42, 29,
+	30, 8, 9, -3, -3, -3, 28, 27, -16, 26,
+	25, 23, 24, 19, 20, 21, 22, 17, 18, 10,
+	11, 14, 15, 16, -16, -13, -3, -16, -12, -11,
+	7, -10, -9, -8, -8, -7, -7, -7, -7, -6,
+	-6, -5, -5, -3, -3, -3, 31, -15,
 }
 
 var yyDef = [...]int{
-	0, -2, 1, 46, 44, 42, 40, 38, 36, 34,
-	31, 26, 23, 20, 16, 8, 0, 0, 0, 5,
-	12, 13, 14, 15, 2, 3, 0, 0, 0, 0,
+	0, -2, 1, 46, 16, 44, 8, 0, 0, 0,
+	42, 5, 12, 13, 14, 15, 40, 2, 3, 0,
+	38, 36, 34, 31, 26, 23, 20, 0, 48, 49,
+	50, 51, 52, 53, 54, 55, 56, 57, 58, 0,
+	0, 6, 7, 9, 10, 11, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 6, 7, 9, 10,
-	11, 0, 43, 0, 41, 39, 37, 35, 32, 33,
-	27, 28, 29, 30, 24, 25, 21, 22, 17, 18,
-	19, 4, 0, 45,
+	0, 0, 0, 0, 47, 43, 16, 0, 41, 39,
+	4, 37, 35, 32, 33, 27, 28, 29, 30, 24,
+	25, 21, 22, 17, 18, 19, 0, 45,
 }
 
 var yyTok1 = [...]int{
@@ -282,7 +331,7 @@ var yyTok1 = [...]int{
 	3, 3, 3, 13, 3, 3, 3, 16, 25, 3,
 	6, 7, 14, 10, 3, 11, 3, 15, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 31, 3,
-	19, 3, 20, 30, 3, 3, 3, 3, 3, 3,
+	19, 32, 20, 30, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 26, 3, 3, 3, 3, 3,
@@ -293,7 +342,8 @@ var yyTok1 = [...]int{
 
 var yyTok2 = [...]int{
 	2, 3, 4, 5, 8, 9, 17, 18, 21, 22,
-	23, 24, 28, 29,
+	23, 24, 28, 29, 33, 34, 35, 36, 37, 38,
+	39, 40, 41, 42,
 }
 
 var yyTok3 = [...]int{
@@ -725,37 +775,37 @@ yydefault:
 	case 17:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 18:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 19:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 21:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 22:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 24:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 25:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 27:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -790,17 +840,17 @@ yydefault:
 	case 35:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 37:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 39:
 		yyDollar = yyS[yypt-3 : yypt+1]
 		{
-			yyVAL.expr = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
+			yyVAL.expr, _ = calculate(yylex, yyDollar[1].expr, yyDollar[2].op, yyDollar[3].expr)
 		}
 	case 41:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -833,6 +883,24 @@ yydefault:
 					yyVAL.expr.n, _ = expand(yylex, yyDollar[3].expr)
 				} else {
 					yyVAL.expr.n, _ = expand(yylex, yyDollar[5].expr)
+				}
+			}
+		}
+	case 47:
+		yyDollar = yyS[yypt-3 : yypt+1]
+		{
+			yyVAL.expr.s = ""
+			if yyDollar[1].expr.s == "" {
+				yylex.Error(errLValue(yyDollar[2].op))
+			} else {
+				var ok bool
+				if yyDollar[2].op == "=" {
+					yyVAL.expr.n, ok = expand(yylex, yyDollar[3].expr)
+				} else {
+					yyVAL.expr, ok = calculate(yylex, yyDollar[1].expr, yyDollar[2].op[:len(yyDollar[2].op)-1], yyDollar[3].expr)
+				}
+				if ok {
+					yylex.(*lexer).env.Set(yyDollar[1].expr.s, strconv.Itoa(yyVAL.expr.n))
 				}
 			}
 		}

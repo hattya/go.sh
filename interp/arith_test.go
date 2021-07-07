@@ -229,6 +229,18 @@ var evalTests = []struct {
 	{"-1 == -1 ? -1 : 0 == 0 ? 0 : 1", -1},
 	{" 0 == -1 ? -1 : 0 == 0 ? 0 : 1", 0},
 	{" 1 == -1 ? -1 : 1 == 0 ? 0 : 1", 1},
+	// assignment
+	{"X   = 2", 2},
+	{"X  *= 2", 14},
+	{"X  /= 2", 3},
+	{"X  %= 2", 1},
+	{"X  += 2", 9},
+	{"X  -= 2", 5},
+	{"X <<= 2", 28},
+	{"X >>= 2", 1},
+	{"X  &= 2", 2},
+	{"X  ^= 2", 5},
+	{"X  |= 2", 7},
 }
 
 func TestEval(t *testing.T) {
@@ -289,19 +301,45 @@ var evalErrorTests = []struct {
 	{"!=", "unexpected '!='"},
 	{"&&", "unexpected '&&'"},
 	{"||", "unexpected '||'"},
+	{"=", "unexpected '='"},
+	{"*=", "unexpected '*='"},
+	{"/=", "unexpected '/='"},
+	{"%=", "unexpected '%='"},
+	{"+=", "unexpected '+='"},
+	{"-=", "unexpected '-='"},
+	{"<<=", "unexpected '<<='"},
+	{">>=", "unexpected '>>='"},
+	{"&=", "unexpected '&='"},
+	{"^=", "unexpected '^='"},
+	{"|=", "unexpected '|='"},
+	{"0   = 1", "'=' requires lvalue"},
+	{"0  *= 1", "'*=' requires lvalue"},
+	{"0  /= 1", "'/=' requires lvalue"},
+	{"0  %= 1", "'%=' requires lvalue"},
+	{"0  += 1", "'+=' requires lvalue"},
+	{"0  -= 1", "'-=' requires lvalue"},
+	{"0 <<= 1", "'<<=' requires lvalue"},
+	{"0 >>= 1", "'>>=' requires lvalue"},
+	{"0  &= 1", "'&=' requires lvalue"},
+	{"0  ^= 1", "'^=' requires lvalue"},
+	{"0  |= 1", "'|=' requires lvalue"},
 	// devide by zero
-	{"0 / 0", "integer divide by zero"},
-	{"0 % 0", "integer divide by zero"},
+	{"0 /  0", "integer divide by zero"},
+	{"0 %  0", "integer divide by zero"},
+	{"M /= 0", "integer divide by zero"},
+	{"M %= 0", "integer divide by zero"},
 	// negative shift
-	{"1 << -1", "negative shift amount"},
-	{"1 >> -1", "negative shift amount"},
-	// unknown token
-	{"=", "unexpected $unk"},
+	{"1 <<  -1", "negative shift amount"},
+	{"1 >>  -1", "negative shift amount"},
+	{"N <<= -1", "negative shift amount"},
+	{"N >>= -1", "negative shift amount"},
 }
 
 func TestEvalError(t *testing.T) {
 	env := interp.NewExecEnv(name)
 	env.Set("A", "alpha")
+	env.Set("M", "0")
+	env.Set("N", "1")
 	env.Set("Z", "0z777")
 	env.Unset("_")
 	for _, tt := range evalErrorTests {

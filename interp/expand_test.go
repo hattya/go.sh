@@ -58,6 +58,9 @@ var expandTests = []struct {
 	{word(quote(`\`, word(lit("*")))), interp.Pattern, []string{`\*`}},
 	{word(quote(`'`, word(lit("*")))), interp.Pattern, []string{`\*`}},
 	{word(quote(`"`, word(lit("*")))), interp.Pattern, []string{`\*`}},
+
+	{word(paramExp(lit("E"), "", nil), lit(" * 1")), interp.Arith, []string{"E * 1"}},
+	{word(quote(`"`, word(paramExp(lit("E"), "", nil))), lit(" * 1")), interp.Arith, []string{"E * 1"}},
 }
 
 var tildeExpTests = []struct {
@@ -318,6 +321,41 @@ var posParamTests = []struct {
 	{word(paramExp(lit("02"), "", nil)), []string{"1", "2", "3"}, []string{"2"}},
 }
 
+var arithExpTests = []struct {
+	word   ast.Word
+	fields []string
+	err    string
+}{
+	{word(arithExp(word(lit("2 - 1")))), []string{"1"}, ""},
+	{word(quote(`"`, word(arithExp(word(lit("1 + 1")))))), []string{"2"}, ""},
+	{word(arithExp(word(quote(`"`, word(lit("6 / 2")))))), []string{"3"}, ""},
+	{word(arithExp(word(lit("1 << "), quote(`'`, word(lit("2")))))), []string{"4"}, ""},
+
+	{word(arithExp(word(lit("E")))), []string{"0"}, ""},
+	{word(arithExp(word(quote(`'`, word(lit("E")))))), []string{"0"}, ""},
+	{word(arithExp(word(lit("1 + E")))), []string{"1"}, ""},
+	{word(arithExp(word(lit("1 + "), quote(`'`, word(lit("E")))))), []string{"1"}, ""},
+	{word(arithExp(word(lit("++E + 1")))), []string{"2"}, ""},
+	{word(arithExp(word(lit("++"), quote(`'`, word(lit("E"))), lit(" + 1")))), []string{"2"}, ""},
+
+	{word(arithExp(word(paramExp(lit("E"), "", nil)))), []string{"0"}, ""},
+	{word(arithExp(word(quote(`"`, word(paramExp(lit("E"), "", nil)))))), []string{"0"}, ""},
+	{word(arithExp(word(lit("1 + "), paramExp(lit("E"), "", nil)))), []string{"1"}, ""},
+	{word(arithExp(word(lit("1 + "), quote(`"`, word(paramExp(lit("E"), "", nil)))))), []string{"1"}, ""},
+	{word(arithExp(word(lit("++"), paramExp(lit("E"), "", nil), lit(" + 1")))), []string{"2"}, ""},
+	{word(arithExp(word(lit("++"), quote(`"`, word(paramExp(lit("E"), "", nil))), lit(" + 1")))), []string{"2"}, ""},
+	{word(arithExp(word(paramExp(lit("E"), ":-", word(arithExp(word(lit("7 % 4")))))))), []string{"3"}, ""},
+
+	{word(arithExp(word(lit("1 * "), arithExp(word(lit("2 + 3")))))), []string{"5"}, ""},
+	{word(arithExp(word(lit("1 * "), quote(`"`, word(arithExp(word(lit("2 + 3")))))))), []string{"5"}, ""},
+
+	{word(arithExp(word())), nil, "arithmetic expression is missing"},
+	{word(arithExp(word(paramExp(lit("9"), ":=", word(lit("...")))))), nil, "$9: cannot assign "},
+	{word(arithExp(word(paramExp(lit("@"), "", nil)))), nil, "1 2 3: unexpected NUMBER"},
+	{word(arithExp(word(paramExp(lit("#"), "", nil), lit("++")))), nil, "3++: '++' requires lvalue"},
+	{word(arithExp(word(paramExp(lit("1"), "", nil), lit("--")))), nil, "1--: '--' requires lvalue"},
+}
+
 var fieldSplitTests = []struct {
 	word   ast.Word
 	ifs    interface{}
@@ -365,6 +403,7 @@ var pathExpTests = []struct {
 
 func TestExpand(t *testing.T) {
 	env := interp.NewExecEnv(name)
+	env.Set("E", E)
 	for _, tt := range expandTests {
 		g, _ := env.Expand(tt.word, tt.mode)
 		if e := tt.fields; !reflect.DeepEqual(g, e) {
@@ -464,6 +503,23 @@ func TestExpand(t *testing.T) {
 			}
 		}
 	})
+	t.Run("ArithExp", func(t *testing.T) {
+		for _, tt := range arithExpTests {
+			env := interp.NewExecEnv(name, "1", "2", "3")
+			env.Set("E", E)
+			g, err := env.Expand(tt.word, 0)
+			switch {
+			case err == nil && tt.err != "":
+				t.Error("expected error")
+			case err != nil && (tt.err == "" || !strings.Contains(err.Error(), tt.err)):
+				t.Error("unexpected error:", err)
+			default:
+				if e := tt.fields; !reflect.DeepEqual(g, e) {
+					t.Errorf("expected %#v, got %#v", e, g)
+				}
+			}
+		}
+	})
 	t.Run("FieldSplit", func(t *testing.T) {
 		for _, tt := range fieldSplitTests {
 			env := interp.NewExecEnv(name)
@@ -535,6 +591,10 @@ func paramExp(name *ast.Lit, op string, word ast.Word) *ast.ParamExp {
 		Op:   op,
 		Word: word,
 	}
+}
+
+func arithExp(expr ast.Word) *ast.ArithExp {
+	return &ast.ArithExp{Expr: expr}
 }
 
 func username() string {

@@ -27,9 +27,16 @@ import (
 type ExpMode uint
 
 const (
+	// Expand a word into a single field, field splitting and pathname
+	// expansion will no be performed. The result will be converted the
+	// simplest form of parameter expansions into ANSI C style
+	// identifiers except for special parameters and positional
+	// parameters.
+	Arith ExpMode = 1 << iota
+
 	// Expands multiple tilde-prefixes in a word as if it is in an
 	// assignment.
-	Assign ExpMode = 1 << iota
+	Assign
 
 	// Expand a word into a single field, field splitting and pathname
 	// expansion will not be performed.
@@ -60,7 +67,7 @@ func (env *ExecEnv) Expand(word ast.Word, mode ExpMode) ([]string, error) {
 	default:
 		for _, f := range fields {
 			switch {
-			case mode&Quote != 0:
+			case mode&(Arith|Quote) != 0:
 				rv = append(rv, f.unquote())
 			case !f.empty():
 				for _, f := range env.split(f) {
@@ -129,7 +136,7 @@ func (env *ExecEnv) expand(word ast.Word, mode ExpMode) (fields []*field, err er
 				}
 				fields[len(fields)-1].join(s, true)
 			case `"`:
-				word, err := env.expand(w.Value, Quote)
+				word, err := env.expand(w.Value, mode&Arith|Quote)
 				if err != nil {
 					return nil, err
 				}
@@ -140,6 +147,23 @@ func (env *ExecEnv) expand(word ast.Word, mode ExpMode) (fields []*field, err er
 			if fields, err = env.expandParam(fields, w, mode); err != nil {
 				return
 			}
+		case *ast.ArithExp:
+			word, err := env.expand(w.Expr, Arith)
+			if err != nil {
+				return nil, err
+			}
+			expr := env.join(word...).unquote()
+			n, err := env.Eval(expr)
+			if err != nil {
+				err := err.(ArithExprError)
+				if expr != "" {
+					err.Expr = expr
+				} else {
+					err.Msg = "arithmetic expression is missing"
+				}
+				return nil, err
+			}
+			fields[len(fields)-1].join(strconv.Itoa(n), true)
 		}
 	}
 	return
@@ -147,7 +171,7 @@ func (env *ExecEnv) expand(word ast.Word, mode ExpMode) (fields []*field, err er
 
 // expandTilde performs tilde expansion.
 func (env *ExecEnv) expandTilde(f *field, s string, word ast.Word, mode ExpMode) (off, col int) {
-	if mode&Quote != 0 || !strings.HasPrefix(s, "~") {
+	if mode&(Arith|Quote) != 0 || !strings.HasPrefix(s, "~") {
 		return
 	}
 	s = s[1:]
@@ -257,7 +281,10 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 	switch {
 	case pe.Op == "":
 		// simplest form
-		if set && !null {
+		switch {
+		case mode&Arith != 0 && !(env.isSpParam(pe.Name.Value) || env.isPosParam(pe.Name.Value)):
+			fields[len(fields)-1].join(pe.Name.Value, quote)
+		case set && !null:
 			goto Param
 		}
 	case pe.Word == nil:

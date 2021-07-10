@@ -378,7 +378,7 @@ func (l *lexer) Error(s string) {
 	case strings.HasPrefix(s, "runtime error: "):
 		s = s[15:]
 	}
-	l.err = ArithExprError(s)
+	l.err = ArithExprError{Msg: s}
 
 	select {
 	case <-l.cancel:
@@ -395,8 +395,14 @@ type token struct {
 }
 
 // ArithExprError represents an arithmetic expression error.
-type ArithExprError string
+type ArithExprError struct {
+	Expr string
+	Msg  string
+}
 
 func (e ArithExprError) Error() string {
-	return string(e)
+	if e.Expr != "" {
+		return fmt.Sprintf("%v: %v", e.Expr, e.Msg)
+	}
+	return e.Msg
 }

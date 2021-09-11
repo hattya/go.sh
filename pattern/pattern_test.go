@@ -123,11 +123,7 @@ var globTests = []struct {
 }
 
 func TestGlob(t *testing.T) {
-	dir, err := tempDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	popd, err := pushd(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -190,7 +186,7 @@ func TestGlobError(t *testing.T) {
 }
 
 func mkdir(s ...string) error {
-	return os.MkdirAll(filepath.Join(s...), 0777)
+	return os.MkdirAll(filepath.Join(s...), 0o777)
 }
 
 func pushd(path string) (func() error, error) {
@@ -204,10 +200,6 @@ func pushd(path string) (func() error, error) {
 	return popd, os.Chdir(path)
 }
 
-func tempDir() (string, error) {
-	return ioutil.TempDir("", "go.sh")
-}
-
 func touch(s ...string) error {
-	return ioutil.WriteFile(filepath.Join(s...), nil, 0666)
+	return ioutil.WriteFile(filepath.Join(s...), nil, 0o666)
 }

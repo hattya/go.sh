@@ -535,12 +535,7 @@ func TestExpand(t *testing.T) {
 		}
 	})
 	t.Run("PathExp", func(t *testing.T) {
-		dir, err := tempDir()
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer os.RemoveAll(dir)
-		popd, err := pushd(dir)
+		popd, err := pushd(t.TempDir())
 		if err != nil {
 			t.Fatal(err)
 		}

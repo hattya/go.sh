@@ -160,10 +160,6 @@ func pushd(path string) (func() error, error) {
 	return popd, os.Chdir(path)
 }
 
-func tempDir() (string, error) {
-	return ioutil.TempDir("", "go.sh")
-}
-
 func touch(s ...string) error {
 	return ioutil.WriteFile(filepath.Join(s...), []byte{}, 0o666)
 }

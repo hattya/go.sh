@@ -10,6 +10,7 @@ aster.title(title);
 
 // go
 aster.watch(/.+\.go$/, function(files) {
+  go.mod.tidy();
   // go test for each package
   var bad = go_.packagesOf(files).some(function(p) {
     return go.test('-v', '-race', '-covermode', 'atomic', '-coverprofile', p + '/cover.out', p);
@@ -27,6 +28,10 @@ aster.watch(/.+\.go$/, function(files) {
 aster.watch(/.+\.go\.y$/, function() {
   if (go.generate('./...')) return;
 })
+
+aster.watch(/go\.mod$/, function() {
+  go.mod.tidy();
+});
 
 // md
 aster.watch(/.+\.md$/, function(files) {

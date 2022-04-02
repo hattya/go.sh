@@ -1,7 +1,7 @@
 //
 // go.sh/pattern :: pattern_test.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2022 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -9,7 +9,6 @@
 package pattern_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -201,5 +200,5 @@ func pushd(path string) (func() error, error) {
 }
 
 func touch(s ...string) error {
-	return ioutil.WriteFile(filepath.Join(s...), nil, 0o666)
+	return os.WriteFile(filepath.Join(s...), nil, 0o666)
 }

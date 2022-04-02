@@ -1,7 +1,7 @@
 //
 // go.sh/interp :: interp_test.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2022 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -9,7 +9,6 @@
 package interp_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -161,5 +160,5 @@ func pushd(path string) (func() error, error) {
 }
 
 func touch(s ...string) error {
-	return ioutil.WriteFile(filepath.Join(s...), []byte{}, 0o666)
+	return os.WriteFile(filepath.Join(s...), []byte{}, 0o666)
 }

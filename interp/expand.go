@@ -1,7 +1,7 @@
 //
 // go.sh/interp :: expand.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2022 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -391,7 +391,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 							return nil, err
 						}
 						if i > 0 {
-							fields = append(fields, &field{})
+							fields = append(fields, new(field))
 						}
 						fields[len(fields)-1].join(s[:len(s)-len(m)], quote)
 					}
@@ -421,7 +421,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 							return nil, err
 						}
 						if i > 0 {
-							fields = append(fields, &field{})
+							fields = append(fields, new(field))
 						}
 						fields[len(fields)-1].join(s[len(m):], quote)
 					}
@@ -435,7 +435,7 @@ func (env *ExecEnv) expandParam(fields []*field, pe *ast.ParamExp, mode ExpMode)
 Param:
 	for i, s := range a {
 		if i > 0 {
-			fields = append(fields, &field{})
+			fields = append(fields, new(field))
 		}
 		fields[len(fields)-1].join(s, quote)
 	}
@@ -480,7 +480,7 @@ func (env *ExecEnv) split(f *field) []*field {
 						fallthrough
 					case !ws:
 						fields[len(fields)-1].join(s[i:j], false)
-						fields = append(fields, &field{})
+						fields = append(fields, new(field))
 					default:
 						ws = false
 					}
@@ -502,7 +502,7 @@ func (env *ExecEnv) split(f *field) []*field {
 
 // join joins the specified fields into a single field.
 func (env *ExecEnv) join(fields ...*field) *field {
-	dst := &field{}
+	dst := new(field)
 	sep := env.ifs()
 	for i, f := range fields {
 		if i > 0 {

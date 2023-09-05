@@ -4,7 +4,6 @@ A parser of the [Shell Command Language](https://pubs.opengroup.org/onlinepubs/9
 
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hattya/go.sh)](https://pkg.go.dev/github.com/hattya/go.sh)
 [![GitHub Actions](https://github.com/hattya/go.sh/actions/workflows/ci.yml/badge.svg)](https://github.com/hattya/go.sh/actions/workflows/ci.yml)
-[![Semaphore](https://semaphoreci.com/api/v1/hattya/go-sh/branches/master/badge.svg)](https://semaphoreci.com/hattya/go-sh)
 [![Appveyor](https://ci.appveyor.com/api/projects/status/ptsv6es9dq1nt3k9/branch/master?svg=true)](https://ci.appveyor.com/project/hattya/go-sh)
 [![Codecov](https://codecov.io/gh/hattya/go.sh/branch/master/graph/badge.svg)](https://codecov.io/gh/hattya/go.sh)
 

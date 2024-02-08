@@ -1,7 +1,7 @@
 //
 // go.sh/interp :: arith_test.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -323,7 +323,7 @@ var evalErrorTests = []struct {
 	{"0  &= 1", "'&=' requires lvalue"},
 	{"0  ^= 1", "'^=' requires lvalue"},
 	{"0  |= 1", "'|=' requires lvalue"},
-	// devide by zero
+	// divide by zero
 	{"0 /  0", "integer divide by zero"},
 	{"0 %  0", "integer divide by zero"},
 	{"M /= 0", "integer divide by zero"},

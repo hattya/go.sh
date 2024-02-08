@@ -1,7 +1,7 @@
 //
 // go.sh/printer :: printer.go
 //
-//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -54,10 +54,10 @@ type Config struct {
 	Do Style
 
 	// Case controls the additional indentation of the case conditional
-	// constract.
+	// construct.
 	Case bool
 
-	// Then controls the output of the if conditional constract:
+	// Then controls the output of the if conditional construct:
 	//   - newline before the reserved keyword "then"
 	Then Style
 }

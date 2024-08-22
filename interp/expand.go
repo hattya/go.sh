@@ -1,7 +1,7 @@
 //
 // go.sh/interp :: expand.go
 //
-//   Copyright (c) 2021-2022 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -112,7 +112,7 @@ func (env *ExecEnv) expand(word ast.Word, mode ExpMode) (fields []*field, err er
 				f.join(s[:j+1], mode&Quote != 0)
 				s = s[j+1:]
 				// expansion
-				if s == "" && i+1 < len(word) {
+				if s == "" && i < len(word)-1 {
 					if w, ok := word[i+1].(*ast.Lit); ok {
 						i++
 						s = w.Value

@@ -1,7 +1,7 @@
 //
 // go.sh/pattern :: pattern_windows.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -19,7 +19,7 @@ func indexSep(pat string) (int, int) {
 		switch i := strings.IndexAny(pat, `\/`); {
 		case i == -1:
 			return -1, 0
-		case pat[i] == '\\' && i+1 < len(pat):
+		case pat[i] == '\\' && i < len(pat)-1:
 			if isSep(rune(pat[i+1])) {
 				return n - len(pat[i:]), 2
 			}

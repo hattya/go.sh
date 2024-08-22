@@ -1,7 +1,7 @@
 //
 // go.sh/parser :: lexer.go
 //
-//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -136,7 +137,9 @@ func (l *lexer) run() {
 			close(l.done)
 		}
 
-		if e := recover(); e != nil {
+		switch e := recover().(type) {
+		case nil, *runtime.PanicNilError:
+		default:
 			// re-panic
 			panic(e)
 		}

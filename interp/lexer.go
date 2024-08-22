@@ -1,7 +1,7 @@
 //
 // go.sh/interp :: lexer.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -13,6 +13,7 @@ package interp
 import (
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"sync"
 	"unicode"
@@ -98,7 +99,9 @@ func (l *lexer) run() {
 	defer func() {
 		close(l.token)
 
-		if e := recover(); e != nil {
+		switch e := recover().(type) {
+		case nil, *runtime.PanicNilError:
+		default:
 			// re-panic
 			panic(e)
 		}

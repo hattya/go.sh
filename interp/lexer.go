@@ -13,9 +13,7 @@ package interp
 import (
 	"fmt"
 	"io"
-	"runtime"
 	"strings"
-	"sync"
 	"unicode"
 )
 
@@ -60,56 +58,41 @@ var ops = map[int]string{
 }
 
 type lexer struct {
-	env   *ExecEnv
-	r     io.RuneScanner
-	n     int
-	token chan interface{}
+	env *ExecEnv
+	r   io.RuneScanner
+	n   int
 
-	mu     sync.Mutex
+	action action
+	token  interface{}
 	err    error
-	cancel chan struct{}
 
 	b strings.Builder
 }
 
 func newLexer(env *ExecEnv, r io.RuneScanner) *lexer {
 	l := &lexer{
-		env:    env,
-		r:      r,
-		token:  make(chan interface{}),
-		cancel: make(chan struct{}),
+		env: env,
+		r:   r,
 	}
-	go l.run()
+	l.action = l.lexToken
 	return l
 }
 
 func (l *lexer) Lex(lval *yySymType) int {
-	switch tok := (<-l.token).(type) {
-	case token:
-		lval.expr.s = tok.val
-		return tok.typ
-	case int:
-		lval.op = ops[tok]
-		return tok
+	for l.action != nil {
+		l.token = nil
+		l.action = l.action()
+
+		switch tok := l.token.(type) {
+		case token:
+			lval.expr.s = tok.val
+			return tok.typ
+		case int:
+			lval.op = ops[tok]
+			return tok
+		}
 	}
 	return 0
-}
-
-func (l *lexer) run() {
-	defer func() {
-		close(l.token)
-
-		switch e := recover().(type) {
-		case nil, *runtime.PanicNilError:
-		default:
-			// re-panic
-			panic(e)
-		}
-	}()
-
-	for action := l.lexToken; action != nil; {
-		action = action()
-	}
 }
 
 func (l *lexer) lexToken() action {
@@ -340,22 +323,15 @@ func (l *lexer) lexOp() action {
 }
 
 func (l *lexer) emit(typ int) {
-	var tok interface{}
 	switch typ {
 	case NUMBER, IDENT:
-		tok = token{
+		l.token = token{
 			typ: typ,
 			val: l.b.String(),
 		}
 		l.b.Reset()
 	default:
-		tok = typ
-	}
-	select {
-	case l.token <- tok:
-	case <-l.cancel:
-		// bailout
-		panic(nil)
+		l.token = typ
 	}
 }
 
@@ -369,9 +345,6 @@ func (l *lexer) unread() {
 }
 
 func (l *lexer) Error(s string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
 	switch {
 	case strings.HasPrefix(s, "syntax error: "):
 		s = s[14:]
@@ -382,12 +355,6 @@ func (l *lexer) Error(s string) {
 		s = s[15:]
 	}
 	l.err = ArithExprError{Msg: s}
-
-	select {
-	case <-l.cancel:
-	default:
-		close(l.cancel)
-	}
 }
 
 type action func() action

@@ -16,10 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"unicode"
 
 	"github.com/hattya/go.sh/ast"
@@ -78,13 +75,12 @@ type lexer struct {
 	cmds     []ast.Command
 	comments []*ast.Comment
 	cmdSubst rune
-	token    chan ast.Node
-	done     chan struct{}
 
-	mu     sync.Mutex
+	action action
+	queue  []ast.Node
+	i      int
 	eof    bool
 	err    error
-	cancel chan struct{}
 
 	aliases   []*alias
 	stack     []int
@@ -97,7 +93,7 @@ type lexer struct {
 	col       int
 	prevCol   int
 	pos       ast.Pos
-	last      atomic.Value
+	last      ast.Pos
 }
 
 func newLexer(env *interp.ExecEnv, name string, r io.RuneScanner) *lexer {
@@ -105,48 +101,41 @@ func newLexer(env *interp.ExecEnv, name string, r io.RuneScanner) *lexer {
 		env:     env,
 		name:    name,
 		r:       r,
-		token:   make(chan ast.Node),
-		cancel:  make(chan struct{}),
-		heredoc: heredoc{c: make(chan struct{}, 1)},
+		heredoc: heredoc{},
 		line:    1,
 		col:     1,
 	}
+	l.action = l.lexPipeline
 	l.mark(0)
-	go l.run()
 	return l
 }
 
 func (l *lexer) Lex(lval *yySymType) int {
-	switch tok := (<-l.token).(type) {
-	case token:
-		l.last.Store(tok.Pos())
-		lval.token = tok
-		return tok.typ
-	case word:
-		l.last.Store(tok.Pos())
-		lval.word = tok.val
-		return tok.typ
-	}
-	return 0
-}
+	for {
+		switch {
+		case l.i < len(l.queue):
+			tok := l.queue[l.i]
+			if l.i == len(l.queue)-1 {
+				l.queue = l.queue[:0]
+				l.i = 0
+			} else {
+				l.i++
+			}
 
-func (l *lexer) run() {
-	defer func() {
-		close(l.token)
-		if l.done != nil {
-			close(l.done)
-		}
-
-		switch e := recover().(type) {
-		case nil, *runtime.PanicNilError:
+			l.last = tok.Pos()
+			switch tok := tok.(type) {
+			case token:
+				lval.token = tok
+				return tok.typ
+			case word:
+				lval.word = tok.val
+				return tok.typ
+			}
+		case l.action != nil:
+			l.action = l.action()
 		default:
-			// re-panic
-			panic(e)
+			return 0
 		}
-	}()
-
-	for action := l.lexPipeline; action != nil; {
-		action = action()
 	}
 }
 
@@ -1447,20 +1436,15 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 			name:     l.name,
 			r:        l.r,
 			cmdSubst: r,
-			token:    make(chan ast.Node),
-			done:     make(chan struct{}),
-			cancel:   make(chan struct{}),
-			heredoc:  heredoc{c: make(chan struct{}, 1)},
+			heredoc:  heredoc{},
 			line:     l.line,
 			col:      l.col,
 		}
+		ll.action = ll.lexPipeline
 		ll.mark(off)
-		ll.last.Store(ll.pos)
-		go ll.run()
+		ll.last = ll.pos
 		yyParse(ll)
-		<-ll.done
 		if ll.err != nil {
-			l.mu.Lock()
 			l.err = ll.err
 			if len(ll.stack) == 0 && r == '`' {
 				err := l.err.(Error)
@@ -1470,7 +1454,6 @@ func (l *lexer) scanCmdSubst(r rune) bool {
 					Msg:  "syntax error: unexpected '`'",
 				}
 			}
-			l.mu.Unlock()
 			break
 		}
 		// apply changes
@@ -1596,12 +1579,7 @@ func (l *lexer) emit(typ int) {
 		}
 	}
 	l.word = nil
-	select {
-	case l.token <- tok:
-	case <-l.cancel:
-		// bailout
-		panic(nil)
-	}
+	l.queue = append(l.queue, tok)
 	l.mark(0)
 }
 
@@ -1627,14 +1605,12 @@ func (l *lexer) read() (rune, error) {
 	r, _, err := l.r.ReadRune()
 	switch {
 	case err != nil:
-		l.mu.Lock()
 		switch {
 		case err == io.EOF:
 			l.eof = true
 		case l.err == nil:
 			l.err = err
 		}
-		l.mu.Unlock()
 	case r == '\n':
 		l.prevCol = l.col
 		l.line++
@@ -1661,13 +1637,10 @@ func (l *lexer) unread() {
 }
 
 func (l *lexer) Error(e string) {
-	l.error(l.last.Load().(ast.Pos), e)
+	l.error(l.last, e)
 }
 
 func (l *lexer) error(pos ast.Pos, msg string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
 	if l.err != nil && strings.Contains(msg, ": unexpected EOF") {
 		return // lexing was interrupted
 	}
@@ -1675,12 +1648,6 @@ func (l *lexer) error(pos ast.Pos, msg string) {
 		Name: l.name,
 		Pos:  pos,
 		Msg:  msg,
-	}
-
-	select {
-	case <-l.cancel:
-	default:
-		close(l.cancel)
 	}
 }
 
@@ -1710,44 +1677,30 @@ type alias struct {
 }
 
 type heredoc struct {
-	c     chan struct{}
 	n     uint32
-	mu    sync.Mutex
 	stack []*ast.Redir
 }
 
 func (h *heredoc) exists() bool {
-	return atomic.LoadUint32(&h.n) != 0
+	return h.n != 0
 }
 
 func (h *heredoc) inc() {
-	atomic.AddUint32(&h.n, 1)
+	h.n++
 }
 
 func (h *heredoc) push(r *ast.Redir) {
-	h.mu.Lock()
 	h.stack = append(h.stack, r)
-	h.mu.Unlock()
-	// incoming
-	select {
-	case h.c <- struct{}{}:
-	default:
-	}
 }
 
 func (h *heredoc) pop() *ast.Redir {
-	for atomic.LoadUint32(&h.n) != 0 {
-		h.mu.Lock()
+	for h.n != 0 {
 		if n := len(h.stack); n != 0 {
 			r := h.stack[0]
 			h.stack = h.stack[1:]
-			h.mu.Unlock()
-			atomic.AddUint32(&h.n, ^uint32(0))
+			h.n--
 			return r
 		}
-		h.mu.Unlock()
-		// wait
-		<-h.c
 	}
 	return nil
 }

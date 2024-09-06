@@ -1163,6 +1163,138 @@ func (l *lexer) scanQuote(r rune) bool {
 	return true
 }
 
+func (l *lexer) scanDollarQuote() bool {
+	q := &ast.Quote{
+		TokPos: l.pos,
+		Tok:    "$'",
+	}
+	l.mark(0)
+	var r rune
+	var err error
+	var backslash bool
+DQ:
+	for {
+		r, err = l.read()
+		switch {
+		case err != nil:
+			break DQ
+		case backslash:
+			switch r {
+			case '"', '\'', '\\':
+			case 'a':
+				r = '\a'
+			case 'b':
+				r = '\b'
+			case 'e':
+				r = '\x1b'
+			case 'f':
+				r = '\f'
+			case 'n':
+				r = '\n'
+			case 'r':
+				r = '\r'
+			case 't':
+				r = '\t'
+			case 'v':
+				r = '\v'
+			case 'c':
+				r, err = l.read()
+				switch {
+				case err != nil:
+					break DQ
+				case r < 0x3f || r > 0x7a || r == 0x40 || r == 0x60:
+					goto Error
+				case r == '\\':
+					r, err = l.read()
+					switch {
+					case err != nil:
+						break DQ
+					case r != '\\':
+						goto Error
+					}
+					r = '\x1c'
+				case r == '?':
+					r = '\x7f'
+				default:
+					r &= 0x1f
+				}
+			case 'x':
+				var x rune
+			Hex:
+				for {
+					switch r, _ = l.read(); r {
+					case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+						x = (x << 4) + r - '0'
+					case 'A', 'B', 'C', 'D', 'E', 'F':
+						x = (x << 4) + r - 'A' + 0xa
+					case 'a', 'b', 'c', 'd', 'e', 'f':
+						x = (x << 4) + r - 'a' + 0xa
+					default:
+						l.unread()
+						break Hex
+					}
+				}
+				r = x
+			case '0', '1', '2', '3', '4', '5', '6', '7':
+				o := r - '0'
+			Oct:
+				for i := 1; i < 3; i++ {
+					switch r, _ = l.read(); r {
+					case '0', '1', '2', '3', '4', '5', '6', '7':
+						o <<= 3
+						o += r - '0'
+					default:
+						l.unread()
+						break Oct
+					}
+				}
+				r = o
+			default:
+				goto Error
+			}
+
+			if r != 0 {
+				l.b.WriteRune(r)
+				backslash = false
+			} else {
+				// null byte → discard remaining value
+				for err == nil && r != '\'' {
+					if r, err = l.read(); r == '\\' {
+						_, err = l.read()
+					}
+				}
+				break DQ
+			}
+		case r == '\\':
+			backslash = true
+		case r == '\'':
+			break DQ
+		default:
+			l.b.WriteRune(r)
+		}
+	}
+	if err != nil {
+		if err == io.EOF {
+			l.error(q.TokPos, "syntax error: reached EOF while parsing dollar-single-quotes")
+		}
+		return false
+	}
+
+	q.Value = ast.Word{
+		&ast.Lit{
+			ValuePos: l.pos,
+			Value:    l.b.String(),
+		},
+	}
+	l.b.Reset()
+	l.word = append(l.word, q)
+	l.mark(0)
+	return true
+Error:
+	l.error(q.TokPos, "syntax error: unknown escape sequence")
+	return false
+}
+
 func (l *lexer) scanParamExp() bool {
 	r, err := l.read()
 	if err != nil {
@@ -1175,6 +1307,9 @@ func (l *lexer) scanParamExp() bool {
 
 	var pe *ast.ParamExp
 	switch r {
+	case '\'':
+		// dollar-single-quotes
+		return l.scanDollarQuote()
 	case '{':
 		// enclosed in braces
 		return l.scanParamExpInBraces()

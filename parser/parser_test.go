@@ -1,7 +1,7 @@
 //
 // go.sh/parser :: parser_test.go
 //
-//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -402,6 +402,78 @@ var parseCommandTests = []struct {
 					word(lit(1, 18, "1"), lit(1, 20, "+"), lit(1, 22, "2")),
 					pos(1, 23), // right
 				),
+			))),
+		),
+	},
+	{
+		src: `echo $'\"\'\\\a\b\e\f\n\r\t\v'`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `$'`, word(
+				lit(1, 8, "\"'\\\a\b\033\f\n\r\t\v"),
+			))),
+		),
+	},
+	{
+		src: `echo $'\ca\cb\cc\cd\ce\cf\cg\ch\ci\cj\ck\cl\cm\cn\co\cp\cq\cr\cs\ct\cu\cv\cw\cx\cy\cz\c[\c\\\c]\c^\c_\c?'`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `$'`, word(
+				lit(1, 8, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f"),
+			))),
+		),
+	},
+	{
+		src: `echo $'\cA\cB\cC\cD\cE\cF\cG\cH\cI\cJ\cK\cL\cM\cN\cO\cP\cQ\cR\cS\cT\cU\cV\cW\cX\cY\cZ\c[\c\\\c]\c^\c_\c?'`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `$'`, word(
+				lit(1, 8, "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f"),
+			))),
+		),
+	},
+	{
+		src: `echo $'\x41\x5A\x61\x7a\x3042\x3046\x3093'`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `$'`, word(
+				lit(1, 8, "AZazあうん"),
+			))),
+		),
+	},
+	{
+		src: `echo $'\7\07\007'`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `$'`, word(
+				lit(1, 8, "\a\a\a"),
+			))),
+		),
+	},
+	{
+		src: `echo $'Hello,\nWorld!'`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `$'`, word(
+				lit(1, 8, "Hello,\nWorld!"),
+			))),
+		),
+	},
+	{
+		src: `echo $'Hello,\x0World!\x1'`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `$'`, word(
+				lit(1, 8, "Hello,"),
+			))),
+		),
+	},
+	{
+		src: `echo $'Hello,\0World!\1'`,
+		cmd: simple_command(
+			word(lit(1, 1, "echo")),
+			word(quote(1, 6, `$'`, word(
+				lit(1, 8, "Hello,"),
 			))),
 		),
 	},
@@ -2918,6 +2990,54 @@ var parseErrorTests = []struct {
 	{
 		src: "\"`!`\"",
 		err: ":1:4: syntax error: unexpected '`'",
+	},
+	{
+		src: "$'",
+		err: ":1:1: syntax error: reached EOF while parsing dollar-single-quotes",
+	},
+	{
+		src: `$'\c`,
+		err: ":1:1: syntax error: reached EOF while parsing dollar-single-quotes",
+	},
+	{
+		src: `$'\c\`,
+		err: ":1:1: syntax error: reached EOF while parsing dollar-single-quotes",
+	},
+	{
+		src: `$'\x`,
+		err: ":1:1: syntax error: reached EOF while parsing dollar-single-quotes",
+	},
+	{
+		src: `$'\0`,
+		err: ":1:1: syntax error: reached EOF while parsing dollar-single-quotes",
+	},
+	{
+		src: `$'\00`,
+		err: ":1:1: syntax error: reached EOF while parsing dollar-single-quotes",
+	},
+	{
+		src: `$'\!`,
+		err: ":1:1: syntax error: unknown escape sequence",
+	},
+	{
+		src: `$'\c!`,
+		err: ":1:1: syntax error: unknown escape sequence",
+	},
+	{
+		src: `$'\c@`,
+		err: ":1:1: syntax error: unknown escape sequence",
+	},
+	{
+		src: "$'\\c`",
+		err: ":1:1: syntax error: unknown escape sequence",
+	},
+	{
+		src: `$'\c-`,
+		err: ":1:1: syntax error: unknown escape sequence",
+	},
+	{
+		src: `$'\c\_`,
+		err: ":1:1: syntax error: unknown escape sequence",
 	},
 	// parameter expansion
 	{

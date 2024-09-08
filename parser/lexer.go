@@ -161,7 +161,7 @@ func (l *lexer) lexCmd(tok int) action {
 			l.emit(tok)
 			return l.lexCmdPrefix
 		}
-	case IO_NUMBER:
+	case IO_NUMBER, IO_LOCATION:
 		l.emit(tok)
 		return l.lexCmdPrefix
 	case WORD:
@@ -254,7 +254,7 @@ func (l *lexer) lexCmdPrefix() action {
 		if tok = l.scanRedir(tok); tok == WORD {
 			goto Prefix
 		}
-	case IO_NUMBER:
+	case IO_NUMBER, IO_LOCATION:
 		goto Prefix
 	case WORD:
 		switch {
@@ -294,7 +294,7 @@ func (l *lexer) onCmdSuffix(tok int) action {
 		if tok = l.scanRedir(tok); tok == WORD {
 			goto Suffix
 		}
-	case IO_NUMBER, WORD:
+	case IO_NUMBER, IO_LOCATION, WORD:
 		goto Suffix
 	}
 	return l.lexToken(tok)
@@ -659,7 +659,7 @@ func (l *lexer) lexRedir() action {
 		if tok = l.scanRedir(tok); tok == WORD {
 			goto Redir
 		}
-	case IO_NUMBER:
+	case IO_NUMBER, IO_LOCATION:
 		goto Redir
 	}
 	return l.lexToken(tok)
@@ -889,12 +889,21 @@ func (l *lexer) scanRawToken() int {
 				l.unread()
 				if len(l.word) == 1 {
 					if w, ok := l.word[0].(*ast.Lit); ok {
-						for _, r := range w.Value {
-							if !('0' <= r && r <= '9') {
-								return WORD
+						if len(w.Value) >= 3 && w.Value[0] == '{' && w.Value[len(w.Value)-1] == '}' && !('0' <= w.Value[1] && w.Value[1] <= '9') {
+							for _, r := range w.Value[1 : len(w.Value)-1] {
+								if !l.isNameRune(r) {
+									return WORD
+								}
 							}
+							return IO_LOCATION
+						} else {
+							for _, r := range w.Value {
+								if !('0' <= r && r <= '9') {
+									return WORD
+								}
+							}
+							return IO_NUMBER
 						}
-						return IO_NUMBER
 					}
 				}
 				return WORD
@@ -1692,7 +1701,7 @@ func (l *lexer) esc(r rune) {
 func (l *lexer) emit(typ int) {
 	var tok ast.Node
 	switch typ {
-	case IO_NUMBER, WORD, NAME, ASSIGNMENT_WORD:
+	case IO_NUMBER, IO_LOCATION, WORD, NAME, ASSIGNMENT_WORD:
 		tok = word{
 			typ: typ,
 			val: l.word,

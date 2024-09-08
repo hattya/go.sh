@@ -1,7 +1,7 @@
 //
 // go.sh/ast :: ast.go
 //
-//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -454,7 +454,7 @@ func (e *ElseClause) elsePartNode() {}
 
 // Redir represents an I/O redirection.
 type Redir struct {
-	N       *Lit
+	N       *Lit // file descripter, variable name; or nil
 	OpPos   Pos
 	Op      string
 	Word    Word

@@ -31,7 +31,7 @@ import (
 
 %token<token> AND OR '|' '(' ')' LAE RAE BREAK '&' ';'
 %token<token> '<' '>' CLOBBER APPEND HEREDOC HEREDOCI DUPIN DUPOUT RDWR
-%token<word>  IO_NUMBER
+%token<word>  IO_NUMBER IO_LOCATION
 %token<word>  WORD NAME ASSIGNMENT_WORD
 %token<token> Bang Lbrace Rbrace For Case Esac In If Elif Then Else Fi While Until Do Done
 
@@ -627,17 +627,27 @@ redir_list:
 		}
 
 io_redir:
-		          io_file
-	|	IO_NUMBER io_file
+		            io_file
+	|	IO_NUMBER   io_file
 		{
 			$$ = $2
 			$$.(*ast.Redir).N = $1[0].(*ast.Lit)
 		}
-	|	          io_here
-	|	IO_NUMBER io_here
+	|	IO_LOCATION io_file
+		{
+			$$ = $2
+			$$.(*ast.Redir).N = location($1[0].(*ast.Lit))
+		}
+	|	            io_here
+	|	IO_NUMBER   io_here
 		{
 			$$ = $2
 			$$.(*ast.Redir).N = $1[0].(*ast.Lit)
+		}
+	|	IO_LOCATION io_here
+		{
+			$$ = $2
+			$$.(*ast.Redir).N = location($1[0].(*ast.Lit))
 		}
 
 io_file:
@@ -802,6 +812,12 @@ func assign(w ast.Word) *ast.Assign {
 		Op:    "=",
 		Value: w,
 	}
+}
+
+func location(n *ast.Lit) *ast.Lit {
+	n.ValuePos = ast.NewPos(n.ValuePos.Line(), n.ValuePos.Col()+1)
+	n.Value = n.Value[1 : len(n.Value)-1]
+	return n
 }
 
 // ParseCommands parses src, including alias substitution, and returns

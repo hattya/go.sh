@@ -1269,6 +1269,47 @@ var parseCommandTests = []struct {
 			redir(lit(1, 21, "2"), 1, 22, ">&", word(lit(1, 24, "1"))),
 		),
 	},
+	{
+		src: "{fd}>file exec",
+		cmd: simple_command(
+			word(lit(1, 11, "exec")),
+			redir(lit(1, 2, "fd"), 1, 5, ">", word(lit(1, 6, "file"))),
+		),
+	},
+	{
+		src: "exec {fd}>file",
+		cmd: simple_command(
+			word(lit(1, 1, "exec")),
+			redir(lit(1, 7, "fd"), 1, 10, ">", word(lit(1, 11, "file"))),
+		),
+	},
+	{
+		src: "exec {fd}<<EOF\nfoo\nbar\nbaz\nEOF\n",
+		cmd: simple_command(
+			word(lit(1, 1, "exec")),
+			heredoc(
+				lit(1, 7, "fd"), 1, 10, "<<", word(lit(1, 12, "EOF")),
+				word(lit(2, 1, "foo\nbar\nbaz\n")),
+				word(lit(5, 1, "EOF")),
+			),
+		),
+	},
+	{
+		src: "exec {!}>file",
+		cmd: simple_command(
+			word(lit(1, 1, "exec")),
+			word(lit(1, 6, "{!}")),
+			redir(nil, 1, 9, ">", word(lit(1, 10, "file"))),
+		),
+	},
+	{
+		src: "exec {2}>file",
+		cmd: simple_command(
+			word(lit(1, 1, "exec")),
+			word(lit(1, 6, "{2}")),
+			redir(nil, 1, 9, ">", word(lit(1, 10, "file"))),
+		),
+	},
 	// comment
 	{
 		src: "# comment",

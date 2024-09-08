@@ -63,7 +63,7 @@ type lexer struct {
 	n   int
 
 	action action
-	token  interface{}
+	token  any
 	err    error
 
 	b strings.Builder

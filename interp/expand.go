@@ -447,7 +447,7 @@ Unset:
 	}
 }
 
-// spilt performs field splitting.
+// split performs field splitting.
 func (env *ExecEnv) split(f *field) []*field {
 	var ifs string
 	if v, set := env.Get("IFS"); set {

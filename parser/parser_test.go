@@ -2052,43 +2052,45 @@ var parseCommandTests = []struct {
 		),
 	},
 	{
-		src: "case word in 0|foo) ;; (1|bar) echo bar; esac",
+		src: "case word in (0|foo) ;; (1|bar) echo bar; esac",
 		cmd: case_clause(
 			pos(1, 1), // case
 			word(lit(1, 6, "word")),
 			pos(1, 11), // in
 			case_item(
-				word(lit(1, 14, "0")),
-				word(lit(1, 16, "foo")),
-				pos(1, 19), // )
-				pos(1, 21), // ;;
+				pos(1, 14),
+				word(lit(1, 15, "0")),
+				word(lit(1, 17, "foo")),
+				pos(1, 20), // )
+				pos(1, 22), // ;;
 			),
 			case_item(
-				pos(1, 24), // (
-				word(lit(1, 25, "1")),
-				word(lit(1, 27, "bar")),
-				pos(1, 30), // )
+				pos(1, 25), // (
+				word(lit(1, 26, "1")),
+				word(lit(1, 28, "bar")),
+				pos(1, 31), // )
 				and_or_list(
 					simple_command(
-						word(lit(1, 32, "echo")),
-						word(lit(1, 37, "bar")),
+						word(lit(1, 33, "echo")),
+						word(lit(1, 38, "bar")),
 					),
-					sep(1, 40, ";"),
+					sep(1, 41, ";"),
 				),
 			),
-			pos(1, 42), // esac
+			pos(1, 43), // esac
 		),
 	},
 	{
-		src: "case word in\n0|foo)\n\t;;\n(1|bar)\nesac",
+		src: "case word in\n(0|foo)\n\t;;\n(1|bar)\nesac",
 		cmd: case_clause(
 			pos(1, 1), // case
 			word(lit(1, 6, "word")),
 			pos(1, 11), // in
 			case_item(
-				word(lit(2, 1, "0")),
-				word(lit(2, 3, "foo")),
-				pos(2, 6), // )
+				pos(2, 1),
+				word(lit(2, 2, "0")),
+				word(lit(2, 4, "foo")),
+				pos(2, 7), // )
 				pos(3, 2), // ;;
 			),
 			case_item(
@@ -2511,7 +2513,7 @@ func and_or(line, col int, op string, pipeline *ast.Pipeline) *ast.AndOr {
 	}
 }
 
-func pipeline(args ...interface{}) *ast.Pipeline {
+func pipeline(args ...any) *ast.Pipeline {
 	cmd := new(ast.Pipeline)
 	for _, a := range args {
 		switch a := a.(type) {
@@ -2550,7 +2552,7 @@ func simple_command(nodes ...ast.Node) *ast.Cmd {
 	return cmd
 }
 
-func subshell(args ...interface{}) *ast.Cmd {
+func subshell(args ...any) *ast.Cmd {
 	x := new(ast.Subshell)
 	cmd := &ast.Cmd{Expr: x}
 	pos := 0
@@ -2573,7 +2575,7 @@ func subshell(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
-func group(args ...interface{}) *ast.Cmd {
+func group(args ...any) *ast.Cmd {
 	x := new(ast.Group)
 	cmd := &ast.Cmd{Expr: x}
 	pos := 0
@@ -2596,7 +2598,7 @@ func group(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
-func arith_eval(args ...interface{}) *ast.Cmd {
+func arith_eval(args ...any) *ast.Cmd {
 	x := new(ast.ArithEval)
 	cmd := &ast.Cmd{Expr: x}
 	pos := 0
@@ -2619,7 +2621,7 @@ func arith_eval(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
-func for_clause(args ...interface{}) *ast.Cmd {
+func for_clause(args ...any) *ast.Cmd {
 	x := new(ast.ForClause)
 	cmd := &ast.Cmd{Expr: x}
 	pos := 0
@@ -2658,7 +2660,7 @@ func for_clause(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
-func case_clause(args ...interface{}) *ast.Cmd {
+func case_clause(args ...any) *ast.Cmd {
 	x := new(ast.CaseClause)
 	cmd := &ast.Cmd{Expr: x}
 	pos := 0
@@ -2685,7 +2687,7 @@ func case_clause(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
-func case_item(args ...interface{}) *ast.CaseItem {
+func case_item(args ...any) *ast.CaseItem {
 	ci := new(ast.CaseItem)
 	pos := 0
 	for _, a := range args {
@@ -2712,7 +2714,7 @@ func case_item(args ...interface{}) *ast.CaseItem {
 	return ci
 }
 
-func if_clause(args ...interface{}) *ast.Cmd {
+func if_clause(args ...any) *ast.Cmd {
 	x := new(ast.IfClause)
 	cmd := &ast.Cmd{Expr: x}
 	pos := 0
@@ -2744,7 +2746,7 @@ func if_clause(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
-func elif_clause(args ...interface{}) *ast.ElifClause {
+func elif_clause(args ...any) *ast.ElifClause {
 	e := new(ast.ElifClause)
 	pos := 0
 	for _, a := range args {
@@ -2776,7 +2778,7 @@ func else_clause(pos ast.Pos, list ...ast.Command) *ast.ElseClause {
 	}
 }
 
-func while_clause(args ...interface{}) *ast.Cmd {
+func while_clause(args ...any) *ast.Cmd {
 	x := new(ast.WhileClause)
 	cmd := &ast.Cmd{Expr: x}
 	pos := 0
@@ -2806,7 +2808,7 @@ func while_clause(args ...interface{}) *ast.Cmd {
 	return cmd
 }
 
-func until_clause(args ...interface{}) *ast.Cmd {
+func until_clause(args ...any) *ast.Cmd {
 	x := new(ast.UntilClause)
 	cmd := &ast.Cmd{Expr: x}
 	pos := 0
@@ -2903,7 +2905,7 @@ func param_exp(line, col int, braces bool, name, op *ast.Lit, word ast.Word) *as
 	return pe
 }
 
-func cmd_subst(args ...interface{}) *ast.CmdSubst {
+func cmd_subst(args ...any) *ast.CmdSubst {
 	cs := new(ast.CmdSubst)
 	pos := 0
 	for _, a := range args {
@@ -2925,7 +2927,7 @@ func cmd_subst(args ...interface{}) *ast.CmdSubst {
 	return cs
 }
 
-func arith_exp(args ...interface{}) *ast.ArithExp {
+func arith_exp(args ...any) *ast.ArithExp {
 	x := new(ast.ArithExp)
 	pos := 0
 	for _, a := range args {
@@ -3415,7 +3417,7 @@ func TestParseError(t *testing.T) {
 }
 
 func TestOpen(t *testing.T) {
-	for _, src := range []interface{}{
+	for _, src := range []any{
 		[]byte{},
 		"",
 		new(bytes.Buffer),

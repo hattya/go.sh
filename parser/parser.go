@@ -2,7 +2,7 @@
 //
 // go.sh/parser :: parser.go
 //
-//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -24,7 +24,7 @@ import (
 
 type yySymType struct {
 	yys   int
-	list  interface{}
+	list  any
 	node  ast.Node
 	elt   *element
 	word  ast.Word
@@ -221,7 +221,7 @@ func assign(w ast.Word) *ast.Assign {
 
 // ParseCommands parses src, including alias substitution, and returns
 // commands.
-func ParseCommands(env *interp.ExecEnv, name string, src interface{}) ([]ast.Command, []*ast.Comment, error) {
+func ParseCommands(env *interp.ExecEnv, name string, src any) ([]ast.Command, []*ast.Comment, error) {
 	r, err := open(src)
 	if err != nil {
 		return nil, nil, err
@@ -233,7 +233,7 @@ func ParseCommands(env *interp.ExecEnv, name string, src interface{}) ([]ast.Com
 }
 
 // ParseCommand parses src and returns a command.
-func ParseCommand(name string, src interface{}) (ast.Command, []*ast.Comment, error) {
+func ParseCommand(name string, src any) (ast.Command, []*ast.Comment, error) {
 	cmds, comments, err := ParseCommands(nil, name, src)
 	if len(cmds) == 0 {
 		return nil, comments, err
@@ -241,7 +241,7 @@ func ParseCommand(name string, src interface{}) (ast.Command, []*ast.Comment, er
 	return cmds[0], comments, err
 }
 
-func open(src interface{}) (r io.RuneScanner, err error) {
+func open(src any) (r io.RuneScanner, err error) {
 	switch src := src.(type) {
 	case []byte:
 		r = bytes.NewReader(src)
@@ -257,7 +257,7 @@ func open(src interface{}) (r io.RuneScanner, err error) {
 	return
 }
 
-var yyExca = [...]int{
+var yyExca = [...]int8{
 	-1, 1,
 	1, -1,
 	-2, 0,
@@ -270,7 +270,7 @@ const yyPrivate = 57344
 
 const yyLast = 386
 
-var yyAct = [...]int{
+var yyAct = [...]uint8{
 	68, 67, 145, 48, 130, 24, 144, 58, 143, 69,
 	98, 11, 49, 94, 5, 63, 51, 59, 9, 61,
 	64, 3, 6, 26, 100, 28, 50, 100, 100, 70,
@@ -312,7 +312,7 @@ var yyAct = [...]int{
 	42, 46, 47, 43, 44, 45,
 }
 
-var yyPact = [...]int{
+var yyPact = [...]int16{
 	263, -1000, -17, -1000, 99, 138, -1000, 132, 291, -1000,
 	-1000, 353, -1000, 318, 342, -1000, -1000, -1000, -1000, -1000,
 	-1000, -1000, -1000, 130, -1000, -1000, -17, -17, 78, 65,
@@ -333,7 +333,7 @@ var yyPact = [...]int{
 	-17, 201, 103, -1000, -1000, -1000, -17, -17, -1000, -1000,
 }
 
-var yyPgo = [...]int{
+var yyPgo = [...]uint8{
 	0, 21, 195, 13, 22, 120, 18, 179, 176, 174,
 	15, 11, 169, 166, 165, 164, 163, 161, 160, 157,
 	156, 155, 2, 153, 152, 8, 6, 4, 1, 151,
@@ -341,7 +341,7 @@ var yyPgo = [...]int{
 	140, 0, 9,
 }
 
-var yyR1 = [...]int{
+var yyR1 = [...]int8{
 	0, 39, 39, 40, 40, 1, 1, 2, 2, 3,
 	3, 3, 4, 4, 5, 5, 6, 6, 6, 6,
 	8, 8, 8, 8, 8, 9, 9, 9, 9, 10,
@@ -355,7 +355,7 @@ var yyR1 = [...]int{
 	37, 37, 38, 38, 41, 41, 42, 42,
 }
 
-var yyR2 = [...]int{
+var yyR2 = [...]int8{
 	0, 2, 0, 1, 3, 2, 1, 1, 3, 1,
 	3, 3, 1, 2, 1, 3, 1, 1, 2, 1,
 	3, 2, 1, 2, 1, 1, 2, 1, 2, 1,
@@ -369,7 +369,7 @@ var yyR2 = [...]int{
 	2, 1, 1, 1, 1, 0, 1, 2,
 }
 
-var yyChk = [...]int{
+var yyChk = [...]int16{
 	-1000, -39, -40, -1, -2, -3, -4, -5, 27, -6,
 	-8, -11, -7, -9, 24, -12, -13, -14, -15, -16,
 	-17, -18, -19, 25, -31, 26, 7, 28, 9, 30,
@@ -390,7 +390,7 @@ var yyChk = [...]int{
 	11, -41, -28, -27, -41, -41, 11, 11, -41, -41,
 }
 
-var yyDef = [...]int{
+var yyDef = [...]int8{
 	2, -2, 105, 3, 6, 7, 9, 12, 0, 14,
 	16, 17, 19, 22, 24, 33, 34, 35, 36, 37,
 	38, 39, 40, 0, 25, 27, 105, 105, 0, 0,
@@ -411,7 +411,7 @@ var yyDef = [...]int{
 	105, 63, 64, 70, 55, 56, 105, 105, 57, 58,
 }
 
-var yyTok1 = [...]int{
+var yyTok1 = [...]int8{
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	43, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -427,14 +427,14 @@ var yyTok1 = [...]int{
 	3, 3, 3, 3, 6,
 }
 
-var yyTok2 = [...]int{
+var yyTok2 = [...]int8{
 	2, 3, 4, 5, 9, 10, 11, 16, 17, 18,
 	19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
 	29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
 	39, 40, 41, 42,
 }
 
-var yyTok3 = [...]int{
+var yyTok3 = [...]int8{
 	0,
 }
 
@@ -514,9 +514,9 @@ func yyErrorMessage(state, lookAhead int) string {
 	expected := make([]int, 0, 4)
 
 	// Look for shiftable tokens.
-	base := yyPact[state]
+	base := int(yyPact[state])
 	for tok := TOKSTART; tok-1 < len(yyToknames); tok++ {
-		if n := base + tok; n >= 0 && n < yyLast && yyChk[yyAct[n]] == tok {
+		if n := base + tok; n >= 0 && n < yyLast && int(yyChk[int(yyAct[n])]) == tok {
 			if len(expected) == cap(expected) {
 				return res
 			}
@@ -526,13 +526,13 @@ func yyErrorMessage(state, lookAhead int) string {
 
 	if yyDef[state] == -2 {
 		i := 0
-		for yyExca[i] != -1 || yyExca[i+1] != state {
+		for yyExca[i] != -1 || int(yyExca[i+1]) != state {
 			i += 2
 		}
 
 		// Look for tokens that we accept or reduce.
 		for i += 2; yyExca[i] >= 0; i += 2 {
-			tok := yyExca[i]
+			tok := int(yyExca[i])
 			if tok < TOKSTART || yyExca[i+1] == 0 {
 				continue
 			}
@@ -563,30 +563,30 @@ func yylex1(lex yyLexer, lval *yySymType) (char, token int) {
 	token = 0
 	char = lex.Lex(lval)
 	if char <= 0 {
-		token = yyTok1[0]
+		token = int(yyTok1[0])
 		goto out
 	}
 	if char < len(yyTok1) {
-		token = yyTok1[char]
+		token = int(yyTok1[char])
 		goto out
 	}
 	if char >= yyPrivate {
 		if char < yyPrivate+len(yyTok2) {
-			token = yyTok2[char-yyPrivate]
+			token = int(yyTok2[char-yyPrivate])
 			goto out
 		}
 	}
 	for i := 0; i < len(yyTok3); i += 2 {
-		token = yyTok3[i+0]
+		token = int(yyTok3[i+0])
 		if token == char {
-			token = yyTok3[i+1]
+			token = int(yyTok3[i+1])
 			goto out
 		}
 	}
 
 out:
 	if token == 0 {
-		token = yyTok2[1] /* unknown char */
+		token = int(yyTok2[1]) /* unknown char */
 	}
 	if yyDebug >= 3 {
 		__yyfmt__.Printf("lex %s(%d)\n", yyTokname(token), uint(char))
@@ -641,7 +641,7 @@ yystack:
 	yyS[yyp].yys = yystate
 
 yynewstate:
-	yyn = yyPact[yystate]
+	yyn = int(yyPact[yystate])
 	if yyn <= yyFlag {
 		goto yydefault /* simple state */
 	}
@@ -652,8 +652,8 @@ yynewstate:
 	if yyn < 0 || yyn >= yyLast {
 		goto yydefault
 	}
-	yyn = yyAct[yyn]
-	if yyChk[yyn] == yytoken { /* valid shift */
+	yyn = int(yyAct[yyn])
+	if int(yyChk[yyn]) == yytoken { /* valid shift */
 		yyrcvr.char = -1
 		yytoken = -1
 		yyVAL = yyrcvr.lval
@@ -666,7 +666,7 @@ yynewstate:
 
 yydefault:
 	/* default state action */
-	yyn = yyDef[yystate]
+	yyn = int(yyDef[yystate])
 	if yyn == -2 {
 		if yyrcvr.char < 0 {
 			yyrcvr.char, yytoken = yylex1(yylex, &yyrcvr.lval)
@@ -675,18 +675,18 @@ yydefault:
 		/* look through exception table */
 		xi := 0
 		for {
-			if yyExca[xi+0] == -1 && yyExca[xi+1] == yystate {
+			if yyExca[xi+0] == -1 && int(yyExca[xi+1]) == yystate {
 				break
 			}
 			xi += 2
 		}
 		for xi += 2; ; xi += 2 {
-			yyn = yyExca[xi+0]
+			yyn = int(yyExca[xi+0])
 			if yyn < 0 || yyn == yytoken {
 				break
 			}
 		}
-		yyn = yyExca[xi+1]
+		yyn = int(yyExca[xi+1])
 		if yyn < 0 {
 			goto ret0
 		}
@@ -708,10 +708,10 @@ yydefault:
 
 			/* find a state where "error" is a legal shift action */
 			for yyp >= 0 {
-				yyn = yyPact[yyS[yyp].yys] + yyErrCode
+				yyn = int(yyPact[yyS[yyp].yys]) + yyErrCode
 				if yyn >= 0 && yyn < yyLast {
-					yystate = yyAct[yyn] /* simulate a shift of "error" */
-					if yyChk[yystate] == yyErrCode {
+					yystate = int(yyAct[yyn]) /* simulate a shift of "error" */
+					if int(yyChk[yystate]) == yyErrCode {
 						goto yystack
 					}
 				}
@@ -747,7 +747,7 @@ yydefault:
 	yypt := yyp
 	_ = yypt // guard against "declared and not used"
 
-	yyp -= yyR2[yyn]
+	yyp -= int(yyR2[yyn])
 	// yyp is now the index of $0. Perform the default action. Iff the
 	// reduced production is ε, $1 is possibly out of range.
 	if yyp+1 >= len(yyS) {
@@ -758,16 +758,16 @@ yydefault:
 	yyVAL = yyS[yyp+1]
 
 	/* consult goto table to find next state */
-	yyn = yyR1[yyn]
-	yyg := yyPgo[yyn]
+	yyn = int(yyR1[yyn])
+	yyg := int(yyPgo[yyn])
 	yyj := yyg + yyS[yyp].yys + 1
 
 	if yyj >= yyLast {
-		yystate = yyAct[yyg]
+		yystate = int(yyAct[yyg])
 	} else {
-		yystate = yyAct[yyj]
-		if yyChk[yystate] != -yyn {
-			yystate = yyAct[yyg]
+		yystate = int(yyAct[yyj])
+		if int(yyChk[yystate]) != -yyn {
+			yystate = int(yyAct[yyg])
 		}
 	}
 	// dummy call; replaced with literal code

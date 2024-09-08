@@ -1,7 +1,7 @@
 //
 // go.sh/interp :: expand_test.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -201,7 +201,7 @@ var spParamTests = []struct {
 	word   ast.Word
 	mode   interp.ExpMode
 	args   []string
-	ifs    interface{}
+	ifs    any
 	fields []string
 	err    string
 	assign string
@@ -358,7 +358,7 @@ var arithExpTests = []struct {
 
 var fieldSplitTests = []struct {
 	word   ast.Word
-	ifs    interface{}
+	ifs    any
 	fields []string
 }{
 	{word(lit(" \t abc \t xyz \t ")), nil, []string{"abc", "xyz"}},
@@ -569,7 +569,7 @@ func lit(s string) *ast.Lit {
 	return &ast.Lit{Value: s}
 }
 
-func litf(format string, a ...interface{}) *ast.Lit {
+func litf(format string, a ...any) *ast.Lit {
 	return &ast.Lit{Value: fmt.Sprintf(format, a...)}
 }
 

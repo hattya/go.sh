@@ -2,7 +2,7 @@
 //
 // go.sh/parser :: parser.go
 //
-//   Copyright (c) 2018-2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -22,7 +22,7 @@ import (
 %}
 
 %union {
-	list  interface{}
+	list  any
 	node  ast.Node
 	elt   *element
 	word  ast.Word
@@ -806,7 +806,7 @@ func assign(w ast.Word) *ast.Assign {
 
 // ParseCommands parses src, including alias substitution, and returns
 // commands.
-func ParseCommands(env *interp.ExecEnv, name string, src interface{}) ([]ast.Command, []*ast.Comment, error) {
+func ParseCommands(env *interp.ExecEnv, name string, src any) ([]ast.Command, []*ast.Comment, error) {
 	r, err := open(src)
 	if err != nil {
 		return nil, nil, err
@@ -818,7 +818,7 @@ func ParseCommands(env *interp.ExecEnv, name string, src interface{}) ([]ast.Com
 }
 
 // ParseCommand parses src and returns a command.
-func ParseCommand(name string, src interface{}) (ast.Command, []*ast.Comment, error) {
+func ParseCommand(name string, src any) (ast.Command, []*ast.Comment, error) {
 	cmds, comments, err := ParseCommands(nil, name, src)
 	if len(cmds) == 0 {
 		return nil, comments, err
@@ -826,7 +826,7 @@ func ParseCommand(name string, src interface{}) (ast.Command, []*ast.Comment, er
 	return cmds[0], comments, err
 }
 
-func open(src interface{}) (r io.RuneScanner, err error) {
+func open(src any) (r io.RuneScanner, err error) {
 	switch src := src.(type) {
 	case []byte:
 		r = bytes.NewReader(src)

@@ -29,7 +29,7 @@ import (
 	token token
 }
 
-%token<token> AND OR '|' '(' ')' LAE RAE BREAK '&' ';'
+%token<token> AND OR '|' '(' ')' LAE RAE BREAK FALLTHROUGH '&' ';'
 %token<token> '<' '>' CLOBBER APPEND HEREDOC HEREDOCI DUPIN DUPOUT RDWR
 %token<word>  IO_NUMBER IO_LOCATION
 %token<word>  WORD NAME ASSIGNMENT_WORD
@@ -41,9 +41,9 @@ import (
 %type<node>  cmd func_def
 %type<elt>   simple_cmd cmd_prefix cmd_suffix
 %type<node>  compound_cmd subshell group arith_eval for_clause case_clause if_clause while_clause until_clause func_body
-%type<list>  word_list pattern_list
+%type<list>  word_list
 %type<list>  case_list case_list_ns
-%type<node>  case_item case_item_ns
+%type<node>  case_item case_item_ns pattern_list
 %type<list>  else_part
 %type<list>  compound_list term
 %type<list>  redir_list
@@ -375,41 +375,35 @@ case_list:
 		}
 
 case_item:
-		    pattern_list ')' linebreak     BREAK linebreak
+		    pattern_list ')' linebreak     BREAK       linebreak
 		{
-			$$ = &ast.CaseItem{
-				Patterns: $1.([]ast.Word),
-				Rparen:   $2.pos,
-				Break:    $4.pos,
-			}
+			ci := $1.(*ast.CaseItem)
+			ci.Rparen = $2.pos
+			ci.Break = $4.pos
+			$$ = $1
 		}
-	|	    pattern_list ')' compound_list BREAK linebreak
+	|	    pattern_list ')' compound_list BREAK       linebreak
 		{
-			$$ = &ast.CaseItem{
-				Patterns: $1.([]ast.Word),
-				Rparen:   $2.pos,
-				List:     $3.([]ast.Command),
-				Break:    $4.pos,
-			}
+			ci := $1.(*ast.CaseItem)
+			ci.Rparen = $2.pos
+			ci.List = $3.([]ast.Command)
+			ci.Break = $4.pos
+			$$ = $1
 		}
-	|	'(' pattern_list ')' linebreak     BREAK linebreak
+	|	    pattern_list ')' linebreak     FALLTHROUGH linebreak
 		{
-			$$ = &ast.CaseItem{
-				Lparen:   $1.pos,
-				Patterns: $2.([]ast.Word),
-				Rparen:   $3.pos,
-				Break:    $5.pos,
-			}
+			ci := $1.(*ast.CaseItem)
+			ci.Rparen = $2.pos
+			ci.Fallthrough = $4.pos
+			$$ = $1
 		}
-	|	'(' pattern_list ')' compound_list BREAK linebreak
+	|	    pattern_list ')' compound_list FALLTHROUGH linebreak
 		{
-			$$ = &ast.CaseItem{
-				Lparen:   $1.pos,
-				Patterns: $2.([]ast.Word),
-				Rparen:   $3.pos,
-				List:     $4.([]ast.Command),
-				Break:    $5.pos,
-			}
+			ci := $1.(*ast.CaseItem)
+			ci.Rparen = $2.pos
+			ci.List = $3.([]ast.Command)
+			ci.Fallthrough = $4.pos
+			$$ = $1
 		}
 
 case_list_ns:
@@ -425,45 +419,32 @@ case_list_ns:
 case_item_ns:
 		    pattern_list ')' linebreak
 		{
-			$$ = &ast.CaseItem{
-				Patterns: $1.([]ast.Word),
-				Rparen:   $2.pos,
-			}
+			$1.(*ast.CaseItem).Rparen = $2.pos
+			$$ = $1
 		}
 	|	    pattern_list ')' compound_list
 		{
-			$$ = &ast.CaseItem{
-				Patterns: $1.([]ast.Word),
-				Rparen:   $2.pos,
-				List:     $3.([]ast.Command),
-			}
-		}
-	|	'(' pattern_list ')' linebreak
-		{
-			$$ = &ast.CaseItem{
-				Lparen:   $1.pos,
-				Patterns: $2.([]ast.Word),
-				Rparen:   $3.pos,
-			}
-		}
-	|	'(' pattern_list ')' compound_list
-		{
-			$$ = &ast.CaseItem{
-				Lparen:   $1.pos,
-				Patterns: $2.([]ast.Word),
-				Rparen:   $3.pos,
-				List:     $4.([]ast.Command),
-			}
+			ci := $1.(*ast.CaseItem)
+			ci.Rparen = $2.pos
+			ci.List = $3.([]ast.Command)
+			$$ = $1
 		}
 
 pattern_list:
 		                 WORD
 		{
-			$$ = []ast.Word{$1}
+			$$ = &ast.CaseItem{Patterns: []ast.Word{$1}}
+		}
+	|	             '(' WORD
+		{
+			$$ = &ast.CaseItem{
+				Lparen:   $1.pos,
+				Patterns: []ast.Word{$2},
+			}
 		}
 	|	pattern_list '|' WORD
 		{
-			$$ = append($$.([]ast.Word), $3)
+			$$.(*ast.CaseItem).Patterns = append($$.(*ast.CaseItem).Patterns, $3)
 		}
 
 if_clause:
@@ -728,6 +709,8 @@ func init() {
 			s = "))"
 		case "BREAK":
 			s = "';;'"
+		case "FALLTHROUGH":
+			s = "';&'"
 		case "CLOBBER":
 			s = "'>|'"
 		case "APPEND":

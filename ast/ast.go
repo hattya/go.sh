@@ -385,11 +385,12 @@ func (a *Assign) End() Pos {
 
 // CaseItem represents patterns and commands of the case conditional construct.
 type CaseItem struct {
-	Lparen   Pos       // position of "(" operator (zero if there is no "(" operator)
-	Patterns []Word    // patterns
-	Rparen   Pos       // position of ")" operator
-	List     []Command // commands
-	Break    Pos       // position of ";;" operator (zero if there is no ";;" operator)
+	Lparen      Pos       // position of "(" operator (zero if there is no "(" operator)
+	Patterns    []Word    // patterns
+	Rparen      Pos       // position of ")" operator
+	List        []Command // commands
+	Break       Pos       // position of ";;" operator (zero if there is no ";;" operator)
+	Fallthrough Pos       // position of ";&" operator (zero if there is no ";&" operator)
 }
 
 func (ci *CaseItem) Pos() Pos {

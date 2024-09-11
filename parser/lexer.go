@@ -26,25 +26,26 @@ import (
 
 var (
 	ops = map[int]string{
-		AND:      "&&",
-		OR:       "||",
-		LAE:      "((",
-		RAE:      "))",
-		BREAK:    ";;",
-		'|':      "|",
-		'(':      "(",
-		')':      ")",
-		'<':      "<",
-		'>':      ">",
-		CLOBBER:  ">|",
-		APPEND:   ">>",
-		HEREDOC:  "<<",
-		HEREDOCI: "<<-",
-		DUPIN:    "<&",
-		DUPOUT:   ">&",
-		RDWR:     "<>",
-		'&':      "&",
-		';':      ";",
+		AND:         "&&",
+		OR:          "||",
+		LAE:         "((",
+		RAE:         "))",
+		BREAK:       ";;",
+		FALLTHROUGH: ";&",
+		'|':         "|",
+		'(':         "(",
+		')':         ")",
+		'<':         "<",
+		'>':         ">",
+		CLOBBER:     ">|",
+		APPEND:      ">>",
+		HEREDOC:     "<<",
+		HEREDOCI:    "<<-",
+		DUPIN:       "<&",
+		DUPOUT:      ">&",
+		RDWR:        "<>",
+		'&':         "&",
+		';':         ";",
 	}
 	words = map[string]int{
 		"!":     Bang,
@@ -178,6 +179,8 @@ func (l *lexer) lexCmd(tok int) action {
 		return l.lexCase
 	case BREAK:
 		return l.lexCaseBreak
+	case FALLTHROUGH:
+		return l.lexCaseFallthrough
 	case If:
 		return l.lexIf
 	case Elif:
@@ -481,7 +484,15 @@ Pattern:
 }
 
 func (l *lexer) lexCaseBreak() action {
-	l.emit(BREAK)
+	return l.onCaseItem(BREAK)
+}
+
+func (l *lexer) lexCaseFallthrough() action {
+	return l.onCaseItem(FALLTHROUGH)
+}
+
+func (l *lexer) onCaseItem(tok int) action {
+	l.emit(tok)
 	// check
 	if len(l.stack) != 0 && l.stack[len(l.stack)-1] == Esac {
 		if !l.linebreak() {
@@ -613,6 +624,8 @@ func (l *lexer) lexToken(tok int) action {
 		}
 	case BREAK:
 		return l.lexCaseBreak
+	case FALLTHROUGH:
+		return l.lexCaseFallthrough
 	case '|':
 		l.emit('|')
 		if l.linebreak() {
@@ -1011,9 +1024,12 @@ func (l *lexer) scanOp(r rune) (op int) {
 	case ';':
 		op = ';'
 		if r, err := l.read(); err == nil {
-			if r == ';' {
+			switch r {
+			case ';':
 				op = BREAK
-			} else {
+			case '&':
+				op = FALLTHROUGH
+			default:
 				l.unread()
 			}
 		}

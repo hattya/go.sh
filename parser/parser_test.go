@@ -2177,6 +2177,239 @@ var parseCommandTests = []struct {
 			redir(lit(8, 17, "2"), 8, 18, ">&", word(lit(8, 20, "1"))),
 		),
 	},
+	{
+		src: "case word in 0|foo) ;& 1|bar) echo bar ;& (2|baz) ;& (3|qux) echo qux ;& esac",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			case_item(
+				word(lit(1, 14, "0")),
+				word(lit(1, 16, "foo")),
+				pos(1, 19), // )
+				pos(0, 0),  // ;;
+				pos(1, 21), // ;&
+			),
+			case_item(
+				word(lit(1, 24, "1")),
+				word(lit(1, 26, "bar")),
+				pos(1, 29), // )
+				simple_command(
+					word(lit(1, 31, "echo")),
+					word(lit(1, 36, "bar")),
+				),
+				pos(0, 0),  // ;;
+				pos(1, 40), // ;&
+			),
+			case_item(
+				pos(1, 43), // (
+				word(lit(1, 44, "2")),
+				word(lit(1, 46, "baz")),
+				pos(1, 49), // )
+				pos(0, 0),  // ;;
+				pos(1, 51), // ;&
+			),
+			case_item(
+				pos(1, 54), // (
+				word(lit(1, 55, "3")),
+				word(lit(1, 57, "qux")),
+				pos(1, 60), // )
+				simple_command(
+					word(lit(1, 62, "echo")),
+					word(lit(1, 67, "qux")),
+				),
+				pos(0, 0),  // ;;
+				pos(1, 71), // ;&
+			),
+			pos(1, 74), // esac
+		),
+	},
+	{
+		src: "case word in\n0|foo)\n\t;&\n1|bar)\n\techo bar\n\t;&\n(2|baz)\n\t;&\n(3|qux)\n\techo qux\n\t;&\nesac",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			case_item(
+				word(lit(2, 1, "0")),
+				word(lit(2, 3, "foo")),
+				pos(2, 6), // )
+				pos(0, 0), // ;;
+				pos(3, 2), // ;&
+			),
+			case_item(
+				word(lit(4, 1, "1")),
+				word(lit(4, 3, "bar")),
+				pos(4, 6), // )
+				simple_command(
+					word(lit(5, 2, "echo")),
+					word(lit(5, 7, "bar")),
+				),
+				pos(0, 0), // ;;
+				pos(6, 2), // ;&
+			),
+			case_item(
+				pos(7, 1), // (
+				word(lit(7, 2, "2")),
+				word(lit(7, 4, "baz")),
+				pos(7, 7), // )
+				pos(0, 0), // ;;
+				pos(8, 2), // ;&
+			),
+			case_item(
+				pos(9, 1), // (
+				word(lit(9, 2, "3")),
+				word(lit(9, 4, "qux")),
+				pos(9, 7), // )
+				simple_command(
+					word(lit(10, 2, "echo")),
+					word(lit(10, 7, "qux")),
+				),
+				pos(0, 0),  // ;;
+				pos(11, 2), // ;&
+			),
+			pos(12, 1), // esac
+		),
+	},
+	{
+		src: "case word in 0|foo) ;& 1|bar) echo bar; esac",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			case_item(
+				word(lit(1, 14, "0")),
+				word(lit(1, 16, "foo")),
+				pos(1, 19), // )
+				pos(0, 0),  // ;;
+				pos(1, 21), // ;&
+			),
+			case_item(
+				word(lit(1, 24, "1")),
+				word(lit(1, 26, "bar")),
+				pos(1, 29), // )
+				and_or_list(
+					simple_command(
+						word(lit(1, 31, "echo")),
+						word(lit(1, 36, "bar")),
+					),
+					sep(1, 39, ";"),
+				),
+			),
+			pos(1, 41), // esac
+		),
+	},
+	{
+		src: "case word in\n0|foo)\n\t;&\n1|bar)\nesac",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			case_item(
+				word(lit(2, 1, "0")),
+				word(lit(2, 3, "foo")),
+				pos(2, 6), // )
+				pos(0, 0), // ;;
+				pos(3, 2), // ;&
+			),
+			case_item(
+				word(lit(4, 1, "1")),
+				word(lit(4, 3, "bar")),
+				pos(4, 6), // )
+			),
+			pos(5, 1), // esac
+		),
+	},
+	{
+		src: "case word in (0|foo) ;& (1|bar) echo bar; esac",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			case_item(
+				pos(1, 14),
+				word(lit(1, 15, "0")),
+				word(lit(1, 17, "foo")),
+				pos(1, 20), // )
+				pos(0, 0),  // ;;
+				pos(1, 22), // ;&
+			),
+			case_item(
+				pos(1, 25), // (
+				word(lit(1, 26, "1")),
+				word(lit(1, 28, "bar")),
+				pos(1, 31), // )
+				and_or_list(
+					simple_command(
+						word(lit(1, 33, "echo")),
+						word(lit(1, 38, "bar")),
+					),
+					sep(1, 41, ";"),
+				),
+			),
+			pos(1, 43), // esac
+		),
+	},
+	{
+		src: "case word in\n(0|foo)\n\t;&\n(1|bar)\nesac",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			case_item(
+				pos(2, 1),
+				word(lit(2, 2, "0")),
+				word(lit(2, 4, "foo")),
+				pos(2, 7), // )
+				pos(0, 0), // ;;
+				pos(3, 2), // ;&
+			),
+			case_item(
+				pos(4, 1), // (
+				word(lit(4, 2, "1")),
+				word(lit(4, 4, "bar")),
+				pos(4, 7), // )
+			),
+			pos(5, 1), // esac
+		),
+	},
+	{
+		src: "case word in\nfoo) ;&\nbar)\n\techo bar ;&\nbaz)\n\techo baz\n\t;&\nesac >/dev/null 2>&1",
+		cmd: case_clause(
+			pos(1, 1), // case
+			word(lit(1, 6, "word")),
+			pos(1, 11), // in
+			case_item(
+				word(lit(2, 1, "foo")),
+				pos(2, 4), // )
+				pos(0, 0), // ;;
+				pos(2, 6), // ;&
+			),
+			case_item(
+				word(lit(3, 1, "bar")),
+				pos(3, 4), // )
+				simple_command(
+					word(lit(4, 2, "echo")),
+					word(lit(4, 7, "bar")),
+				),
+				pos(0, 0),  // ;;
+				pos(4, 11), // ;&
+			),
+			case_item(
+				word(lit(5, 1, "baz")),
+				pos(5, 4), // )
+				simple_command(
+					word(lit(6, 2, "echo")),
+					word(lit(6, 7, "baz")),
+				),
+				pos(0, 0), // ;;
+				pos(7, 2), // ;&
+			),
+			pos(8, 1), // esac
+			redir(nil, 8, 6, ">", word(lit(8, 7, "/dev/null"))),
+			redir(lit(8, 17, "2"), 8, 18, ">&", word(lit(8, 20, "1"))),
+		),
+	},
 	// if conditional construct
 	{
 		src: "if true; then echo if; fi",
@@ -2741,6 +2974,8 @@ func case_item(args ...any) *ast.CaseItem {
 				ci.Rparen = a
 			case 2:
 				ci.Break = a
+			case 3:
+				ci.Fallthrough = a
 			}
 			pos++
 		case ast.Word:
@@ -3330,6 +3565,14 @@ var parseErrorTests = []struct {
 	{
 		src: ";;",
 		err: ":1:1: syntax error: unexpected ';;'",
+	},
+	{
+		src: "case word in *) ;&",
+		err: ":1:17: syntax error: unexpected EOF, expecting '(' or WORD or 'esac'",
+	},
+	{
+		src: ";&",
+		err: ":1:1: syntax error: unexpected ';&'",
 	},
 	{
 		src: "esac",

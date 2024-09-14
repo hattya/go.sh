@@ -1,7 +1,7 @@
 //
 // go.sh/pattern :: pattern.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -143,15 +143,7 @@ func glob(path string, rx *regexp.Regexp, fn func(string)) error {
 	}
 	defer d.Close()
 
-	var dot bool
-	if strings.HasPrefix(rx.String(), `^(\.`) {
-		dot = true
-		for _, n := range []string{".", ".."} {
-			if rx.MatchString(n) {
-				fn(n)
-			}
-		}
-	}
+	dot := strings.HasPrefix(rx.String(), `^(\.`)
 	for {
 		switch n, err := d.Readdirnames(1); {
 		case err != nil:

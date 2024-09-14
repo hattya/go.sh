@@ -1,7 +1,7 @@
 //
 // go.sh/pattern :: pattern_test.go
 //
-//   Copyright (c) 2021-2022 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -93,7 +93,7 @@ var globTests = []struct {
 }{
 	{"*.go", []string{"a.go"}},
 	{"[.a]*", []string{"a.go"}},
-	{".*", []string{".", "..", ".git", ".gitignore"}},
+	{".*", []string{".git", ".gitignore"}},
 	{"*", []string{"a.go", "bar", "baz", "foo"}},
 	{"*/*", []string{"bar/a.go", "baz/a.go", "foo/a.go"}},
 	{"foo/*", []string{"foo/a.go"}},
@@ -108,7 +108,7 @@ var globTests = []struct {
 	{"", nil},
 
 	{"${PATDIR}/*.go", []string{"${LITDIR}/a.go"}},
-	{"${PATDIR}/.*", []string{"${LITDIR}/.", "${LITDIR}/..", "${LITDIR}/.git", "${LITDIR}/.gitignore"}},
+	{"${PATDIR}/.*", []string{"${LITDIR}/.git", "${LITDIR}/.gitignore"}},
 	{"${PATDIR}/foo/*", []string{"${LITDIR}/foo/a.go"}},
 	{"${PATDIR}/foo//*", []string{"${LITDIR}/foo//a.go"}},
 	{`${PATDIR}/foo\/*`, []string{"${LITDIR}/foo/a.go"}},

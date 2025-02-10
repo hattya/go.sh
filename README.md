@@ -1,6 +1,6 @@
 # go.sh
 
-A parser of the [Shell Command Language](https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html).
+A parser of the [Shell Command Language](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html).
 
 [![pkg.go.dev](https://pkg.go.dev/badge/github.com/hattya/go.sh)](https://pkg.go.dev/github.com/hattya/go.sh)
 [![GitHub Actions](https://github.com/hattya/go.sh/actions/workflows/ci.yml/badge.svg)](https://github.com/hattya/go.sh/actions/workflows/ci.yml)

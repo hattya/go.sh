@@ -1,13 +1,13 @@
 //
 // go.sh/interp :: interp.go
 //
-//   Copyright (c) 2021 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2025 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
 
 // Package interp implements an interpreter for the Shell Command Language
-// (POSIX.1-2017).
+// (POSIX.1-2024).
 package interp
 
 import (

@@ -1,7 +1,7 @@
 //
 // go.sh/interp :: expand_test.go
 //
-//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2025 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -361,6 +361,8 @@ var fieldSplitTests = []struct {
 	ifs    any
 	fields []string
 }{
+	{word(lit("")), nil, nil},
+	{word(lit(" \t\n")), nil, nil},
 	{word(lit(" \t abc \t xyz \t ")), nil, []string{"abc", "xyz"}},
 	{word(lit(" \t abc \t, \t ,\t xyz \t ")), " \t\n,", []string{"abc", "xyz"}},
 	{word(lit(" \t abc \t, "), quote(`"`, word()), lit(" ,\t xyz \t ")), " \t\n,", []string{"abc", "", "xyz"}},
@@ -371,6 +373,8 @@ var fieldSplitTests = []struct {
 	{word(lit("abc \t xyz")), "", []string{"abc \t xyz"}},
 	{word(quote(`'`, word(lit("abc \t xyz")))), "", []string{"abc \t xyz"}},
 	{word(quote(`"`, word(lit("abc \t xyz")))), "", []string{"abc \t xyz"}},
+	{word(lit("abc:xyz")), ":", []string{"abc", "xyz"}},
+	{word(lit("abc::xyz")), ":", []string{"abc", "", "xyz"}},
 }
 
 var pathExpTests = []struct {

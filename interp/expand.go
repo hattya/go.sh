@@ -1,7 +1,7 @@
 //
 // go.sh/interp :: expand.go
 //
-//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2025 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -479,7 +479,7 @@ func (env *ExecEnv) split(f *field) []*field {
 						ws = true
 						fallthrough
 					case !ws:
-						fields[len(fields)-1].join(s[i:j], false)
+						fields[len(fields)-1].join(s[i:j], !ws)
 						fields = append(fields, new(field))
 					default:
 						ws = false

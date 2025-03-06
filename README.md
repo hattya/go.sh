@@ -11,7 +11,7 @@ A parser of the [Shell Command Language](https://pubs.opengroup.org/onlinepubs/9
 ## Installation
 
 ```console
-$ go get -u github.com/hattya/go.sh
+$ go get github.com/hattya/go.sh
 ```
 
 

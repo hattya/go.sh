@@ -1,7 +1,7 @@
 //
 // go.sh/pattern :: pattern_windows.go
 //
-//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2025 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -34,7 +34,7 @@ func split(pat string) (string, string) {
 	// drive or volume
 	var b strings.Builder
 	i := 0
-	for j := 0; j < 2; j++ {
+	for range 2 {
 		r, w := unquoteRune(pat[i:])
 		b.WriteRune(r)
 		i += w

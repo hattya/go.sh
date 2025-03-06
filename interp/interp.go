@@ -159,7 +159,7 @@ const optionString = "ae mCfn buv x"
 
 func (o Option) String() string {
 	var b strings.Builder
-	for i := 0; i <= len(optionString); i++ {
+	for i := range len(optionString) + 1 {
 		switch x := Option(1 << i); x {
 		case IgnoreEOF, NoLog, Vi:
 		default:

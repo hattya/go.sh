@@ -461,7 +461,7 @@ func (env *ExecEnv) split(f *field) []*field {
 	}
 	fields := []*field{{}}
 	ws := true
-	for i := 0; i < len(f.b); i++ {
+	for i := range len(f.b) {
 		s := f.b[i]
 		if f.quote[i] {
 			fields[len(fields)-1].join(s, true)
@@ -549,7 +549,7 @@ type field struct {
 }
 
 func (f *field) empty() bool {
-	for i := 0; i < len(f.b); i++ {
+	for i := range len(f.b) {
 		if f.quote[i] || f.b[i] != "" {
 			return false
 		}
@@ -569,7 +569,7 @@ func (f *field) merge(t *field) {
 
 func (f *field) pattern() string {
 	var b strings.Builder
-	for i := 0; i < len(f.b); i++ {
+	for i := range len(f.b) {
 		s := f.b[i]
 		if f.quote[i] {
 			for {

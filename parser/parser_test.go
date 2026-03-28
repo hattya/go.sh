@@ -1,7 +1,7 @@
 //
 // go.sh/parser :: parser_test.go
 //
-//   Copyright (c) 2018-2024 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2026 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"reflect"
 	"testing"
 
@@ -219,9 +220,7 @@ func TestParseCommands(t *testing.T) {
 	for i, tt := range parseCommandsTests {
 		name := fmt.Sprintf("%v.sh", i)
 		env := interp.NewExecEnv(name)
-		for n, v := range tt.aliases {
-			env.Aliases[n] = v
-		}
+		maps.Copy(env.Aliases, tt.aliases)
 		switch cmds, comments, err := parser.ParseCommands(env, name, tt.src); {
 		case err != nil:
 			t.Error(err)

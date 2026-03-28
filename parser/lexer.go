@@ -1,12 +1,12 @@
 //
 // go.sh/parser :: lexer.go
 //
-//   Copyright (c) 2018-2025 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2018-2026 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
 
-//go:generate goyacc -l -o parser.go parser.go.y
+//go:generate go tool goyacc -l -o parser.go parser.go.y
 
 // Package parser implements a parser for the Shell Command Language
 // (POSIX.1-2024).

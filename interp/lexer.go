@@ -1,12 +1,12 @@
 //
 // go.sh/interp :: lexer.go
 //
-//   Copyright (c) 2021-2024 Akinori Hattori <hattya@gmail.com>
+//   Copyright (c) 2021-2026 Akinori Hattori <hattya@gmail.com>
 //
 //   SPDX-License-Identifier: MIT
 //
 
-//go:generate goyacc -l -o arith.go arith.go.y
+//go:generate go tool goyacc -l -o arith.go arith.go.y
 
 package interp
 
